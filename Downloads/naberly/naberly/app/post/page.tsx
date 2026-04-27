@@ -40,11 +40,11 @@ function PostContent() {
     setUploading(true)
     try {
       const fileName = Date.now() + '-' + file.name.replace(/\s/g, '-')
-      const { data, error: uploadError } = await supabase.storage.from('listings').upload(fileName, file, { upsert: true })
+      const { data, error: uploadError } = await supabase.storage.from('Listings').upload(fileName, file, { upsert: true })
       if (uploadError) {
         alert('Photo upload failed: ' + uploadError.message)
       } else if (data) {
-        const { data: urlData } = supabase.storage.from('listings').getPublicUrl(fileName)
+        const { data: urlData } = supabase.storage.from('Listings').getPublicUrl(fileName)
         setPhotoUrl(urlData.publicUrl)
       }
     } catch (err) {
@@ -170,7 +170,7 @@ function PostContent() {
               <span style={{ fontSize: 20, lineHeight: 1 }}>{uploading ? '⏳' : photoUrl ? '✅' : '📷'}</span>
               <p style={{ fontSize: 12, fontFamily: '-apple-system, sans-serif', fontWeight: 700, color: '#18180F' }}>{uploading ? 'Uploading...' : photoUrl ? 'Photo added!' : 'Add a photo or flyer'}</p>
               <p style={{ fontSize: 10, fontFamily: '-apple-system, sans-serif', color: '#5A5A50' }}>{photoUrl ? 'Tap to change photo' : 'Take a photo or choose from gallery'}</p>
-              <input type="file" accept="image/*" style={{ display: 'none' }} onChange={handlePhotoUpload} />
+              <input type="file" accept="image/*" capture style={{ display: 'none' }} onChange={handlePhotoUpload} />
             </label>
           </div>
         </div>
