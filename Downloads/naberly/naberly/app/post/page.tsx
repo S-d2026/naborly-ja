@@ -91,9 +91,5 @@ function PostContent() {
 
     if (err) {
       setError('Something went wrong. Please try again.')
-    } else {
-      setSuccess(true)
-      const message = encodeURIComponent(
-        `New Naberly post submitted!\n\nTitle: ${title}\nCategory: ${category}\nParish: ${parish}${district ? `\nDistrict: ${district}` : ''}\nAnonymous: ${isAnonymous ? 'Yes' : 'No'}\n\nPlease review at naberlyja.com/admin`
-      )
-      window.open('https://wa.me/19174432797?text=' + message, '_blank')
+    setSuccess(true)
+      setTimeout(() => router.push('/'), 2000)
