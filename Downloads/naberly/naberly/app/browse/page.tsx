@@ -3,6 +3,7 @@
 
 
 import Link from 'next/link'
+import { useSearchParams } from 'next/navigation'
 import { useState, useEffect, useCallback, Suspense } from 'react'
 import { getApprovedListings, type Listing } from '@/lib/supabase'
 
