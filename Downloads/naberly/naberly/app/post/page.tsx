@@ -31,9 +31,25 @@ function PostContent() {
   const [parish, setParish] = useState('Kingston')
   const [district, setDistrict] = useState('')
   const [whatsapp, setWhatsapp] = useState('')
+  const [photoUrl, setPhotoUrl] = useState('')
+  const [uploading, setUploading] = useState(false)
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState(false)
+
+  async function handlePhotoUpload(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setUploading(true)
+    const fileName = `${Date.now()}-${file.name}`
+    const { data, error } = await supabase.storage.from('listings').upload(fileName, file)
+    if (data) {
+      const { data: urlData } = supabase.storage.from('listings').getPublicUrl(fileName)
+      setPhotoUrl(urlData.publicUrl)
+    }
+    if (error) console.error('Upload error:', error)
+    setUploading(false)
+  }
 
   async function handleSubmit() {
     if (!title.trim()) { setError('Please add a title.'); return }
@@ -57,6 +73,7 @@ function PostContent() {
       district: district.trim() || null,
       whatsapp: isAnonymous ? null : whatsapp.trim(),
       is_anonymous: isAnonymous,
+      photo_url: photoUrl || null,
       status: 'pending',
     })
 
@@ -66,7 +83,6 @@ function PostContent() {
       setError('Something went wrong. Please try again.')
     } else {
       setSuccess(true)
-      // WhatsApp notification to Naberly admin
       const message = encodeURIComponent(
         `New Naberly post submitted!\n\nTitle: ${title}\nCategory: ${category}\nParish: ${parish}${district ? `\nDistrict: ${district}` : ''}\nAnonymous: ${isAnonymous ? 'Yes' : 'No'}\n\nPlease review at naberlyja.com/admin`
       )
@@ -105,7 +121,6 @@ function PostContent() {
       </div>
 
       <div className="scroll-area" style={{ padding: 13 }}>
-        {/* 119 Emergency bar */}
         <div className="bar-119">
           <div>
             <p style={{ fontSize: 12, fontFamily: '-apple-system, sans-serif', fontWeight: 700, color: '#fff' }}>Life-threatening? Call 119 now</p>
@@ -114,7 +129,6 @@ function PostContent() {
           <a href="tel:119" className="btn-119">Call 119</a>
         </div>
 
-        {/* Anonymous protection notice */}
         {isAnonymous && (
           <div className="anon-box" style={{ marginBottom: 13 }}>
             <p style={{ fontSize: 11, fontFamily: '-apple-system, sans-serif', fontWeight: 700, color: '#4A1A80', marginBottom: 4 }}>🔒 Your identity is fully protected</p>
@@ -124,7 +138,6 @@ function PostContent() {
           </div>
         )}
 
-        {/* Need / Offer toggle */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 0, background: '#EDE7D9', borderRadius: 8, padding: 3, marginBottom: 13, border: '1px solid #D8D0BC' }}>
           {(['need', 'offer'] as const).map(t => (
             <button
@@ -137,7 +150,6 @@ function PostContent() {
           ))}
         </div>
 
-        {/* Category */}
         <p className="eyebrow" style={{ marginBottom: 8 }}>What is it?</p>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, marginBottom: 13 }}>
           {CATEGORIES.map(cat => (
@@ -152,7 +164,6 @@ function PostContent() {
           ))}
         </div>
 
-        {/* Form fields */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 14, marginBottom: 13 }}>
           <div>
             <label className="field-label">Title *</label>
@@ -194,14 +205,22 @@ function PostContent() {
               <input className="form-field" placeholder="+1 876 XXX XXXX" value={whatsapp} onChange={e => setWhatsapp(e.target.value)} type="tel" />
             </div>
           )}
-          <div style={{ border: '1.5px dashed #D8D0BC', borderRadius: 10, padding: 13, display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5, cursor: 'pointer', background: '#EDE7D9' }}>
-            <span style={{ fontSize: 20, lineHeight: 1 }}>📷</span>
-            <p style={{ fontSize: 12, fontFamily: '-apple-system, sans-serif', fontWeight: 700, color: '#18180F' }}>Add a photo or flyer</p>
-            <p style={{ fontSize: 10, fontFamily: '-apple-system, sans-serif', color: '#5A5A50' }}>Photos get 3× more responses</p>
+
+          {/* Photo upload */}
+          <div style={{ border: '1.5px dashed #D8D0BC', borderRadius: 10, padding: 13, background: '#EDE7D9' }}>
+            <label style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 5, cursor: 'pointer' }}>
+              <span style={{ fontSize: 20, lineHeight: 1 }}>{uploading ? '⏳' : photoUrl ? '✅' : '📷'}</span>
+              <p style={{ fontSize: 12, fontFamily: '-apple-system, sans-serif', fontWeight: 700, color: '#18180F' }}>
+                {uploading ? 'Uploading...' : photoUrl ? 'Photo added!' : 'Add a photo or flyer'}
+              </p>
+              <p style={{ fontSize: 10, fontFamily: '-apple-system, sans-serif', color: '#5A5A50' }}>
+                {photoUrl ? 'Tap to change' : 'Photos get 3× more responses'}
+              </p>
+              <input type="file" accept="image/*" style={{ display: 'none' }} onChange={handlePhotoUpload} />
+            </label>
           </div>
         </div>
 
-        {/* Anonymous toggle */}
         <div style={{ background: '#EDE7D9', borderRadius: 9, padding: 11, marginBottom: 10, display: 'flex', alignItems: 'center', justifyContent: 'space-between', border: '1px solid #D8D0BC' }}>
           <div>
             <p style={{ fontSize: 12, fontFamily: '-apple-system, sans-serif', fontWeight: 700, color: '#18180F' }}>
@@ -219,14 +238,12 @@ function PostContent() {
           </button>
         </div>
 
-        {/* Error message */}
         {error && (
           <div style={{ background: '#F0CABA', borderRadius: 8, padding: '9px 11px', marginBottom: 10, borderLeft: '3px solid #A84B2A' }}>
             <p style={{ fontSize: 12, fontFamily: '-apple-system, sans-serif', color: '#6B1E10' }}>{error}</p>
           </div>
         )}
 
-        {/* Submit */}
         <button className="btn-primary" onClick={handleSubmit} disabled={submitting} style={{ marginBottom: 6, opacity: submitting ? 0.7 : 1 }}>
           {submitting ? 'Posting...' : 'Post to my Naberhood'}
         </button>
@@ -244,6 +261,7 @@ function PostContent() {
     </div>
   )
 }
+
 export default function PostPage() {
   return (
     <Suspense fallback={<div className="loading">Loading...</div>}>
