@@ -1,7 +1,7 @@
 'use client'
 // app/post/page.tsx — Post a listing (named or anonymous)
 
-import { useState } from 'react'
+import { useState, Suspense } from 'react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { supabase, createListing } from '@/lib/supabase'
@@ -17,7 +17,7 @@ const CATEGORIES = [
   { key: 'buy-sell', label: 'Buy/Sell', emoji: '🛍️', bg: '#EDE7D9' },
 ]
 
-export default function PostPage() {
+function PostContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const initialAnon = searchParams.get('anonymous') === 'true'
@@ -242,5 +242,12 @@ export default function PostPage() {
         </Link>
       </div>
     </div>
+  )
+}
+export default function PostPage() {
+  return (
+    <Suspense fallback={<div className="loading">Loading...</div>}>
+      <PostContent />
+    </Suspense>
   )
 }
