@@ -3,7 +3,7 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
-import { useSearchParams } from 'next/navigation'
+import { useState, useEffect, useCallback, Suspense } from 'react'
 import { getApprovedListings, type Listing } from '@/lib/supabase'
 
 const PARISHES = ['All Parishes','Kingston','St. Andrew','St. Thomas','Portland','St. Mary','St. Ann','Trelawny','St. James','Hanover','Westmoreland','St. Elizabeth','Manchester','Clarendon','St. Catherine']
@@ -33,7 +33,7 @@ const CATEGORY_SCREENS: Record<string, string> = {
   work: '/browse?category=work',
 }
 
-export default function BrowsePage() {
+function BrowseContent() {
   const searchParams = useSearchParams()
   const initialCategory = searchParams.get('category') || 'all'
   const initialDistrict = searchParams.get('district') || 'all'
@@ -211,5 +211,12 @@ export default function BrowsePage() {
         </div>
       )}
     </div>
+  )
+}
+export default function BrowsePage() {
+  return (
+    <Suspense fallback={<div className="loading">Loading...</div>}>
+      <BrowseContent />
+    </Suspense>
   )
 }
