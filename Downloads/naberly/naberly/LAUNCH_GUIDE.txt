@@ -1,0 +1,338 @@
+# NABERLY JA — COMPLETE LAUNCH GUIDE
+# naberlyja.com | No coding required to follow these steps
+
+=================================================================
+WHAT YOU HAVE
+=================================================================
+- Vercel account ✓
+- Supabase account ✓  
+- VS Code ✓
+- Domain: naberlyja.com ✓
+- WhatsApp relay number: +1 917 443 2797 ✓
+
+=================================================================
+STEP 1 — SET UP SUPABASE DATABASE (15 minutes)
+=================================================================
+
+1. Go to supabase.com and sign in
+2. Open your existing project (or create new → name it "naberly-ja")
+3. Click "SQL Editor" in the left sidebar
+4. Click "New Query"
+5. Open the file: supabase/schema.sql
+6. Copy ALL the contents
+7. Paste into Supabase SQL Editor
+8. Click "Run" (green button)
+9. You should see "Success. No rows returned"
+
+That creates:
+- parishes table (all 14 Jamaica parishes)
+- profiles table (user data)
+- listings table (all posts)
+- impact_stories table (community pulse)
+- saved_listings table (favorites)
+- boosts table (payment requests)
+- All security rules
+
+=================================================================
+STEP 2 — GET YOUR SUPABASE KEYS (5 minutes)
+=================================================================
+
+1. In Supabase, click "Settings" (gear icon, left sidebar)
+2. Click "API"
+3. You will see:
+   - Project URL → copy this
+   - anon public key → copy this
+   - service_role key → copy this (keep secret!)
+
+=================================================================
+STEP 3 — SET UP YOUR PROJECT IN VS CODE (10 minutes)
+=================================================================
+
+1. Open VS Code
+2. Open your existing naberlyja folder
+   (the one already deployed to Vercel)
+
+3. Create a new file called .env.local in the root folder
+   (same level as package.json)
+
+4. Paste this into .env.local and fill in YOUR values:
+
+NEXT_PUBLIC_SUPABASE_URL=https://YOUR_PROJECT_ID.supabase.co
+NEXT_PUBLIC_SUPABASE_ANON_KEY=paste_your_anon_key_here
+SUPABASE_SERVICE_ROLE_KEY=paste_your_service_role_key_here
+NEXT_PUBLIC_SITE_URL=https://naberlyja.com
+NEXT_PUBLIC_NABERLY_WHATSAPP=+19174432797
+
+5. Save the file
+
+IMPORTANT: Never share .env.local with anyone.
+IMPORTANT: Make sure .env.local is in your .gitignore file.
+
+=================================================================
+STEP 4 — INSTALL SUPABASE PACKAGE (2 minutes)
+=================================================================
+
+1. In VS Code, open Terminal (top menu → Terminal → New Terminal)
+2. Type this command and press Enter:
+
+   npm install @supabase/supabase-js
+
+3. Wait for it to finish (you'll see "added X packages")
+
+=================================================================
+STEP 5 — COPY THE NEW FILES (20 minutes)
+=================================================================
+
+Copy each file from this package into your project.
+The file structure should look like this:
+
+your-project/
+├── .env.local                    ← you just created this
+├── app/
+│   ├── layout.tsx                ← replace existing
+│   ├── globals.css               ← replace existing
+│   ├── page.tsx                  ← replace existing (home)
+│   ├── browse/
+│   │   └── page.tsx              ← new file
+│   ├── post/
+│   │   └── page.tsx              ← new file
+│   ├── listing/
+│   │   └── [id]/
+│   │       └── page.tsx          ← new file
+│   ├── login/
+│   │   └── page.tsx              ← new file
+│   ├── signup/
+│   │   └── page.tsx              ← new file
+│   ├── account/
+│   │   └── page.tsx              ← new file
+│   ├── favorites/
+│   │   └── page.tsx              ← new file
+│   ├── admin/
+│   │   └── page.tsx              ← new file
+│   └── boost/
+│       └── page.tsx              ← new file
+├── lib/
+│   └── supabase.ts               ← new file
+└── public/
+    └── manifest.json             ← new file
+
+=================================================================
+STEP 6 — TEST LOCALLY (5 minutes)
+=================================================================
+
+1. In VS Code Terminal, type:
+   
+   npm run dev
+
+2. Open your browser and go to: http://localhost:3000
+
+3. You should see the Naberly home screen
+4. Try clicking around — browse, post form, login
+
+If you see errors:
+- Check .env.local has the right Supabase URL and keys
+- Make sure npm install ran successfully
+
+=================================================================
+STEP 7 — ADD ENVIRONMENT VARIABLES TO VERCEL (5 minutes)
+=================================================================
+
+1. Go to vercel.com and sign in
+2. Click on your naberly project
+3. Click "Settings" tab
+4. Click "Environment Variables" in the left menu
+5. Add each variable one by one:
+
+   Name: NEXT_PUBLIC_SUPABASE_URL
+   Value: https://your-project-id.supabase.co
+   
+   Name: NEXT_PUBLIC_SUPABASE_ANON_KEY
+   Value: your-anon-key
+   
+   Name: SUPABASE_SERVICE_ROLE_KEY
+   Value: your-service-role-key
+   
+   Name: NEXT_PUBLIC_SITE_URL
+   Value: https://naberlyja.com
+   
+   Name: NEXT_PUBLIC_NABERLY_WHATSAPP
+   Value: +19174432797
+
+6. Click "Save" after each one
+
+=================================================================
+STEP 8 — DEPLOY TO VERCEL (3 minutes)
+=================================================================
+
+Option A — Deploy via VS Code terminal:
+   
+   git add .
+   git commit -m "Launch Naberly JA with Supabase"
+   git push
+
+Vercel will automatically detect the push and deploy.
+
+Option B — Deploy via Vercel dashboard:
+   
+1. Go to vercel.com → your project
+2. Click "Deployments" tab
+3. Click "Redeploy" on the latest deployment
+
+Wait 2-3 minutes → your site is live at naberlyja.com
+
+=================================================================
+STEP 9 — MAKE YOURSELF ADMIN (5 minutes)
+=================================================================
+
+1. Go to naberlyja.com/signup
+2. Create your account with your real email
+3. Go to Supabase → Table Editor → profiles table
+4. Find your row (your email/user ID)
+5. Click the row to edit it
+6. Set is_admin = true
+7. Click Save
+
+Now when you log in, you'll see "Admin dashboard" in your account.
+
+=================================================================
+STEP 10 — SEED SAMPLE LISTINGS (10 minutes)
+=================================================================
+
+1. Go to Supabase → SQL Editor → New Query
+2. Open supabase/schema.sql
+3. Scroll to the bottom where you see the sample listings
+4. Remove the /* and */ comment markers
+5. Run the query
+
+This adds 5 real sample listings so the app doesn't look empty.
+
+=================================================================
+STEP 11 — SET UP WHATSAPP BUSINESS (15 minutes)
+=================================================================
+
+1. On your phone, download "WhatsApp Business"
+2. Register with your +1 917 443 2797 number
+3. Set up your business profile:
+   - Business name: Naberly JA
+   - Description: Community marketplace — naberlyja.com
+   - Address: Kingston, Jamaica
+4. Set up auto-reply:
+   "Hi! You've reached Naberly JA. We've received your message and will respond shortly. Visit naberlyja.com"
+
+This number handles:
+- Anonymous post relay messages
+- Cash boost payment requests
+- General inquiries
+
+=================================================================
+STEP 12 — MAKE IT INSTALLABLE AS AN APP
+=================================================================
+
+The manifest.json file you copied makes Naberly installable.
+
+On Android:
+- User opens naberlyja.com in Chrome
+- Chrome shows "Add to Home Screen" banner
+- Tap it → Naberly appears as an app icon
+
+On iPhone:
+- User opens naberlyja.com in Safari
+- Tap the Share button (box with arrow)
+- Tap "Add to Home Screen"
+- Naberly appears as an app icon
+
+For a real App Store listing (later, after 500+ users):
+- You'll need a developer ($100/year Apple fee)
+- Use Capacitor.js to wrap the Next.js app
+- Submit to App Store and Google Play
+
+=================================================================
+STEP 13 — CASH PAYMENT WORKFLOW
+=================================================================
+
+When someone wants to boost their listing:
+
+1. They tap "Request boost via WhatsApp — $500 JMD cash"
+2. WhatsApp opens with a pre-written message to your number
+3. You agree on a meetup location (or they know where to find you)
+4. They pay cash
+5. You go to Supabase → boosts table
+6. Find their boost request
+7. Set payment_status = 'confirmed'
+8. Set starts_at = today's date
+9. Set ends_at = today + 7 days
+10. Go to listings table → find their listing → set is_featured = true
+
+This is manual for now. As you grow, you can automate it with Lynk/WiPay.
+
+=================================================================
+STEP 14 — LAUNCH DAY CHECKLIST
+=================================================================
+
+□ naberlyja.com loads correctly
+□ You can sign up and log in
+□ You can post a listing (it shows as pending)
+□ You can see it in admin and approve it
+□ Approved listing shows on home screen
+□ WhatsApp and Call buttons work
+□ Anonymous post sends relay message to your WhatsApp
+□ 5+ sample listings visible
+□ You've shared the app with 10 real people in your community
+
+=================================================================
+LAUNCH MESSAGE — send this on WhatsApp/Facebook/Instagram:
+=================================================================
+
+"Naberly JA is live — naberlyja.com 🌿
+
+No one in your Naberhood should go hungry.
+
+✅ Free to post — food, rides, work, urgent help
+✅ Find what you need near you by district
+✅ Anonymous posting for sensitive needs
+✅ WhatsApp contact built in
+
+Built in Jamaica. For Jamaica. Growing worldwide.
+
+naberlyja.com"
+
+=================================================================
+YOUR MONETISATION ROADMAP (cash first, then digital)
+=================================================================
+
+MONTH 1-2: Cash only
+- Collect boost payments in person
+- Keep it simple, build trust
+
+MONTH 3: Add Lynk
+- Get LynkBiz account at ncbgroup.com
+- Add QR code to your WhatsApp Business profile
+- Users send payment → you confirm boost
+
+MONTH 6: Add WiPay
+- Register at wipay.co.tt (accepts Jamaican businesses)
+- They generate hosted payment links
+- Users click → pay by card → automatic
+
+MONTH 12: Build your own processor
+- By this point you'll know volumes and needs
+- Consider integrating Stripe (accepts JMD via US entity)
+- Or Spreedly for multi-gateway routing
+
+=================================================================
+SUPPORT
+=================================================================
+
+If you get stuck on any step, share the error message with 
+Claude and I will help you fix it.
+
+The key things that must work before launch:
+1. Supabase connection (Step 1-2)
+2. npm install @supabase/supabase-js (Step 4)
+3. .env.local file with real keys (Step 3)
+4. Vercel environment variables (Step 7)
+
+Everything else is design and content.
+
+Good luck. Naberly is a real idea. Launch it.
+=================================================================
