@@ -20,7 +20,7 @@ const DISTRICTS: Record<string, string[]> = {
 
 const CATEGORIES = [
   { key: 'all', label: 'All' },
-  { key: 'food', label: '🍲 Food', screen: '/browse?category=food' },
+  { key: 'food', label: '🍲 Food' },
   { key: 'urgent', label: '⚠️ Urgent', screen: '/browse?category=urgent' },
   { key: 'work', label: '💼 Work', screen: '/browse?category=work' },
   { key: 'ride', label: '🚗 Rides' },
