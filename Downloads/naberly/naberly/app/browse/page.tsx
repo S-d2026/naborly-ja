@@ -1,7 +1,7 @@
 'use client'
 // app/browse/page.tsx — Browse with parish + district filtering
 
-import { useState, useEffect, useCallback } from 'react'
+
 import Link from 'next/link'
 import { useState, useEffect, useCallback, Suspense } from 'react'
 import { getApprovedListings, type Listing } from '@/lib/supabase'
