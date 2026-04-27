@@ -100,6 +100,16 @@ function BrowseContent() {
         ))}
       </div>
 
+      {/* Food sub-filter — shows when food category is selected */}
+      {category === 'food' && (
+        <div className="pill-row" style={{ background: '#D0E8BC' }}>
+          <button className={`pill ${!searchQuery ? 'active' : ''}`} onClick={() => setSearchQuery('')}>All food</button>
+          <button className={`pill`} onClick={() => setSearchQuery('free')}>Free only</button>
+          <button className={`pill`} onClick={() => setSearchQuery('hot')}>Hot meals</button>
+          <button className={`pill`} onClick={() => setSearchQuery('produce')}>Produce</button>
+        </div>
+      )}
+
       {/* District filter — the key UX goal */}
       <div className="district-row">
         {districts.map(d => (
