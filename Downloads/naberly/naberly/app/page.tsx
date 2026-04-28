@@ -1,6 +1,4 @@
 'use client'
-// app/page.tsx — Naberly JA Home Screen
-
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { supabase, getApprovedListings, getImpactStories, type Listing, type ImpactStory } from '@/lib/supabase'
@@ -31,6 +29,33 @@ const CHIP_COLORS: Record<string, string> = {
   'buy-sell': 'chip-neutral',
 }
 
+function getGreeting(name: string, parish: string, listingCount: number, urgentCount: number): { text: string; emoji: string } {
+  const hour = new Date().getHours()
+  const firstName = name ? name.split(' ')[0] : ''
+  const parishText = parish || 'your Naberhood'
+
+  if (hour >= 5 && hour < 12) {
+    if (urgentCount > 0) return { emoji: '🌅', text: 'Good morning' + (firstName ? ', ' + firstName : '') + '. ' + urgentCount + ' urgent need' + (urgentCount > 1 ? 's' : '') + ' in ' + parishText + ' need' + (urgentCount === 1 ? 's' : '') + ' a response today.' }
+    if (listingCount > 0) return { emoji: '🌅', text: 'Good morning' + (firstName ? ', ' + firstName : '') + '. ' + listingCount + ' neighbor' + (listingCount > 1 ? 's' : '') + ' posted in ' + parishText + ' this morning.' }
+    return { emoji: '🌅', text: 'Good morning' + (firstName ? ', ' + firstName : '') + '. Be the first to post in ' + parishText + ' today.' }
+  }
+
+  if (hour >= 12 && hour < 17) {
+    if (urgentCount > 0) return { emoji: '☀️', text: 'Good afternoon' + (firstName ? ', ' + firstName : '') + '. ' + urgentCount + ' urgent need' + (urgentCount > 1 ? 's' : '') + ' in ' + parishText + ' still need' + (urgentCount === 1 ? 's' : '') + ' help.' }
+    if (listingCount > 0) return { emoji: '☀️', text: 'Good afternoon' + (firstName ? ', ' + firstName : '') + '. ' + listingCount + ' active listing' + (listingCount > 1 ? 's' : '') + ' in ' + parishText + ' right now.' }
+    return { emoji: '☀️', text: 'Good afternoon' + (firstName ? ', ' + firstName : '') + '. Your Naberhood is quiet — post something for ' + parishText + '.' }
+  }
+
+  if (hour >= 17 && hour < 21) {
+    if (urgentCount > 0) return { emoji: '🌇', text: 'Good evening' + (firstName ? ', ' + firstName : '') + '. ' + urgentCount + ' urgent need' + (urgentCount > 1 ? 's' : '') + ' in ' + parishText + ' need' + (urgentCount === 1 ? 's' : '') + ' a response tonight.' }
+    if (listingCount > 0) return { emoji: '🌇', text: 'Good evening' + (firstName ? ', ' + firstName : '') + '. ' + listingCount + ' neighbor' + (listingCount > 1 ? 's' : '') + ' still active in ' + parishText + ' this evening.' }
+    return { emoji: '🌇', text: 'Good evening' + (firstName ? ', ' + firstName : '') + '. A good time to check what your Naberhood needs.' }
+  }
+
+  if (urgentCount > 0) return { emoji: '🌙', text: 'Evening' + (firstName ? ', ' + firstName : '') + '. ' + urgentCount + ' urgent need' + (urgentCount > 1 ? 's' : '') + ' in ' + parishText + ' still open.' }
+  return { emoji: '🌙', text: 'Evening' + (firstName ? ', ' + firstName : '') + '. Rest well — your Naberhood will be here tomorrow.' }
+}
+
 export default function HomePage() {
   const [listings, setListings] = useState<Listing[]>([])
   const [stories, setStories] = useState<ImpactStory[]>([])
@@ -38,39 +63,48 @@ export default function HomePage() {
   const [user, setUser] = useState<any>(null)
   const [loading, setLoading] = useState(true)
   const [userParish, setUserParish] = useState('Kingston')
+  const [userName, setUserName] = useState('')
+  const [greeting, setGreeting] = useState<{ text: string; emoji: string } | null>(null)
 
   useEffect(() => {
-    // Get current user and their parish
     supabase.auth.getUser().then(async ({ data }) => {
       setUser(data.user)
       if (data.user) {
         const { data: profile } = await supabase
           .from('profiles')
-          .select('parish')
+          .select('parish, full_name')
           .eq('id', data.user.id)
           .single()
         if (profile?.parish) setUserParish(profile.parish)
+        if (profile?.full_name) setUserName(profile.full_name)
       }
     })
 
-    // Load listings
     getApprovedListings().then(({ data }) => {
-      if (data) setListings(data as Listing[])
+      if (data) {
+        setListings(data as Listing[])
+        const urgent = (data as Listing[]).filter(l => l.category === 'urgent').length
+        setGreeting(getGreeting('', '', data.length, urgent))
+      }
       setLoading(false)
     })
 
-    // Load impact stories
     getImpactStories().then(({ data }) => {
       if (data) setStories(data as ImpactStory[])
     })
 
-    // Rotate ticker
     const interval = setInterval(() => {
       setTickerIndex(i => (i + 1) % TICKERS.length)
     }, 4000)
 
     return () => clearInterval(interval)
   }, [])
+
+  // Update greeting when user name and parish load
+  useEffect(() => {
+    const urgent = listings.filter(l => l.category === 'urgent').length
+    setGreeting(getGreeting(userName, userParish, listings.length, urgent))
+  }, [userName, userParish, listings])
 
   return (
     <div className="app-shell">
@@ -98,6 +132,14 @@ export default function HomePage() {
           <span style={{ color: 'rgba(255,255,255,0.38)', fontSize: 12, fontFamily: '-apple-system, sans-serif' }}>Search in {userParish}...</span>
         </Link>
       </div>
+
+      {/* PERSONALIZED GREETING */}
+      {greeting && (
+        <div style={{ background: '#F5F0E6', borderBottom: '1px solid #D8D0BC', padding: '9px 15px', display: 'flex', alignItems: 'center', gap: 9, flexShrink: 0 }}>
+          <span style={{ fontSize: 18, lineHeight: 1, flexShrink: 0 }}>{greeting.emoji}</span>
+          <p style={{ fontSize: 12, fontFamily: '-apple-system, sans-serif', color: '#18180F', lineHeight: 1.5 }}>{greeting.text}</p>
+        </div>
+      )}
 
       {/* IMPACT TICKER */}
       <div style={{ background: '#1B3A1D', padding: '8px 15px', display: 'flex', alignItems: 'center', gap: 8, overflow: 'hidden', flexShrink: 0 }}>
