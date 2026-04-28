@@ -15,6 +15,25 @@ const CATEGORIES = [
   { key: 'buy-sell', label: 'Buy/Sell', emoji: '🛍️', bg: '#EDE7D9' },
 ]
 
+// Jamaica parish boundaries (approximate bounding boxes)
+function getParishFromCoords(lat: number, lng: number): string {
+  if (lat >= 17.85 && lat <= 18.05 && lng >= -76.95 && lng <= -76.65) return 'Kingston'
+  if (lat >= 17.85 && lat <= 18.15 && lng >= -77.05 && lng <= -76.65) return 'St. Andrew'
+  if (lat >= 17.70 && lat <= 17.95 && lng >= -77.05 && lng <= -76.70) return 'St. Catherine'
+  if (lat >= 17.80 && lat <= 18.10 && lng >= -77.35 && lng <= -77.05) return 'St. Thomas'
+  if (lat >= 18.00 && lat <= 18.25 && lng >= -76.85 && lng <= -76.50) return 'Portland'
+  if (lat >= 18.15 && lat <= 18.45 && lng >= -77.15 && lng <= -76.75) return 'St. Mary'
+  if (lat >= 18.20 && lat <= 18.55 && lng >= -77.55 && lng <= -77.10) return 'St. Ann'
+  if (lat >= 18.30 && lat <= 18.55 && lng >= -77.85 && lng <= -77.50) return 'Trelawny'
+  if (lat >= 18.30 && lat <= 18.55 && lng >= -78.05 && lng <= -77.75) return 'St. James'
+  if (lat >= 18.35 && lat <= 18.55 && lng >= -78.20 && lng <= -78.00) return 'Hanover'
+  if (lat >= 18.10 && lat <= 18.40 && lng >= -78.25 && lng <= -77.90) return 'Westmoreland'
+  if (lat >= 17.85 && lat <= 18.20 && lng >= -77.95 && lng <= -77.55) return 'St. Elizabeth'
+  if (lat >= 17.95 && lat <= 18.25 && lng >= -77.60 && lng <= -77.25) return 'Manchester'
+  if (lat >= 17.80 && lat <= 18.10 && lng >= -77.35 && lng <= -76.95) return 'Clarendon'
+  return 'Kingston'
+}
+
 function PostContent() {
   const router = useRouter()
   const searchParams = useSearchParams()
@@ -31,6 +50,8 @@ function PostContent() {
   const [photoUrl, setPhotoUrl] = useState('')
   const [uploading, setUploading] = useState(false)
   const [submitting, setSubmitting] = useState(false)
+  const [locating, setLocating] = useState(false)
+  const [locationSet, setLocationSet] = useState(false)
   const [error, setError] = useState('')
   const [success, setSuccess] = useState(false)
 
@@ -55,6 +76,39 @@ function PostContent() {
       console.error(err)
     }
     setUploading(false)
+  }
+
+  function handleUseLocation() {
+    if (!navigator.geolocation) {
+      alert('Location not supported on this device.')
+      return
+    }
+    setLocating(true)
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        const { latitude, longitude } = pos.coords
+        const detectedParish = getParishFromCoords(latitude, longitude)
+        setParish(detectedParish)
+        // Reverse geocode to get district using OpenStreetMap
+        try {
+          const res = await fetch(
+            'https://nominatim.openstreetmap.org/reverse?lat=' + latitude + '&lon=' + longitude + '&format=json'
+          )
+          const data = await res.json()
+          const suburb = data.address?.suburb || data.address?.neighbourhood || data.address?.village || data.address?.town || ''
+          if (suburb) setDistrict(suburb)
+        } catch (e) {
+          console.error(e)
+        }
+        setLocationSet(true)
+        setLocating(false)
+      },
+      (err) => {
+        alert('Could not get your location. Please type it in manually.')
+        setLocating(false)
+      },
+      { timeout: 10000 }
+    )
   }
 
   async function handleSubmit() {
@@ -154,6 +208,28 @@ function PostContent() {
             <label className="field-label">Details</label>
             <textarea className="form-field-box" rows={3} placeholder="Time, quantity, pickup or delivery..." value={description} onChange={e => setDescription(e.target.value)} />
           </div>
+
+          {/* GPS Location */}
+          <div style={{ background: locationSet ? '#E8F5EE' : '#EDE7D9', borderRadius: 9, padding: 11, border: locationSet ? '1px solid #2D5A2E' : '1px solid #D8D0BC' }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: locationSet ? 6 : 0 }}>
+              <div>
+                <p style={{ fontSize: 12, fontFamily: '-apple-system, sans-serif', fontWeight: 700, color: '#18180F' }}>
+                  {locationSet ? '📍 Location detected' : '📍 Use my location'}
+                </p>
+                <p style={{ fontSize: 10, fontFamily: '-apple-system, sans-serif', color: '#5A5A50', marginTop: 1 }}>
+                  {locationSet ? parish + (district ? ', ' + district : '') : 'Auto-fills your parish and district'}
+                </p>
+              </div>
+              <button
+                onClick={handleUseLocation}
+                disabled={locating}
+                style={{ background: locationSet ? '#2D5A2E' : '#1B3A1D', color: '#fff', border: 'none', borderRadius: 6, padding: '6px 11px', fontSize: 10, fontFamily: '-apple-system, sans-serif', cursor: 'pointer', opacity: locating ? 0.7 : 1 }}
+              >
+                {locating ? 'Locating...' : locationSet ? 'Update' : 'Detect'}
+              </button>
+            </div>
+          </div>
+
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 11 }}>
             <div>
               <label className="field-label">Price (JMD)</label>
@@ -175,7 +251,7 @@ function PostContent() {
             <input className="form-field" placeholder="+1 876 XXX XXXX" value={whatsapp} onChange={e => setWhatsapp(e.target.value)} type="tel" />
           </div>
 
-          {/* Photo upload — camera and gallery options */}
+          {/* Photo upload */}
           <div style={{ border: '1.5px dashed #D8D0BC', borderRadius: 10, padding: 13, background: '#EDE7D9' }}>
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
               <span style={{ fontSize: 20, lineHeight: 1 }}>{uploading ? '⏳' : photoUrl ? '✅' : '📷'}</span>
