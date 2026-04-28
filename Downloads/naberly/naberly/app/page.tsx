@@ -37,11 +37,20 @@ export default function HomePage() {
   const [tickerIndex, setTickerIndex] = useState(0)
   const [user, setUser] = useState<any>(null)
   const [loading, setLoading] = useState(true)
+  const [userParish, setUserParish] = useState('Kingston')
 
   useEffect(() => {
-    // Get current user
-    supabase.auth.getUser().then(({ data }) => {
+    // Get current user and their parish
+    supabase.auth.getUser().then(async ({ data }) => {
       setUser(data.user)
+      if (data.user) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('parish')
+          .eq('id', data.user.id)
+          .single()
+        if (profile?.parish) setUserParish(profile.parish)
+      }
     })
 
     // Load listings
@@ -65,7 +74,7 @@ export default function HomePage() {
 
   return (
     <div className="app-shell">
-      {/* ── HEADER ── */}
+      {/* HEADER */}
       <div className="header">
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
@@ -73,7 +82,7 @@ export default function HomePage() {
               <circle cx="5" cy="5" r="2" fill="#C8821A"/>
               <circle cx="5" cy="5" r="4.2" stroke="rgba(255,255,255,0.3)" strokeWidth="1"/>
             </svg>
-            <span style={{ color: '#fff', fontSize: 13 }}>Kingston</span>
+            <span style={{ color: '#fff', fontSize: 13 }}>{userParish}</span>
           </div>
           <div style={{ display: 'flex', gap: 7 }}>
             <Link href="/favorites" style={{ background: 'rgba(255,255,255,0.09)', border: 'none', borderRadius: '50%', width: 29, height: 29, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
@@ -86,11 +95,11 @@ export default function HomePage() {
         </div>
         <Link href="/browse" style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'rgba(255,255,255,0.09)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 8, padding: '8px 12px', textDecoration: 'none' }}>
           <svg width="12" height="12" viewBox="0 0 12 12" fill="none"><circle cx="5" cy="5" r="3.5" stroke="rgba(255,255,255,0.4)" strokeWidth="1.3"/><path d="M8 8L11 11" stroke="rgba(255,255,255,0.4)" strokeWidth="1.3" strokeLinecap="round"/></svg>
-          <span style={{ color: 'rgba(255,255,255,0.38)', fontSize: 12, fontFamily: '-apple-system, sans-serif' }}>Search in Kingston...</span>
+          <span style={{ color: 'rgba(255,255,255,0.38)', fontSize: 12, fontFamily: '-apple-system, sans-serif' }}>Search in {userParish}...</span>
         </Link>
       </div>
 
-      {/* ── IMPACT TICKER ── */}
+      {/* IMPACT TICKER */}
       <div style={{ background: '#1B3A1D', padding: '8px 15px', display: 'flex', alignItems: 'center', gap: 8, overflow: 'hidden', flexShrink: 0 }}>
         <div className="ticker-dot" />
         <p style={{ color: 'rgba(255,255,255,0.75)', fontSize: 11, fontFamily: '-apple-system, sans-serif', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
@@ -99,7 +108,7 @@ export default function HomePage() {
       </div>
 
       <div className="scroll-area">
-        {/* ── MISSION HERO ── */}
+        {/* MISSION HERO */}
         <div style={{ background: '#1B3A1D', padding: '18px 15px 16px' }}>
           <p className="eyebrow" style={{ color: 'rgba(255,255,255,0.42)', marginBottom: 6 }}>Community mission</p>
           <p style={{ color: '#fff', fontSize: 19, lineHeight: 1.3, marginBottom: 12 }}>
@@ -115,7 +124,7 @@ export default function HomePage() {
           </div>
         </div>
 
-        {/* ── URGENT STRIP ── */}
+        {/* URGENT STRIP */}
         <Link href="/browse?category=urgent" style={{ background: '#3D1010', padding: '10px 15px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', textDecoration: 'none', borderBottom: '1px solid #5A1010' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#A84B2A' }} />
@@ -127,17 +136,17 @@ export default function HomePage() {
           <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M4 3L9 6.5L4 10" stroke="rgba(255,255,255,0.4)" strokeWidth="1.3" strokeLinecap="round"/></svg>
         </Link>
 
-        {/* ── IMPACT STORIES ── */}
+        {/* IMPACT STORIES */}
         {stories.length > 0 && (
           <div style={{ padding: '14px 13px 6px' }}>
             <p className="eyebrow" style={{ marginBottom: 9 }}>This week in your Naberhood</p>
             {stories.slice(0, 2).map(story => (
               <div key={story.id} className="impact-card">
-                <p className="eyebrow" style={{ color: 'rgba(255,255,255,0.45)', marginBottom: 5 }}>🍲 Community impact</p>
+                <p className="eyebrow" style={{ color: 'rgba(255,255,255,0.45)', marginBottom: 5 }}>Community impact</p>
                 <p style={{ color: '#fff', fontSize: 14, lineHeight: 1.4, marginBottom: 8 }}>{story.story_text}</p>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                   <p style={{ fontSize: 10, fontFamily: '-apple-system, sans-serif', color: 'rgba(255,255,255,0.5)' }}>
-                    {story.parish}{story.district ? ` · ${story.district}` : ''}
+                    {story.parish}{story.district ? ' · ' + story.district : ''}
                   </p>
                   {story.people_helped > 0 && (
                     <span style={{ background: 'rgba(255,255,255,0.12)', color: '#fff', fontSize: 9, fontFamily: '-apple-system, sans-serif', fontWeight: 700, padding: '2px 7px', borderRadius: 3 }}>
@@ -150,7 +159,7 @@ export default function HomePage() {
           </div>
         )}
 
-        {/* ── CATEGORIES ── */}
+        {/* CATEGORIES */}
         <div style={{ padding: '0 13px 4px' }}>
           <p className="eyebrow" style={{ marginBottom: 9 }}>How can we help?</p>
           <div className="category-grid" style={{ marginBottom: 13 }}>
@@ -159,10 +168,7 @@ export default function HomePage() {
                 key={tile.key}
                 href={tile.href}
                 className="category-tile"
-                style={{
-                  background: tile.bg,
-                  border: tile.dashed ? `1.5px dashed #D8D0BC` : 'none',
-                }}
+                style={{ background: tile.bg, border: tile.dashed ? '1.5px dashed #D8D0BC' : 'none' }}
               >
                 <div style={{ fontSize: 20, marginBottom: 6, lineHeight: 1 }}>{tile.emoji}</div>
                 <p style={{ fontSize: 12, fontFamily: '-apple-system, sans-serif', fontWeight: 700, color: tile.textColor, marginBottom: 1 }}>{tile.label}</p>
@@ -171,7 +177,7 @@ export default function HomePage() {
             ))}
           </div>
 
-          {/* ── HOW IT WORKS ── */}
+          {/* HOW IT WORKS */}
           <div style={{ background: '#EDE7D9', borderRadius: 12, padding: 13, marginBottom: 13, border: '1px solid #D8D0BC' }}>
             <p style={{ fontSize: 12, fontFamily: '-apple-system, sans-serif', fontWeight: 700, color: '#18180F', marginBottom: 11 }}>How Naberly works</p>
             {[
@@ -186,10 +192,10 @@ export default function HomePage() {
             ))}
           </div>
 
-          <p className="eyebrow" style={{ marginBottom: 8 }}>Active in Kingston</p>
+          <p className="eyebrow" style={{ marginBottom: 8 }}>Active in {userParish}</p>
         </div>
 
-        {/* ── LIVE FEED ── */}
+        {/* LIVE FEED */}
         <div style={{ borderTop: '1px solid #D8D0BC' }}>
           {loading ? (
             <div className="loading">Loading listings...</div>
@@ -201,18 +207,18 @@ export default function HomePage() {
             </div>
           ) : (
             listings.map(listing => (
-              <Link key={listing.id} href={`/listing/${listing.id}`} className="listing-row">
+              <Link key={listing.id} href={'/listing/' + listing.id} className="listing-row">
                 <div className="listing-icon" style={{ background: listing.category === 'food' ? '#D0E8BC' : listing.category === 'urgent' ? '#F0CABA' : listing.category === 'work' ? '#BCD0E8' : listing.category === 'ride' ? '#E0D8F0' : listing.category === 'service' ? '#F0E8BC' : '#EDE7D9' }}>
                   {listing.category === 'food' ? '🍲' : listing.category === 'urgent' ? '⚠️' : listing.category === 'work' ? '💼' : listing.category === 'ride' ? '🚗' : listing.category === 'service' ? '🛠️' : '🛍️'}
                 </div>
                 <div style={{ flex: 1, minWidth: 0 }}>
                   <div style={{ display: 'flex', gap: 4, marginBottom: 3 }}>
-                    {listing.is_free && <span className={`chip chip-free`}>Free</span>}
+                    {listing.is_free && <span className="chip chip-free">Free</span>}
                     {listing.category === 'urgent' && <span className="chip chip-urgent">Urgent</span>}
                     {listing.is_anonymous && <span className="chip chip-anon">Anon</span>}
                     {listing.is_featured && <span className="chip chip-featured">Featured</span>}
                     {!listing.is_free && listing.category !== 'urgent' && !listing.is_featured && (
-                      <span className={`chip ${CHIP_COLORS[listing.category] || 'chip-neutral'}`}>{listing.category}</span>
+                      <span className={'chip ' + (CHIP_COLORS[listing.category] || 'chip-neutral')}>{listing.category}</span>
                     )}
                   </div>
                   <p style={{ fontSize: 13, fontFamily: '-apple-system, sans-serif', fontWeight: 700, color: '#18180F', marginBottom: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
@@ -220,7 +226,7 @@ export default function HomePage() {
                   </p>
                   <p style={{ fontSize: 10, fontFamily: '-apple-system, sans-serif', color: '#5A5A50' }}>
                     {listing.district || listing.parish}
-                    {listing.price_jmd ? ` · $${listing.price_jmd.toLocaleString()} JMD` : listing.is_free ? ' · Free' : ''}
+                    {listing.price_jmd ? ' · $' + listing.price_jmd.toLocaleString() + ' JMD' : listing.is_free ? ' · Free' : ''}
                   </p>
                 </div>
               </Link>
@@ -228,7 +234,7 @@ export default function HomePage() {
           )}
         </div>
 
-        {/* ── GLOBAL VISION FOOTER ── */}
+        {/* GLOBAL VISION FOOTER */}
         <div style={{ padding: 13 }}>
           <div style={{ borderRadius: 10, padding: 13, background: '#1B3A1D' }}>
             <p className="eyebrow" style={{ color: 'rgba(255,255,255,0.42)', marginBottom: 5 }}>The mission</p>
@@ -241,7 +247,7 @@ export default function HomePage() {
         <div style={{ height: 10 }} />
       </div>
 
-      {/* ── BOTTOM NAV ── */}
+      {/* BOTTOM NAV */}
       <nav className="bottom-nav">
         <Link href="/" className="nav-item active">
           <svg width="20" height="20" viewBox="0 0 22 22" fill="none" stroke="currentColor" strokeWidth="1.7"><path d="M3 9.5L11 3L19 9.5V19H14V14H8V19H3V9.5Z" strokeLinecap="round" strokeLinejoin="round"/></svg>
