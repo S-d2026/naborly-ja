@@ -254,7 +254,8 @@ export default function ListingPage() {
             )}
 
             
-              href={directionsUrl}
+              <a
+                href={directionsUrl}
               target="_blank"
               rel="noopener noreferrer"
               style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, background: '#EDE7D9', border: '1.5px solid #1B3A1D', borderRadius: 10, padding: '10px 14px', fontSize: 12, fontFamily: '-apple-system, sans-serif', fontWeight: 700, color: '#1B3A1D', textDecoration: 'none' }}
