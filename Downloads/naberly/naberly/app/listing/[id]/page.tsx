@@ -264,7 +264,7 @@ export default function ListingPage() {
           </div>
 
           <Link href="/boost" className="btn-ghost" style={{ fontSize: 12, marginBottom: 14 }}>
-            Boost this listing ↗
+            Boost this listing 
           </Link>
         </div>
       </div>
