@@ -15,7 +15,14 @@ const CATEGORIES = [
   { key: 'buy-sell', label: 'Buy/Sell', emoji: '🛍️', bg: '#EDE7D9' },
 ]
 
-// Jamaica parish boundaries (approximate bounding boxes)
+// Jamaica bounding box
+const JAMAICA_BOUNDS = { minLat: 17.70, maxLat: 18.55, minLng: -78.40, maxLng: -76.18 }
+
+function isInJamaica(lat: number, lng: number): boolean {
+  return lat >= JAMAICA_BOUNDS.minLat && lat <= JAMAICA_BOUNDS.maxLat &&
+    lng >= JAMAICA_BOUNDS.minLng && lng <= JAMAICA_BOUNDS.maxLng
+}
+
 function getParishFromCoords(lat: number, lng: number): string {
   if (lat >= 17.85 && lat <= 18.05 && lng >= -76.95 && lng <= -76.65) return 'Kingston'
   if (lat >= 17.85 && lat <= 18.15 && lng >= -77.05 && lng <= -76.65) return 'St. Andrew'
@@ -31,7 +38,7 @@ function getParishFromCoords(lat: number, lng: number): string {
   if (lat >= 17.85 && lat <= 18.20 && lng >= -77.95 && lng <= -77.55) return 'St. Elizabeth'
   if (lat >= 17.95 && lat <= 18.25 && lng >= -77.60 && lng <= -77.25) return 'Manchester'
   if (lat >= 17.80 && lat <= 18.10 && lng >= -77.35 && lng <= -76.95) return 'Clarendon'
-  return 'Kingston'
+  return ''
 }
 
 function PostContent() {
@@ -52,6 +59,7 @@ function PostContent() {
   const [submitting, setSubmitting] = useState(false)
   const [locating, setLocating] = useState(false)
   const [locationSet, setLocationSet] = useState(false)
+  const [locationError, setLocationError] = useState('')
   const [error, setError] = useState('')
   const [success, setSuccess] = useState(false)
 
@@ -80,16 +88,21 @@ function PostContent() {
 
   function handleUseLocation() {
     if (!navigator.geolocation) {
-      alert('Location not supported on this device.')
+      setLocationError('Location not supported on this device.')
       return
     }
     setLocating(true)
+    setLocationError('')
     navigator.geolocation.getCurrentPosition(
       async (pos) => {
         const { latitude, longitude } = pos.coords
+        if (!isInJamaica(latitude, longitude)) {
+          setLocationError('Location not detected as Jamaica. Please select your parish manually.')
+          setLocating(false)
+          return
+        }
         const detectedParish = getParishFromCoords(latitude, longitude)
-        setParish(detectedParish)
-        // Reverse geocode to get district using OpenStreetMap
+        if (detectedParish) setParish(detectedParish)
         try {
           const res = await fetch(
             'https://nominatim.openstreetmap.org/reverse?lat=' + latitude + '&lon=' + longitude + '&format=json'
@@ -103,8 +116,8 @@ function PostContent() {
         setLocationSet(true)
         setLocating(false)
       },
-      (err) => {
-        alert('Could not get your location. Please type it in manually.')
+      () => {
+        setLocationError('Could not get your location. Please select your parish manually.')
         setLocating(false)
       },
       { timeout: 10000 }
@@ -176,7 +189,7 @@ function PostContent() {
 
         {isAnonymous && (
           <div className="anon-box" style={{ marginBottom: 13 }}>
-            <p style={{ fontSize: 11, fontFamily: '-apple-system, sans-serif', fontWeight: 700, color: '#4A1A80', marginBottom: 4 }}>🔒 Your identity is fully protected</p>
+            <p style={{ fontSize: 11, fontFamily: '-apple-system, sans-serif', fontWeight: 700, color: '#4A1A80', marginBottom: 4 }}>Your identity is fully protected</p>
             <p style={{ fontSize: 11, fontFamily: '-apple-system, sans-serif', color: '#6B2A9A', lineHeight: 1.65 }}>Your name and number never appear publicly. Messages are relayed privately.</p>
           </div>
         )}
@@ -209,12 +222,11 @@ function PostContent() {
             <textarea className="form-field-box" rows={3} placeholder="Time, quantity, pickup or delivery..." value={description} onChange={e => setDescription(e.target.value)} />
           </div>
 
-          {/* GPS Location */}
           <div style={{ background: locationSet ? '#E8F5EE' : '#EDE7D9', borderRadius: 9, padding: 11, border: locationSet ? '1px solid #2D5A2E' : '1px solid #D8D0BC' }}>
-            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: locationSet ? 6 : 0 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <div>
                 <p style={{ fontSize: 12, fontFamily: '-apple-system, sans-serif', fontWeight: 700, color: '#18180F' }}>
-                  {locationSet ? '📍 Location detected' : '📍 Use my location'}
+                  {locationSet ? 'Location detected' : 'Use my location'}
                 </p>
                 <p style={{ fontSize: 10, fontFamily: '-apple-system, sans-serif', color: '#5A5A50', marginTop: 1 }}>
                   {locationSet ? parish + (district ? ', ' + district : '') : 'Auto-fills your parish and district'}
@@ -228,6 +240,9 @@ function PostContent() {
                 {locating ? 'Locating...' : locationSet ? 'Update' : 'Detect'}
               </button>
             </div>
+            {locationError && (
+              <p style={{ fontSize: 10, fontFamily: '-apple-system, sans-serif', color: '#A84B2A', marginTop: 7, lineHeight: 1.5 }}>{locationError}</p>
+            )}
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 11 }}>
@@ -251,7 +266,6 @@ function PostContent() {
             <input className="form-field" placeholder="+1 876 XXX XXXX" value={whatsapp} onChange={e => setWhatsapp(e.target.value)} type="tel" />
           </div>
 
-          {/* Photo upload */}
           <div style={{ border: '1.5px dashed #D8D0BC', borderRadius: 10, padding: 13, background: '#EDE7D9' }}>
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 8 }}>
               <span style={{ fontSize: 20, lineHeight: 1 }}>{uploading ? '⏳' : photoUrl ? '✅' : '📷'}</span>
@@ -263,10 +277,10 @@ function PostContent() {
               </p>
               <div style={{ display: 'flex', gap: 8 }}>
                 <label htmlFor="camera-input" style={{ background: '#1B3A1D', color: '#fff', borderRadius: 7, padding: '7px 14px', fontSize: 11, fontFamily: '-apple-system, sans-serif', cursor: 'pointer', display: 'inline-block' }}>
-                  📷 Take photo
+                  Take photo
                 </label>
                 <label htmlFor="gallery-input" style={{ background: '#fff', color: '#1B3A1D', border: '1.5px solid #1B3A1D', borderRadius: 7, padding: '7px 14px', fontSize: 11, fontFamily: '-apple-system, sans-serif', cursor: 'pointer', display: 'inline-block' }}>
-                  🖼️ Choose file
+                  Choose file
                 </label>
               </div>
               <input type="file" accept="image/*" capture="environment" id="camera-input" style={{ display: 'none' }} onChange={handlePhotoUpload} />
@@ -300,7 +314,7 @@ function PostContent() {
         </div>
 
         <Link href="/boost" className="btn-gold" style={{ marginBottom: 14, textAlign: 'center' }}>
-          Boost as featured listing ↗
+          Boost as featured listing
         </Link>
       </div>
     </div>
