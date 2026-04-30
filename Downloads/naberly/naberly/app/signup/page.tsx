@@ -1,6 +1,4 @@
 'use client'
-// app/signup/page.tsx
-
 import { useState } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
@@ -15,6 +13,7 @@ export default function SignupPage() {
   const [email, setEmail] = useState('')
   const [parish, setParish] = useState('Kingston')
   const [password, setPassword] = useState('')
+  const [showPassword, setShowPassword] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
@@ -69,7 +68,12 @@ export default function SignupPage() {
           </div>
           <div>
             <label className="field-label">Password</label>
-            <input className="form-field" type="password" placeholder="Min. 8 characters" value={password} onChange={e => setPassword(e.target.value)} />
+            <div style={{ position: 'relative' }}>
+              <input className="form-field" type={showPassword ? 'text' : 'password'} placeholder="Min. 8 characters" value={password} onChange={e => setPassword(e.target.value)} style={{ paddingRight: 36 }} />
+              <button onClick={() => setShowPassword(!showPassword)} style={{ position: 'absolute', right: 0, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: '#5A5A50', fontSize: 14, padding: '4px 6px' }}>
+                {showPassword ? '🙈' : '👁️'}
+              </button>
+            </div>
           </div>
         </div>
         {error && <div style={{ background: '#F0CABA', borderRadius: 8, padding: '9px 11px', marginBottom: 10, borderLeft: '3px solid #A84B2A' }}><p style={{ fontSize: 12, fontFamily: '-apple-system, sans-serif', color: '#6B1E10' }}>{error}</p></div>}
