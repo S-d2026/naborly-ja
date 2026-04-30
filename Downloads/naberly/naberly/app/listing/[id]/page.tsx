@@ -6,7 +6,6 @@ import { supabase, toggleSaved, type Listing } from '@/lib/supabase'
 
 const RELAY_NUMBER = '+19174432797'
 
-// Jamaica district coordinates for map display
 const DISTRICT_COORDS: Record<string, { lat: number; lng: number }> = {
   'Cross Roads': { lat: 17.9934, lng: -76.7857 },
   'Maxfield Ave': { lat: 17.9923, lng: -76.8012 },
@@ -23,6 +22,10 @@ const DISTRICT_COORDS: Record<string, { lat: number; lng: number }> = {
   'Montego Bay': { lat: 18.4762, lng: -77.8939 },
   'Mandeville': { lat: 18.0415, lng: -77.5042 },
   'May Pen': { lat: 17.9643, lng: -77.2434 },
+  'Santa Cruz': { lat: 18.0523, lng: -77.7987 },
+  'Black River': { lat: 18.0234, lng: -77.8512 },
+  'Junction': { lat: 17.9834, lng: -77.6234 },
+  'Malvern': { lat: 18.0123, lng: -77.7123 },
 }
 
 const PARISH_COORDS: Record<string, { lat: number; lng: number }> = {
@@ -89,19 +92,18 @@ export default function ListingPage() {
   }
 
   const whatsappContact = listing.is_anonymous ? RELAY_NUMBER : listing.whatsapp
+
+  // WhatsApp message with cursor on new line after pre-filled text
   const whatsappMessage = listing.is_anonymous
-    ? encodeURIComponent('Hi Naberly, I want to help the anonymous listing "' + listing.title + '" in ' + (listing.district || listing.parish) + '. Please relay my message.')
-    : encodeURIComponent('Hi, I saw your Naberly listing for "' + listing.title + '". I am interested.')
+    ? encodeURIComponent('Hi Naberly, I want to help the anonymous listing "' + listing.title + '" in ' + (listing.district || listing.parish) + '. Please relay my message.\n\nnaberlyja.com\n\n')
+    : encodeURIComponent('Hi, I saw your Naberly listing for "' + listing.title + '". I am interested.\n\nnaberlyja.com\n\n')
 
   const isUrgent = listing.category === 'urgent'
   const headerBg = isUrgent ? '#3D1010' : '#1B3A1D'
 
-  // Get coordinates for map
   const coords = listing.district
     ? (DISTRICT_COORDS[listing.district] || PARISH_COORDS[listing.parish] || PARISH_COORDS['Kingston'])
     : (PARISH_COORDS[listing.parish] || PARISH_COORDS['Kingston'])
-
-  const mapUrl = 'https://maps.googleapis.com/maps/api/staticmap?center=' + coords.lat + ',' + coords.lng + '&zoom=14&size=600x200&maptype=roadmap&markers=color:0x1B3A1D%7C' + coords.lat + ',' + coords.lng + '&key=AIzaSyD-placeholder'
 
   const directionsUrl = 'https://www.google.com/maps/search/' + encodeURIComponent((listing.district || listing.parish) + ', Jamaica')
 
@@ -117,7 +119,6 @@ export default function ListingPage() {
       </div>
 
       <div className="scroll-area">
-        {/* Hero image or emoji */}
         {listing.photo_url ? (
           <img src={listing.photo_url} alt={listing.title} style={{ width: '100%', maxHeight: 220, objectFit: 'cover' }} />
         ) : (
@@ -148,7 +149,7 @@ export default function ListingPage() {
 
           <p style={{ fontSize: 17, color: '#18180F', lineHeight: 1.3, marginBottom: 5 }}>{listing.title}</p>
           <p style={{ fontSize: 18, color: '#1B3A1D', marginBottom: 10 }}>
-            {listing.is_free ? 'Free' : listing.price_jmd ? '$' + listing.price_jmd.toLocaleString() + ' JMD' : 'By quote'}
+            {listing.price_jmd ? listing.price_jmd : listing.is_free ? 'Free' : 'By quote'}
           </p>
 
           <div className="divider" />
@@ -184,7 +185,7 @@ export default function ListingPage() {
 
           {listing.is_anonymous && (
             <div className="anon-box" style={{ marginBottom: 12 }}>
-              <p style={{ fontSize: 11, fontFamily: '-apple-system, sans-serif', fontWeight: 700, color: '#4A1A80', marginBottom: 4 }}>🔒 This post is anonymous</p>
+              <p style={{ fontSize: 11, fontFamily: '-apple-system, sans-serif', fontWeight: 700, color: '#4A1A80', marginBottom: 4 }}>This post is anonymous</p>
               <p style={{ fontSize: 11, fontFamily: '-apple-system, sans-serif', color: '#6B2A9A', lineHeight: 1.65 }}>The poster's name and number are hidden. Your message goes through Naberly's relay — neither contact is shared unless you both agree.</p>
             </div>
           )}
@@ -206,7 +207,6 @@ export default function ListingPage() {
             )}
           </div>
 
-          {/* Contact buttons */}
           {whatsappContact && (
             <div style={{ display: 'flex', gap: 7, marginBottom: 8 }}>
               <a href={'https://wa.me/' + whatsappContact.replace(/\D/g, '') + '?text=' + whatsappMessage} target="_blank" rel="noopener noreferrer" className="btn-wa" style={{ flex: 1 }}>
@@ -226,17 +226,14 @@ export default function ListingPage() {
             </p>
           )}
 
-          {/* MAP SECTION */}
           <div className="divider" />
+
           <div style={{ marginBottom: 13 }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
               <p style={{ fontSize: 12, fontFamily: '-apple-system, sans-serif', fontWeight: 700, color: '#18180F' }}>
-                📍 {listing.district || listing.parish}
+                {listing.district || listing.parish}
               </p>
-              <button
-                onClick={() => setShowMap(!showMap)}
-                style={{ background: 'none', border: 'none', fontSize: 11, fontFamily: '-apple-system, sans-serif', color: '#1B3A1D', cursor: 'pointer', fontWeight: 700 }}
-              >
+              <button onClick={() => setShowMap(!showMap)} style={{ background: 'none', border: 'none', fontSize: 11, fontFamily: '-apple-system, sans-serif', color: '#1B3A1D', cursor: 'pointer', fontWeight: 700 }}>
                 {showMap ? 'Hide map' : 'Show map'}
               </button>
             </div>
@@ -253,19 +250,13 @@ export default function ListingPage() {
               </div>
             )}
 
-            
-              <a
-                href={directionsUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, background: '#EDE7D9', border: '1.5px solid #1B3A1D', borderRadius: 10, padding: '10px 14px', fontSize: 12, fontFamily: '-apple-system, sans-serif', fontWeight: 700, color: '#1B3A1D', textDecoration: 'none' }}
-            >
+            <a href={directionsUrl} target="_blank" rel="noopener noreferrer" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, background: '#EDE7D9', border: '1.5px solid #1B3A1D', borderRadius: 10, padding: '10px 14px', fontSize: 12, fontFamily: '-apple-system, sans-serif', fontWeight: 700, color: '#1B3A1D', textDecoration: 'none' }}>
               Get directions in Google Maps
             </a>
           </div>
 
           <Link href="/boost" className="btn-ghost" style={{ fontSize: 12, marginBottom: 14 }}>
-            Boost this listing 
+            Boost this listing
           </Link>
         </div>
       </div>
