@@ -1,11 +1,8 @@
 'use client'
-// app/browse/page.tsx — Browse with parish + district filtering
-
-
+import { useState, useEffect, useCallback, Suspense } from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
-import { useState, useEffect, useCallback, Suspense } from 'react'
-import { getApprovedListings, type Listing } from '@/lib/supabase'
+import { supabase, getApprovedListings, type Listing } from '@/lib/supabase'
 
 const PARISHES = ['All Parishes','Kingston','St. Andrew','St. Thomas','Portland','St. Mary','St. Ann','Trelawny','St. James','Hanover','Westmoreland','St. Elizabeth','Manchester','Clarendon','St. Catherine']
 
@@ -15,39 +12,50 @@ const DISTRICTS: Record<string, string[]> = {
   'St. James': ['All areas','Montego Bay','Ironshore','Rose Hall','Granville'],
   'Manchester': ['All areas','Mandeville','Christiana','Porus'],
   'Clarendon': ['All areas','May Pen','Lionel Town','Chapelton'],
+  'St. Elizabeth': ['All areas','Santa Cruz','Black River','Junction','Malvern','Southfield','Treasure Beach'],
+  'St. Ann': ['All areas','Ocho Rios','Brown\'s Town','St. Ann\'s Bay'],
+  'Westmoreland': ['All areas','Savanna-la-Mar','Negril','Petersfield'],
+  'St. Catherine': ['All areas','Portmore','Spanish Town','Old Harbour'],
   'default': ['All areas'],
 }
 
 const CATEGORIES = [
   { key: 'all', label: 'All' },
-  { key: 'food', label: '🍲 Food' },
-  { key: 'urgent', label: '⚠️ Urgent', screen: '/browse?category=urgent' },
-  { key: 'work', label: '💼 Work', screen: '/browse?category=work' },
-  { key: 'ride', label: '🚗 Rides' },
-  { key: 'buy-sell', label: '🛍️ Buy/Sell' },
-  { key: 'service', label: '🛠️ Services' },
+  { key: 'food', label: 'Food' },
+  { key: 'urgent', label: 'Urgent' },
+  { key: 'work', label: 'Work' },
+  { key: 'ride', label: 'Rides' },
+  { key: 'buy-sell', label: 'Buy/Sell' },
+  { key: 'service', label: 'Services' },
 ]
-
-const CATEGORY_SCREENS: Record<string, string> = {
-  food: '/browse?category=food',
-  urgent: '/browse?category=urgent',
-  work: '/browse?category=work',
-}
 
 function BrowseContent() {
   const searchParams = useSearchParams()
   const initialCategory = searchParams.get('category') || 'all'
-  const initialDistrict = searchParams.get('district') || 'all'
 
   const [listings, setListings] = useState<Listing[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
-  const [parish, setParish] = useState('Kingston')
+  const [parish, setParish] = useState('All Parishes')
   const [category, setCategory] = useState(initialCategory)
-  const [district, setDistrict] = useState(initialDistrict)
+  const [district, setDistrict] = useState('all')
   const [showParishModal, setShowParishModal] = useState(false)
 
   const districts = DISTRICTS[parish] || DISTRICTS['default']
+
+  // Load user parish on mount
+  useEffect(() => {
+    supabase.auth.getUser().then(async ({ data }) => {
+      if (data.user) {
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('parish')
+          .eq('id', data.user.id)
+          .single()
+        if (profile?.parish) setParish(profile.parish)
+      }
+    })
+  }, [])
 
   const loadListings = useCallback(async () => {
     setLoading(true)
@@ -68,14 +76,15 @@ function BrowseContent() {
     (l.district || '').toLowerCase().includes(searchQuery.toLowerCase())
   )
 
+  const searchPlaceholder = parish === 'All Parishes' ? 'Search all listings...' : 'Search in ' + parish + '...'
+
   return (
     <div className="app-shell">
-      {/* Header with search */}
       <div className="header-sm">
         <Link href="/" className="back-btn">←</Link>
         <input
           className="search-input"
-          placeholder={`Search in ${parish}...`}
+          placeholder={searchPlaceholder}
           value={searchQuery}
           onChange={e => setSearchQuery(e.target.value)}
         />
@@ -83,7 +92,7 @@ function BrowseContent() {
           onClick={() => setShowParishModal(true)}
           style={{ background: 'rgba(255,255,255,0.09)', border: 'none', borderRadius: 6, padding: '6px 8px', color: 'rgba(255,255,255,0.65)', fontSize: 10, fontFamily: '-apple-system, sans-serif', cursor: 'pointer', whiteSpace: 'nowrap' }}
         >
-          {parish === 'All Parishes' ? 'All' : parish.split('.')[1]?.trim() || parish.split(' ')[0]} ⌄
+          {parish === 'All Parishes' ? 'All' : parish.replace('St. ', '')} ⌄
         </button>
       </div>
 
@@ -92,7 +101,7 @@ function BrowseContent() {
         {CATEGORIES.map(cat => (
           <button
             key={cat.key}
-            className={`pill ${category === cat.key ? 'active' : ''}`}
+            className={'pill ' + (category === cat.key ? 'active' : '')}
             onClick={() => setCategory(cat.key)}
           >
             {cat.label}
@@ -100,22 +109,22 @@ function BrowseContent() {
         ))}
       </div>
 
-      {/* Food sub-filter — shows when food category is selected */}
+      {/* Food sub-filter */}
       {category === 'food' && (
         <div className="pill-row" style={{ background: '#D0E8BC' }}>
-          <button className={`pill ${!searchQuery ? 'active' : ''}`} onClick={() => setSearchQuery('')}>All food</button>
-          <button className={`pill`} onClick={() => setSearchQuery('free')}>Free only</button>
-          <button className={`pill`} onClick={() => setSearchQuery('hot')}>Hot meals</button>
-          <button className={`pill`} onClick={() => setSearchQuery('produce')}>Produce</button>
+          <button className={'pill ' + (!searchQuery ? 'active' : '')} onClick={() => setSearchQuery('')}>All food</button>
+          <button className="pill" onClick={() => setSearchQuery('free')}>Free only</button>
+          <button className="pill" onClick={() => setSearchQuery('hot')}>Hot meals</button>
+          <button className="pill" onClick={() => setSearchQuery('produce')}>Produce</button>
         </div>
       )}
 
-      {/* District filter — the key UX goal */}
+      {/* District filter */}
       <div className="district-row">
         {districts.map(d => (
           <button
             key={d}
-            className={`district-pill ${(d === 'All areas' && district === 'all') || district === d ? 'active' : ''}`}
+            className={'district-pill ' + ((d === 'All areas' && district === 'all') || district === d ? 'active' : '')}
             onClick={() => setDistrict(d === 'All areas' ? 'all' : d)}
           >
             {d}
@@ -124,9 +133,9 @@ function BrowseContent() {
       </div>
 
       <div className="scroll-area">
-        <div style={{ padding: '8px 14px 3px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div style={{ padding: '8px 14px 3px' }}>
           <span style={{ fontSize: 10, fontFamily: '-apple-system, sans-serif', color: '#5A5A50' }}>
-            {loading ? 'Loading...' : `${filtered.length} listing${filtered.length !== 1 ? 's' : ''} · ${parish}${district !== 'all' ? `, ${district}` : ', All areas'}`}
+            {loading ? 'Loading...' : filtered.length + ' listing' + (filtered.length !== 1 ? 's' : '') + ' · ' + (parish === 'All Parishes' ? 'All parishes' : parish) + (district !== 'all' ? ', ' + district : ', All areas')}
           </span>
         </div>
 
@@ -137,13 +146,12 @@ function BrowseContent() {
             <p style={{ fontSize: 28, marginBottom: 8 }}>🔍</p>
             <p style={{ fontSize: 13, fontFamily: '-apple-system, sans-serif', color: '#18180F', marginBottom: 4 }}>Nothing in this area yet</p>
             <p style={{ fontSize: 11, fontFamily: '-apple-system, sans-serif', color: '#5A5A50' }}>
-              Try "All areas" or{' '}
-              <Link href="/post" style={{ color: '#1B3A1D' }}>post something yourself</Link>
+              Try "All areas" or <Link href="/post" style={{ color: '#1B3A1D' }}>post something yourself</Link>
             </p>
           </div>
         ) : (
           filtered.map(listing => (
-            <Link key={listing.id} href={`/listing/${listing.id}`} className="listing-row">
+            <Link key={listing.id} href={'/listing/' + listing.id} className="listing-row">
               <div className="listing-icon" style={{ background: listing.category === 'food' ? '#D0E8BC' : listing.category === 'urgent' ? '#F0CABA' : listing.category === 'work' ? '#BCD0E8' : listing.category === 'ride' ? '#E0D8F0' : '#F0E8BC' }}>
                 {listing.category === 'food' ? '🍲' : listing.category === 'urgent' ? '⚠️' : listing.category === 'work' ? '💼' : listing.category === 'ride' ? '🚗' : listing.category === 'service' ? '🛠️' : '🛍️'}
               </div>
@@ -159,7 +167,7 @@ function BrowseContent() {
                 </p>
                 <p style={{ fontSize: 10, fontFamily: '-apple-system, sans-serif', color: '#5A5A50' }}>
                   {listing.district || listing.parish}
-                  {listing.price_jmd ? ` · $${listing.price_jmd.toLocaleString()} JMD` : listing.is_free ? ' · Free' : ''}
+                  {listing.price_jmd ? ' · ' + listing.price_jmd : listing.is_free ? ' · Free' : ''}
                 </p>
               </div>
             </Link>
@@ -167,55 +175,26 @@ function BrowseContent() {
         )}
       </div>
 
-      {/* Bottom nav */}
       <nav className="bottom-nav">
-        <Link href="/" className="nav-item">
-          <svg width="20" height="20" viewBox="0 0 22 22" fill="none" stroke="currentColor" strokeWidth="1.7"><path d="M3 9.5L11 3L19 9.5V19H14V14H8V19H3V9.5Z" strokeLinecap="round" strokeLinejoin="round"/></svg>
-          <span className="nav-label">Home</span>
-        </Link>
-        <Link href="/browse" className="nav-item active">
-          <svg width="20" height="20" viewBox="0 0 22 22" fill="none" stroke="currentColor" strokeWidth="1.7"><circle cx="10" cy="10" r="6"/><path d="M15 15L19 19" strokeLinecap="round"/></svg>
-          <span className="nav-label">Browse</span>
-        </Link>
-        <div className="fab-wrapper">
-          <Link href="/post" className="fab">
-            <svg width="17" height="17" viewBox="0 0 17 17" fill="none" stroke="#fff" strokeWidth="2"><path d="M8.5 2V15M2 8.5H15" strokeLinecap="round"/></svg>
-          </Link>
-          <span className="nav-label" style={{ color: '#5A5A50' }}>Post</span>
-        </div>
-        <Link href="/favorites" className="nav-item">
-          <svg width="20" height="20" viewBox="0 0 22 22" fill="none" stroke="currentColor" strokeWidth="1.7"><path d="M11 18.5C11 18.5 3 13.5 3 7.5C3 5.3 4.8 3.5 7 3.5C8.8 3.5 10.3 4.5 11 5C11.7 4.5 13.2 3.5 15 3.5C17.2 3.5 19 5.3 19 7.5C19 13.5 11 18.5 11 18.5Z" strokeLinecap="round" strokeLinejoin="round"/></svg>
-          <span className="nav-label">Saved</span>
-        </Link>
-        <Link href="/account" className="nav-item">
-          <svg width="20" height="20" viewBox="0 0 22 22" fill="none" stroke="currentColor" strokeWidth="1.7"><circle cx="11" cy="8" r="3.5"/><path d="M4 19c0-3.9 3.1-7 7-7s7 3.1 7 7" strokeLinecap="round"/></svg>
-          <span className="nav-label">Me</span>
-        </Link>
+        <Link href="/" className="nav-item"><svg width="20" height="20" viewBox="0 0 22 22" fill="none" stroke="currentColor" strokeWidth="1.7"><path d="M3 9.5L11 3L19 9.5V19H14V14H8V19H3V9.5Z" strokeLinecap="round" strokeLinejoin="round"/></svg><span className="nav-label">Home</span></Link>
+        <Link href="/browse" className="nav-item active"><svg width="20" height="20" viewBox="0 0 22 22" fill="none" stroke="currentColor" strokeWidth="1.7"><circle cx="10" cy="10" r="6"/><path d="M15 15L19 19" strokeLinecap="round"/></svg><span className="nav-label">Browse</span></Link>
+        <div className="fab-wrapper"><Link href="/post" className="fab"><svg width="17" height="17" viewBox="0 0 17 17" fill="none" stroke="#fff" strokeWidth="2"><path d="M8.5 2V15M2 8.5H15" strokeLinecap="round"/></svg></Link><span className="nav-label" style={{ color: '#5A5A50' }}>Post</span></div>
+        <Link href="/favorites" className="nav-item"><svg width="20" height="20" viewBox="0 0 22 22" fill="none" stroke="currentColor" strokeWidth="1.7"><path d="M11 18.5C11 18.5 3 13.5 3 7.5C3 5.3 4.8 3.5 7 3.5C8.8 3.5 10.3 4.5 11 5C11.7 4.5 13.2 3.5 15 3.5C17.2 3.5 19 5.3 19 7.5C19 13.5 11 18.5 11 18.5Z" strokeLinecap="round" strokeLinejoin="round"/></svg><span className="nav-label">Saved</span></Link>
+        <Link href="/account" className="nav-item"><svg width="20" height="20" viewBox="0 0 22 22" fill="none" stroke="currentColor" strokeWidth="1.7"><circle cx="11" cy="8" r="3.5"/><path d="M4 19c0-3.9 3.1-7 7-7s7 3.1 7 7" strokeLinecap="round"/></svg><span className="nav-label">Me</span></Link>
       </nav>
 
-      {/* Parish Modal */}
       {showParishModal && (
-        <div
-          style={{ position: 'fixed', inset: 0, background: 'rgba(27,58,29,0.6)', zIndex: 400, display: 'flex', alignItems: 'flex-end' }}
-          onClick={() => setShowParishModal(false)}
-        >
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(27,58,29,0.6)', zIndex: 400, display: 'flex', alignItems: 'flex-end' }} onClick={() => setShowParishModal(false)}>
           <div style={{ background: '#F5F0E6', borderRadius: '18px 18px 0 0', padding: '16px 14px 30px', width: '100%', maxWidth: 480, margin: '0 auto' }} onClick={e => e.stopPropagation()}>
             <p style={{ fontSize: 14, color: '#18180F', marginBottom: 12 }}>Choose your parish</p>
             <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
               {PARISHES.map(p => (
-                <button
-                  key={p}
-                  className={`district-pill ${parish === p ? 'active' : ''}`}
-                  onClick={() => { setParish(p); setDistrict('all'); setShowParishModal(false) }}
-                >
+                <button key={p} className={'district-pill ' + (parish === p ? 'active' : '')} onClick={() => { setParish(p); setDistrict('all'); setShowParishModal(false) }}>
                   {p}
                 </button>
               ))}
             </div>
-            <button
-              onClick={() => setShowParishModal(false)}
-              style={{ marginTop: 13, width: '100%', background: '#EDE7D9', border: '1px solid #D8D0BC', borderRadius: 9, padding: 11, fontSize: 13, cursor: 'pointer', color: '#18180F' }}
-            >
+            <button onClick={() => setShowParishModal(false)} style={{ marginTop: 13, width: '100%', background: '#EDE7D9', border: '1px solid #D8D0BC', borderRadius: 9, padding: 11, fontSize: 13, cursor: 'pointer', color: '#18180F' }}>
               Done
             </button>
           </div>
@@ -224,6 +203,7 @@ function BrowseContent() {
     </div>
   )
 }
+
 export default function BrowsePage() {
   return (
     <Suspense fallback={<div className="loading">Loading...</div>}>
