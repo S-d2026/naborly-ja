@@ -15,7 +15,6 @@ const CATEGORIES = [
   { key: 'buy-sell', label: 'Buy/Sell', emoji: '🛍️', bg: '#EDE7D9' },
 ]
 
-// Jamaica bounding box
 const JAMAICA_BOUNDS = { minLat: 17.70, maxLat: 18.55, minLng: -78.40, maxLng: -76.18 }
 
 function isInJamaica(lat: number, lng: number): boolean {
@@ -137,8 +136,8 @@ function PostContent() {
       description: description.trim() || null,
       category: category as any,
       listing_type: listingType,
-      price_jmd: price ? parseInt(price) : null,
-      is_free: !price,
+      price_jmd: price.trim() || null,
+      is_free: !price.trim(),
       parish,
       district: district.trim() || null,
       whatsapp: isAnonymous ? null : whatsapp.trim(),
@@ -232,11 +231,7 @@ function PostContent() {
                   {locationSet ? parish + (district ? ', ' + district : '') : 'Auto-fills your parish and district'}
                 </p>
               </div>
-              <button
-                onClick={handleUseLocation}
-                disabled={locating}
-                style={{ background: locationSet ? '#2D5A2E' : '#1B3A1D', color: '#fff', border: 'none', borderRadius: 6, padding: '6px 11px', fontSize: 10, fontFamily: '-apple-system, sans-serif', cursor: 'pointer', opacity: locating ? 0.7 : 1 }}
-              >
+              <button onClick={handleUseLocation} disabled={locating} style={{ background: locationSet ? '#2D5A2E' : '#1B3A1D', color: '#fff', border: 'none', borderRadius: 6, padding: '6px 11px', fontSize: 10, fontFamily: '-apple-system, sans-serif', cursor: 'pointer', opacity: locating ? 0.7 : 1 }}>
                 {locating ? 'Locating...' : locationSet ? 'Update' : 'Detect'}
               </button>
             </div>
@@ -248,7 +243,7 @@ function PostContent() {
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 11 }}>
             <div>
               <label className="field-label">Price (JMD)</label>
-              <input className="form-field" placeholder="Free if blank" value={price} onChange={e => setPrice(e.target.value)} type="number" min="0" />
+              <input className="form-field" placeholder="e.g. Free, $500/hr, By quote..." value={price} onChange={e => setPrice(e.target.value)} type="text" />
             </div>
             <div>
               <label className="field-label">Parish</label>
