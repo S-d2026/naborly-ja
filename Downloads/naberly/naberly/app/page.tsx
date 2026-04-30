@@ -55,6 +55,7 @@ export default function HomePage() {
   const [userName, setUserName] = useState('')
   const [greeting, setGreeting] = useState<{ text: string; emoji: string } | null>(null)
 
+  // Load user, listings and stories
   useEffect(() => {
     supabase.auth.getUser().then(async ({ data }) => {
       setUser(data.user)
@@ -77,14 +78,18 @@ export default function HomePage() {
     getImpactStories().then(({ data }) => {
       if (data) setStories(data as ImpactStory[])
     })
-
-    const interval = setInterval(() => {
-      setTickerIndex(i => (i + 1) % Math.max(stories.length, 1))
-    }, 4000)
-
-    return () => clearInterval(interval)
   }, [])
 
+  // Ticker rotates only after stories load
+  useEffect(() => {
+    if (stories.length === 0) return
+    const interval = setInterval(() => {
+      setTickerIndex(i => (i + 1) % stories.length)
+    }, 4000)
+    return () => clearInterval(interval)
+  }, [stories])
+
+  // Update greeting when user or listings change
   useEffect(() => {
     const urgent = listings.filter(l => l.category === 'urgent').length
     setGreeting(getGreeting(userName, userParish, listings.length, urgent))
@@ -129,7 +134,9 @@ export default function HomePage() {
       <div style={{ background: '#1B3A1D', padding: '8px 15px', display: 'flex', alignItems: 'center', gap: 8, overflow: 'hidden', flexShrink: 0 }}>
         <div className="ticker-dot" />
         <p style={{ color: 'rgba(255,255,255,0.75)', fontSize: 11, fontFamily: '-apple-system, sans-serif', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-          {stories.length > 0 ? stories[tickerIndex % stories.length]?.story_text : 'Welcome to Naberly JA — your Naberhood at your fingertips'}
+          {stories.length > 0
+            ? stories[tickerIndex % stories.length]?.story_text
+            : 'Welcome to Naberly JA — your Naberhood at your fingertips'}
         </p>
       </div>
 
