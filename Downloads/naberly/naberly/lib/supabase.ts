@@ -1,14 +1,9 @@
-// lib/supabase.ts
-// Supabase client — used throughout the app
-
 import { createClient } from '@supabase/supabase-js'
 
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL!
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey)
-
-// ---- Types ----
 
 export type ListingCategory = 'food' | 'urgent' | 'work' | 'ride' | 'service' | 'buy-sell'
 export type ListingType = 'need' | 'offer'
@@ -21,7 +16,7 @@ export interface Listing {
   description: string | null
   category: ListingCategory
   listing_type: ListingType
-  price_jmd: number | null
+  price_jmd: string | null
   is_free: boolean
   parish: string
   district: string | null
@@ -65,8 +60,6 @@ export interface ImpactStory {
   created_at: string
 }
 
-// ---- Helper functions ----
-
 export async function getApprovedListings(filters?: {
   parish?: string
   district?: string
@@ -84,7 +77,7 @@ export async function getApprovedListings(filters?: {
     query = query.eq('parish', filters.parish)
   }
   if (filters?.district && filters.district !== 'all') {
-    query = query.ilike('district', `%${filters.district}%`)
+    query = query.ilike('district', '%' + filters.district + '%')
   }
   if (filters?.category && filters.category !== 'all') {
     query = query.eq('category', filters.category)
@@ -138,7 +131,6 @@ export async function getUserListings(userId: string) {
 }
 
 export async function toggleSaved(userId: string, listingId: string) {
-  // Check if already saved
   const { data: existing } = await supabase
     .from('saved_listings')
     .select('id')
@@ -170,7 +162,6 @@ export async function getSavedListings(userId: string) {
   return { data, error }
 }
 
-// Admin functions
 export async function adminUpdateListing(listingId: string, updates: Partial<Listing>) {
   const { data, error } = await supabase
     .from('listings')
