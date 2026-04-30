@@ -281,7 +281,7 @@ export default function HomePage() {
           <div style={{ borderRadius: 10, padding: 13, background: '#1B3A1D' }}>
             <p className="eyebrow" style={{ color: 'rgba(255,255,255,0.42)', marginBottom: 5 }}>The mission</p>
             <p style={{ color: '#fff', fontSize: 13, fontFamily: '-apple-system, sans-serif', lineHeight: 1.65 }}>
-              Born in Jamaica. Every plate shared, every job found, every urgent need answered — brings us closer to a world where no Naberhood is left behind.
+              Born in Jamaica, by Jamaicans, for Jamaicans. Every plate shared, every job found, every urgent need answered — giving every Jamaican, especially those outside the mainstream, a place to build, connect and be seen. Parish by parish. Neighbor by neighbor. Worldwide next.
             </p>
             <p style={{ color: 'rgba(255,255,255,0.32)', fontSize: 10, fontFamily: '-apple-system, sans-serif', marginTop: 7 }}>naberlyja.com</p>
           </div>
