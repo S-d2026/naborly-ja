@@ -95,8 +95,8 @@ export default function ListingPage() {
 
   // WhatsApp message with cursor on new line after pre-filled text
   const whatsappMessage = listing.is_anonymous
-    ? encodeURIComponent('Hi Naberly, I want to help the anonymous listing "' + listing.title + '" in ' + (listing.district || listing.parish) + '. Please relay my message.\n\nnaberlyja.com\n\n')
-    : encodeURIComponent('Hi, I saw your Naberly listing for "' + listing.title + '". I am interested.\n\nnaberlyja.com\n\n')
+    ? encodeURIComponent('Hi, I saw your naberlyja.com listing for "' + listing.title + '". I want to help. Please relay my message.\n\n')
+    : encodeURIComponent('Hi, I saw your naberlyja.com listing for "' + listing.title + '". I am interested.\n\n')
 
   const isUrgent = listing.category === 'urgent'
   const headerBg = isUrgent ? '#3D1010' : '#1B3A1D'
