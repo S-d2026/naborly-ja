@@ -1,5 +1,5 @@
 'use client'
-import { useState, Suspense } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { supabase, createListing } from '@/lib/supabase'
@@ -61,6 +61,26 @@ function PostContent() {
   const [locationError, setLocationError] = useState('')
   const [error, setError] = useState('')
   const [success, setSuccess] = useState(false)
+  const [authChecked, setAuthChecked] = useState(false)
+
+  useEffect(() => {
+    // Check if logged in — redirect to signup if not
+    supabase.auth.getUser().then(async ({ data }) => {
+      if (!data.user) {
+        router.push('/signup?message=Please+sign+up+to+post+a+listing')
+        return
+      }
+      // Load user parish as default
+      const { data: profile } = await supabase
+        .from('profiles')
+        .select('parish, whatsapp')
+        .eq('id', data.user.id)
+        .single()
+      if (profile?.parish) setParish(profile.parish)
+      if (profile?.whatsapp) setWhatsapp(profile.whatsapp)
+      setAuthChecked(true)
+    })
+  }, [router])
 
   async function handlePhotoUpload(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0]
@@ -152,6 +172,10 @@ function PostContent() {
       setSuccess(true)
       setTimeout(() => router.push('/'), 2000)
     }
+  }
+
+  if (!authChecked) {
+    return <div className="app-shell"><div className="loading">Loading...</div></div>
   }
 
   if (success) {
@@ -284,14 +308,21 @@ function PostContent() {
           </div>
         </div>
 
-        <div style={{ background: '#EDE7D9', borderRadius: 9, padding: 11, marginBottom: 10, display: 'flex', alignItems: 'center', justifyContent: 'space-between', border: '1px solid #D8D0BC' }}>
-          <div>
-            <p style={{ fontSize: 12, fontFamily: '-apple-system, sans-serif', fontWeight: 700, color: '#18180F' }}>{isAnonymous ? 'Posting anonymously' : 'Post anonymously instead'}</p>
-            <p style={{ fontSize: 10, fontFamily: '-apple-system, sans-serif', color: '#5A5A50', marginTop: 1 }}>{isAnonymous ? 'Your name and number are hidden' : 'Hides your name and number'}</p>
+        {/* Anonymous toggle — clearer wording */}
+        <div style={{ background: isAnonymous ? '#EDE0F5' : '#EDE7D9', borderRadius: 9, padding: 11, marginBottom: 10, border: isAnonymous ? '1px solid #CEB8E8' : '1px solid #D8D0BC' }}>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+            <div>
+              <p style={{ fontSize: 12, fontFamily: '-apple-system, sans-serif', fontWeight: 700, color: isAnonymous ? '#4A1A80' : '#18180F' }}>
+                {isAnonymous ? 'Posting anonymously' : 'Post anonymously instead?'}
+              </p>
+              <p style={{ fontSize: 10, fontFamily: '-apple-system, sans-serif', color: isAnonymous ? '#6B2A9A' : '#5A5A50', marginTop: 1 }}>
+                {isAnonymous ? 'Your name and number are fully hidden' : 'Hides your name and number from everyone'}
+              </p>
+            </div>
+            <button onClick={() => setIsAnonymous(!isAnonymous)} style={{ background: isAnonymous ? '#6B2A9A' : '#1B3A1D', color: '#fff', border: 'none', borderRadius: 6, padding: '6px 10px', fontSize: 10, fontFamily: '-apple-system, sans-serif', cursor: 'pointer', whiteSpace: 'nowrap' }}>
+              {isAnonymous ? 'Switch to named' : 'Switch to anon'}
+            </button>
           </div>
-          <button onClick={() => setIsAnonymous(!isAnonymous)} style={{ background: '#1B3A1D', color: '#fff', border: 'none', borderRadius: 6, padding: '6px 10px', fontSize: 10, fontFamily: '-apple-system, sans-serif', cursor: 'pointer' }}>
-            {isAnonymous ? 'Switch to named' : 'Switch'}
-          </button>
         </div>
 
         {error && (
