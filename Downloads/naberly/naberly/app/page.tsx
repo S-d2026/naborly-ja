@@ -3,14 +3,6 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { supabase, getApprovedListings, getImpactStories, type Listing, type ImpactStory } from '@/lib/supabase'
 
-const TICKERS = [
-  'Miss Marva fed 12 families in Cross Roads this week',
-  'An anonymous urgent need in Maxfield Ave was resolved in 2 hours',
-  'Deacon Brown gave a free market ride to 3 neighbors in Dunrobin',
-  'Brother Roy shared vegetables with August Town families',
-  '7 free food listings active in Kingston right now',
-]
-
 const CATEGORY_TILES = [
   { key: 'food', label: 'Need Food', sub: 'Free or low cost nearby', emoji: '🍲', bg: '#D0E8BC', textColor: '#1B3A1D', subColor: '#2D5A2E', href: '/browse?category=food' },
   { key: 'offer', label: 'Offer Help', sub: 'Food, skills, rides', emoji: '🤲', bg: '#EDE7D9', textColor: '#18180F', subColor: '#5A5A50', href: '/post', dashed: true },
@@ -39,19 +31,16 @@ function getGreeting(name: string, parish: string, listingCount: number, urgentC
     if (listingCount > 0) return { emoji: '🌅', text: 'Good morning' + (firstName ? ', ' + firstName : '') + '. ' + listingCount + ' neighbor' + (listingCount > 1 ? 's' : '') + ' posted in ' + parishText + ' this morning.' }
     return { emoji: '🌅', text: 'Good morning' + (firstName ? ', ' + firstName : '') + '. Be the first to post in ' + parishText + ' today.' }
   }
-
   if (hour >= 12 && hour < 17) {
     if (urgentCount > 0) return { emoji: '☀️', text: 'Good afternoon' + (firstName ? ', ' + firstName : '') + '. ' + urgentCount + ' urgent need' + (urgentCount > 1 ? 's' : '') + ' in ' + parishText + ' still need' + (urgentCount === 1 ? 's' : '') + ' help.' }
     if (listingCount > 0) return { emoji: '☀️', text: 'Good afternoon' + (firstName ? ', ' + firstName : '') + '. ' + listingCount + ' active listing' + (listingCount > 1 ? 's' : '') + ' in ' + parishText + ' right now.' }
     return { emoji: '☀️', text: 'Good afternoon' + (firstName ? ', ' + firstName : '') + '. Your Naberhood is quiet — post something for ' + parishText + '.' }
   }
-
   if (hour >= 17 && hour < 21) {
     if (urgentCount > 0) return { emoji: '🌇', text: 'Good evening' + (firstName ? ', ' + firstName : '') + '. ' + urgentCount + ' urgent need' + (urgentCount > 1 ? 's' : '') + ' in ' + parishText + ' need' + (urgentCount === 1 ? 's' : '') + ' a response tonight.' }
     if (listingCount > 0) return { emoji: '🌇', text: 'Good evening' + (firstName ? ', ' + firstName : '') + '. ' + listingCount + ' neighbor' + (listingCount > 1 ? 's' : '') + ' still active in ' + parishText + ' this evening.' }
     return { emoji: '🌇', text: 'Good evening' + (firstName ? ', ' + firstName : '') + '. A good time to check what your Naberhood needs.' }
   }
-
   if (urgentCount > 0) return { emoji: '🌙', text: 'Evening' + (firstName ? ', ' + firstName : '') + '. ' + urgentCount + ' urgent need' + (urgentCount > 1 ? 's' : '') + ' in ' + parishText + ' still open.' }
   return { emoji: '🌙', text: 'Evening' + (firstName ? ', ' + firstName : '') + '. Rest well — your Naberhood will be here tomorrow.' }
 }
@@ -81,11 +70,7 @@ export default function HomePage() {
     })
 
     getApprovedListings().then(({ data }) => {
-      if (data) {
-        setListings(data as Listing[])
-        const urgent = (data as Listing[]).filter(l => l.category === 'urgent').length
-        setGreeting(getGreeting('', '', data.length, urgent))
-      }
+      if (data) setListings(data as Listing[])
       setLoading(false)
     })
 
@@ -94,13 +79,12 @@ export default function HomePage() {
     })
 
     const interval = setInterval(() => {
-      setTickerIndex(i => (i + 1) % TICKERS.length)
+      setTickerIndex(i => (i + 1) % Math.max(stories.length, 1))
     }, 4000)
 
     return () => clearInterval(interval)
   }, [])
 
-  // Update greeting when user name and parish load
   useEffect(() => {
     const urgent = listings.filter(l => l.category === 'urgent').length
     setGreeting(getGreeting(userName, userParish, listings.length, urgent))
@@ -141,11 +125,11 @@ export default function HomePage() {
         </div>
       )}
 
-      {/* IMPACT TICKER */}
+      {/* LIVE IMPACT TICKER */}
       <div style={{ background: '#1B3A1D', padding: '8px 15px', display: 'flex', alignItems: 'center', gap: 8, overflow: 'hidden', flexShrink: 0 }}>
         <div className="ticker-dot" />
         <p style={{ color: 'rgba(255,255,255,0.75)', fontSize: 11, fontFamily: '-apple-system, sans-serif', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-          {TICKERS[tickerIndex]}
+          {stories.length > 0 ? stories[tickerIndex % stories.length]?.story_text : 'Welcome to Naberly JA — your Naberhood at your fingertips'}
         </p>
       </div>
 
@@ -268,7 +252,7 @@ export default function HomePage() {
                   </p>
                   <p style={{ fontSize: 10, fontFamily: '-apple-system, sans-serif', color: '#5A5A50' }}>
                     {listing.district || listing.parish}
-                    {listing.price_jmd ? ' · $' + listing.price_jmd.toLocaleString() + ' JMD' : listing.is_free ? ' · Free' : ''}
+                    {listing.price_jmd ? ' · ' + listing.price_jmd : listing.is_free ? ' · Free' : ''}
                   </p>
                 </div>
               </Link>
