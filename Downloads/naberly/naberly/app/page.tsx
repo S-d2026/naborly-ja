@@ -13,12 +13,28 @@ const CATEGORY_TILES = [
 ]
 
 const CHIP_COLORS: Record<string, string> = {
-  food: 'chip-free',
-  urgent: 'chip-urgent',
-  work: 'chip-work',
-  ride: 'chip-anon',
-  service: 'chip-featured',
-  'buy-sell': 'chip-neutral',
+  food: 'chip-free', urgent: 'chip-urgent', work: 'chip-work',
+  ride: 'chip-anon', service: 'chip-featured', 'buy-sell': 'chip-neutral',
+}
+
+const JAMAICA_BOUNDS = { minLat: 17.70, maxLat: 18.55, minLng: -78.40, maxLng: -76.18 }
+
+function getParishFromCoords(lat: number, lng: number): string {
+  if (lat >= 17.85 && lat <= 18.05 && lng >= -76.95 && lng <= -76.65) return 'Kingston'
+  if (lat >= 17.85 && lat <= 18.15 && lng >= -77.05 && lng <= -76.65) return 'St. Andrew'
+  if (lat >= 17.70 && lat <= 17.95 && lng >= -77.05 && lng <= -76.70) return 'St. Catherine'
+  if (lat >= 17.80 && lat <= 18.10 && lng >= -77.35 && lng <= -77.05) return 'St. Thomas'
+  if (lat >= 18.00 && lat <= 18.25 && lng >= -76.85 && lng <= -76.50) return 'Portland'
+  if (lat >= 18.15 && lat <= 18.45 && lng >= -77.15 && lng <= -76.75) return 'St. Mary'
+  if (lat >= 18.20 && lat <= 18.55 && lng >= -77.55 && lng <= -77.10) return 'St. Ann'
+  if (lat >= 18.30 && lat <= 18.55 && lng >= -77.85 && lng <= -77.50) return 'Trelawny'
+  if (lat >= 18.30 && lat <= 18.55 && lng >= -78.05 && lng <= -77.75) return 'St. James'
+  if (lat >= 18.35 && lat <= 18.55 && lng >= -78.20 && lng <= -78.00) return 'Hanover'
+  if (lat >= 18.10 && lat <= 18.40 && lng >= -78.25 && lng <= -77.90) return 'Westmoreland'
+  if (lat >= 17.85 && lat <= 18.20 && lng >= -77.95 && lng <= -77.55) return 'St. Elizabeth'
+  if (lat >= 17.95 && lat <= 18.25 && lng >= -77.60 && lng <= -77.25) return 'Manchester'
+  if (lat >= 17.80 && lat <= 18.10 && lng >= -77.35 && lng <= -76.95) return 'Clarendon'
+  return 'Kingston'
 }
 
 function getGreeting(name: string, parish: string, listingCount: number, urgentCount: number): { text: string; emoji: string } {
@@ -55,8 +71,23 @@ export default function HomePage() {
   const [userName, setUserName] = useState('')
   const [greeting, setGreeting] = useState<{ text: string; emoji: string } | null>(null)
 
-  // Load user, listings and stories
   useEffect(() => {
+    // Try GPS first for non-logged-in users
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const { latitude, longitude } = pos.coords
+          if (latitude >= JAMAICA_BOUNDS.minLat && latitude <= JAMAICA_BOUNDS.maxLat &&
+            longitude >= JAMAICA_BOUNDS.minLng && longitude <= JAMAICA_BOUNDS.maxLng) {
+            const detected = getParishFromCoords(latitude, longitude)
+            setUserParish(detected)
+          }
+        },
+        () => {} // silently fall back to Kingston
+      )
+    }
+
+    // Get logged-in user — overrides GPS with profile parish
     supabase.auth.getUser().then(async ({ data }) => {
       setUser(data.user)
       if (data.user) {
@@ -197,12 +228,7 @@ export default function HomePage() {
           <p className="eyebrow" style={{ marginBottom: 9 }}>How can we help?</p>
           <div className="category-grid" style={{ marginBottom: 13 }}>
             {CATEGORY_TILES.map(tile => (
-              <Link
-                key={tile.key}
-                href={tile.href}
-                className="category-tile"
-                style={{ background: tile.bg, border: tile.dashed ? '1.5px dashed #D8D0BC' : 'none' }}
-              >
+              <Link key={tile.key} href={tile.href} className="category-tile" style={{ background: tile.bg, border: tile.dashed ? '1.5px dashed #D8D0BC' : 'none' }}>
                 <div style={{ fontSize: 20, marginBottom: 6, lineHeight: 1 }}>{tile.emoji}</div>
                 <p style={{ fontSize: 12, fontFamily: '-apple-system, sans-serif', fontWeight: 700, color: tile.textColor, marginBottom: 1 }}>{tile.label}</p>
                 <p style={{ fontSize: 10, fontFamily: '-apple-system, sans-serif', color: tile.subColor }}>{tile.sub}</p>
@@ -210,7 +236,6 @@ export default function HomePage() {
             ))}
           </div>
 
-          {/* HOW IT WORKS */}
           <div style={{ background: '#EDE7D9', borderRadius: 12, padding: 13, marginBottom: 13, border: '1px solid #D8D0BC' }}>
             <p style={{ fontSize: 12, fontFamily: '-apple-system, sans-serif', fontWeight: 700, color: '#18180F', marginBottom: 11 }}>How Naberly works</p>
             {[
