@@ -115,20 +115,24 @@ function PostContent() {
     navigator.geolocation.getCurrentPosition(
       async (pos) => {
         const { latitude, longitude } = pos.coords
-        if (!isInJamaica(latitude, longitude)) {
-          setLocationError('Location not detected as Jamaica. Please select your parish manually.')
-          setLocating(false)
-          return
-        }
-        const detectedParish = getParishFromCoords(latitude, longitude)
-        if (detectedParish) setParish(detectedParish)
+        const inJamaica = latitude >= 17.70 && latitude <= 18.55 && longitude >= -78.40 && longitude <= -76.18
         try {
           const res = await fetch(
             'https://nominatim.openstreetmap.org/reverse?lat=' + latitude + '&lon=' + longitude + '&format=json'
           )
           const data = await res.json()
-          const suburb = data.address?.suburb || data.address?.neighbourhood || data.address?.village || data.address?.town || ''
-          if (suburb) setDistrict(suburb)
+          if (inJamaica) {
+            const detectedParish = getParishFromCoords(latitude, longitude)
+            if (detectedParish) setParish(detectedParish)
+            const suburb = data.address?.suburb || data.address?.neighbourhood || data.address?.village || data.address?.town || ''
+            if (suburb) setDistrict(suburb)
+          } else {
+            const neighborhood = data.address?.suburb || data.address?.neighbourhood || data.address?.city_district || data.address?.town || data.address?.city || ''
+            const city = data.address?.city || data.address?.town || data.address?.county || ''
+            if (neighborhood) setParish(neighborhood + (city ? ', ' + city : ''))
+            const district = data.address?.suburb || data.address?.neighbourhood || ''
+            if (district) setDistrict(district)
+          }
         } catch (e) {
           console.error(e)
         }
