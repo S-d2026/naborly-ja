@@ -67,11 +67,19 @@ function BrowseContent() {
   useEffect(() => {
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
-        (pos) => {
+        async (pos) => {
           const { latitude, longitude } = pos.coords
-          if (latitude >= JAMAICA_BOUNDS.minLat && latitude <= JAMAICA_BOUNDS.maxLat &&
-            longitude >= JAMAICA_BOUNDS.minLng && longitude <= JAMAICA_BOUNDS.maxLng) {
+          const inJamaica = latitude >= 17.70 && latitude <= 18.55 && longitude >= -78.40 && longitude <= -76.18
+          if (inJamaica) {
             setParish(getParishFromCoords(latitude, longitude))
+          } else {
+            try {
+              const res = await fetch('https://nominatim.openstreetmap.org/reverse?lat=' + latitude + '&lon=' + longitude + '&format=json')
+              const data = await res.json()
+              const neighborhood = data.address?.suburb || data.address?.neighbourhood || data.address?.city_district || data.address?.town || data.address?.city || ''
+              const city = data.address?.city || data.address?.town || data.address?.county || ''
+              if (neighborhood) setParish(neighborhood + (city ? ', ' + city : ''))
+            } catch (e) {}
           }
         },
         () => {}
