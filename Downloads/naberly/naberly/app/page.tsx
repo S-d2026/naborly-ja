@@ -283,7 +283,8 @@ export default function HomePage() {
                 {index === 2 && sponsor && (
                   
                     key="sponsor"
-                    href={'https://wa.me/' + sponsor.whatsapp?.replace(/\D/g, '') + '?text=' + encodeURIComponent('Hi, I saw your Naberly sponsorship for ' + sponsor.business_name + '. I am interested.')}
+                    href="#"
+onClick={(e) => { e.preventDefault(); window.open('https://wa.me/' + sponsor.whatsapp?.replace(/\D/g, ''), '_blank') }}
                     target="_blank"
                     rel="noopener noreferrer"
                     style={{ display: 'flex', alignItems: 'center', gap: 11, padding: '11px 13px', background: '#F5F0E6', borderBottom: '1px solid #D8D0BC', textDecoration: 'none' }}
