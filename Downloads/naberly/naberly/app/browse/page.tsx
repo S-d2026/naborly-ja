@@ -29,6 +29,26 @@ const CATEGORIES = [
   { key: 'service', label: 'Services' },
 ]
 
+const JAMAICA_BOUNDS = { minLat: 17.70, maxLat: 18.55, minLng: -78.40, maxLng: -76.18 }
+
+function getParishFromCoords(lat: number, lng: number): string {
+  if (lat >= 17.85 && lat <= 18.05 && lng >= -76.95 && lng <= -76.65) return 'Kingston'
+  if (lat >= 17.85 && lat <= 18.15 && lng >= -77.05 && lng <= -76.65) return 'St. Andrew'
+  if (lat >= 17.70 && lat <= 17.95 && lng >= -77.05 && lng <= -76.70) return 'St. Catherine'
+  if (lat >= 17.80 && lat <= 18.10 && lng >= -77.35 && lng <= -77.05) return 'St. Thomas'
+  if (lat >= 18.00 && lat <= 18.25 && lng >= -76.85 && lng <= -76.50) return 'Portland'
+  if (lat >= 18.15 && lat <= 18.45 && lng >= -77.15 && lng <= -76.75) return 'St. Mary'
+  if (lat >= 18.20 && lat <= 18.55 && lng >= -77.55 && lng <= -77.10) return 'St. Ann'
+  if (lat >= 18.30 && lat <= 18.55 && lng >= -77.85 && lng <= -77.50) return 'Trelawny'
+  if (lat >= 18.30 && lat <= 18.55 && lng >= -78.05 && lng <= -77.75) return 'St. James'
+  if (lat >= 18.35 && lat <= 18.55 && lng >= -78.20 && lng <= -78.00) return 'Hanover'
+  if (lat >= 18.10 && lat <= 18.40 && lng >= -78.25 && lng <= -77.90) return 'Westmoreland'
+  if (lat >= 17.85 && lat <= 18.20 && lng >= -77.95 && lng <= -77.55) return 'St. Elizabeth'
+  if (lat >= 17.95 && lat <= 18.25 && lng >= -77.60 && lng <= -77.25) return 'Manchester'
+  if (lat >= 17.80 && lat <= 18.10 && lng >= -77.35 && lng <= -76.95) return 'Clarendon'
+  return 'Kingston'
+}
+
 function BrowseContent() {
   const searchParams = useSearchParams()
   const initialCategory = searchParams.get('category') || 'all'
@@ -36,15 +56,29 @@ function BrowseContent() {
   const [listings, setListings] = useState<Listing[]>([])
   const [loading, setLoading] = useState(true)
   const [searchQuery, setSearchQuery] = useState('')
-  const [parish, setParish] = useState('All Parishes')
+  const [parish, setParish] = useState('Kingston')
   const [category, setCategory] = useState(initialCategory)
   const [district, setDistrict] = useState('all')
   const [showParishModal, setShowParishModal] = useState(false)
 
   const districts = DISTRICTS[parish] || DISTRICTS['default']
 
-  // Load user parish on mount
   useEffect(() => {
+    // Try GPS first for non-logged-in users
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          const { latitude, longitude } = pos.coords
+          if (latitude >= JAMAICA_BOUNDS.minLat && latitude <= JAMAICA_BOUNDS.maxLat &&
+            longitude >= JAMAICA_BOUNDS.minLng && longitude <= JAMAICA_BOUNDS.maxLng) {
+            setParish(getParishFromCoords(latitude, longitude))
+          }
+        },
+        () => {}
+      )
+    }
+
+    // Logged-in user parish overrides GPS
     supabase.auth.getUser().then(async ({ data }) => {
       if (data.user) {
         const { data: profile } = await supabase
@@ -82,34 +116,20 @@ function BrowseContent() {
     <div className="app-shell">
       <div className="header-sm">
         <Link href="/" className="back-btn">←</Link>
-        <input
-          className="search-input"
-          placeholder={searchPlaceholder}
-          value={searchQuery}
-          onChange={e => setSearchQuery(e.target.value)}
-        />
-        <button
-          onClick={() => setShowParishModal(true)}
-          style={{ background: 'rgba(255,255,255,0.09)', border: 'none', borderRadius: 6, padding: '6px 8px', color: 'rgba(255,255,255,0.65)', fontSize: 10, fontFamily: '-apple-system, sans-serif', cursor: 'pointer', whiteSpace: 'nowrap' }}
-        >
+        <input className="search-input" placeholder={searchPlaceholder} value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
+        <button onClick={() => setShowParishModal(true)} style={{ background: 'rgba(255,255,255,0.09)', border: 'none', borderRadius: 6, padding: '6px 8px', color: 'rgba(255,255,255,0.65)', fontSize: 10, fontFamily: '-apple-system, sans-serif', cursor: 'pointer', whiteSpace: 'nowrap' }}>
           {parish === 'All Parishes' ? 'All' : parish.replace('St. ', '')} ⌄
         </button>
       </div>
 
-      {/* Category pills */}
       <div className="pill-row">
         {CATEGORIES.map(cat => (
-          <button
-            key={cat.key}
-            className={'pill ' + (category === cat.key ? 'active' : '')}
-            onClick={() => setCategory(cat.key)}
-          >
+          <button key={cat.key} className={'pill ' + (category === cat.key ? 'active' : '')} onClick={() => setCategory(cat.key)}>
             {cat.label}
           </button>
         ))}
       </div>
 
-      {/* Food sub-filter */}
       {category === 'food' && (
         <div className="pill-row" style={{ background: '#D0E8BC' }}>
           <button className={'pill ' + (!searchQuery ? 'active' : '')} onClick={() => setSearchQuery('')}>All food</button>
@@ -119,14 +139,9 @@ function BrowseContent() {
         </div>
       )}
 
-      {/* District filter */}
       <div className="district-row">
         {districts.map(d => (
-          <button
-            key={d}
-            className={'district-pill ' + ((d === 'All areas' && district === 'all') || district === d ? 'active' : '')}
-            onClick={() => setDistrict(d === 'All areas' ? 'all' : d)}
-          >
+          <button key={d} className={'district-pill ' + ((d === 'All areas' && district === 'all') || district === d ? 'active' : '')} onClick={() => setDistrict(d === 'All areas' ? 'all' : d)}>
             {d}
           </button>
         ))}
