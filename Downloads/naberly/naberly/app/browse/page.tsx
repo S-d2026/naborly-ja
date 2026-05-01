@@ -106,6 +106,12 @@ function BrowseContent() {
     (l.district || '').toLowerCase().includes(searchQuery.toLowerCase())
   )
 
+  function openSponsorWhatsApp() {
+    if (!sponsor?.whatsapp) return
+    const num = sponsor.whatsapp.replace(/\D/g, '')
+    window.open('https://wa.me/' + num, '_blank')
+  }
+
   return (
     <div className="app-shell">
       <div className="header-sm">
@@ -160,8 +166,8 @@ function BrowseContent() {
           </div>
         ) : (
           filtered.map((listing, index) => (
-            <>
-              <Link key={listing.id} href={'/listing/' + listing.id} className="listing-row">
+            <div key={listing.id}>
+              <Link href={'/listing/' + listing.id} className="listing-row">
                 <div className="listing-icon" style={{ background: listing.category === 'food' ? '#D0E8BC' : listing.category === 'urgent' ? '#F0CABA' : listing.category === 'work' ? '#BCD0E8' : listing.category === 'ride' ? '#E0D8F0' : '#F0E8BC' }}>
                   {listing.category === 'food' ? '🍲' : listing.category === 'urgent' ? '⚠️' : listing.category === 'work' ? '💼' : listing.category === 'ride' ? '🚗' : listing.category === 'service' ? '🛠️' : '🛍️'}
                 </div>
@@ -172,9 +178,7 @@ function BrowseContent() {
                     {listing.is_featured && <span className="chip chip-featured">Featured</span>}
                     {listing.category === 'urgent' && <span className="chip chip-urgent">Urgent</span>}
                   </div>
-                  <p style={{ fontSize: 12, fontFamily: '-apple-system, sans-serif', fontWeight: 700, color: '#18180F', marginBottom: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {listing.title}
-                  </p>
+                  <p style={{ fontSize: 12, fontFamily: '-apple-system, sans-serif', fontWeight: 700, color: '#18180F', marginBottom: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{listing.title}</p>
                   <p style={{ fontSize: 10, fontFamily: '-apple-system, sans-serif', color: '#5A5A50' }}>
                     {listing.district || listing.parish}
                     {listing.price_jmd ? ' · ' + listing.price_jmd : listing.is_free ? ' · Free' : ''}
@@ -183,31 +187,22 @@ function BrowseContent() {
               </Link>
 
               {index === 2 && sponsor && (
-                
-                  key="sponsor"
-                  href={'https://wa.me/' + sponsor.whatsapp?.replace(/\D/g, '') + '?text=' + encodeURIComponent('Hi, I saw your Naberly sponsorship for ' + sponsor.business_name + '. I am interested.')}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  style={{ display: 'flex', alignItems: 'center', gap: 11, padding: '11px 13px', background: '#F5F0E6', borderBottom: '1px solid #D8D0BC', textDecoration: 'none' }}
+                <div
+                  onClick={openSponsorWhatsApp}
+                  style={{ display: 'flex', alignItems: 'center', gap: 11, padding: '11px 13px', background: '#F5F0E6', borderBottom: '1px solid #D8D0BC', cursor: 'pointer' }}
                 >
                   <div style={{ width: 36, height: 36, borderRadius: 8, background: '#1B3A1D', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, flexShrink: 0 }}>
                     🏪
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
-                    <div style={{ marginBottom: 2 }}>
-                      <span style={{ fontSize: 9, fontFamily: '-apple-system, sans-serif', color: '#C8821A', fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase' }}>Community sponsor</span>
-                    </div>
-                    <p style={{ fontSize: 12, fontFamily: '-apple-system, sans-serif', fontWeight: 700, color: '#18180F', marginBottom: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {sponsor.business_name}
-                    </p>
-                    <p style={{ fontSize: 10, fontFamily: '-apple-system, sans-serif', color: '#5A5A50', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {sponsor.tagline}
-                    </p>
+                    <span style={{ fontSize: 9, fontFamily: '-apple-system, sans-serif', color: '#C8821A', fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase' }}>Community sponsor</span>
+                    <p style={{ fontSize: 12, fontFamily: '-apple-system, sans-serif', fontWeight: 700, color: '#18180F', marginBottom: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{sponsor.business_name}</p>
+                    <p style={{ fontSize: 10, fontFamily: '-apple-system, sans-serif', color: '#5A5A50', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{sponsor.tagline}</p>
                   </div>
                   <span style={{ fontSize: 11, background: '#1B3A1D', color: '#fff', borderRadius: 6, padding: '5px 8px', fontFamily: '-apple-system, sans-serif', whiteSpace: 'nowrap' }}>WhatsApp</span>
-                </a>
+                </div>
               )}
-            </>
+            </div>
           ))
         )}
       </div>
