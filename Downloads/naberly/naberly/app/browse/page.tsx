@@ -60,11 +60,11 @@ function BrowseContent() {
   const [category, setCategory] = useState(initialCategory)
   const [district, setDistrict] = useState('all')
   const [showParishModal, setShowParishModal] = useState(false)
+  const [sponsor, setSponsor] = useState<any>(null)
 
   const districts = DISTRICTS[parish] || DISTRICTS['default']
 
   useEffect(() => {
-    // Try GPS first for non-logged-in users
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (pos) => {
@@ -77,18 +77,14 @@ function BrowseContent() {
         () => {}
       )
     }
-
-    // Logged-in user parish overrides GPS
     supabase.auth.getUser().then(async ({ data }) => {
       if (data.user) {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('parish')
-          .eq('id', data.user.id)
-          .single()
+        const { data: profile } = await supabase.from('profiles').select('parish').eq('id', data.user.id).single()
         if (profile?.parish) setParish(profile.parish)
       }
     })
+    supabase.from('sponsors').select('*').eq('is_active', true).limit(1).single()
+      .then(({ data }) => { if (data) setSponsor(data) })
   }, [])
 
   const loadListings = useCallback(async () => {
@@ -110,13 +106,11 @@ function BrowseContent() {
     (l.district || '').toLowerCase().includes(searchQuery.toLowerCase())
   )
 
-  const searchPlaceholder = parish === 'All Parishes' ? 'Search all listings...' : 'Search in ' + parish + '...'
-
   return (
     <div className="app-shell">
       <div className="header-sm">
         <Link href="/" className="back-btn">←</Link>
-        <input className="search-input" placeholder={searchPlaceholder} value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
+        <input className="search-input" placeholder={parish === 'All Parishes' ? 'Search all listings...' : 'Search in ' + parish + '...'} value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
         <button onClick={() => setShowParishModal(true)} style={{ background: 'rgba(255,255,255,0.09)', border: 'none', borderRadius: 6, padding: '6px 8px', color: 'rgba(255,255,255,0.65)', fontSize: 10, fontFamily: '-apple-system, sans-serif', cursor: 'pointer', whiteSpace: 'nowrap' }}>
           {parish === 'All Parishes' ? 'All' : parish.replace('St. ', '')} ⌄
         </button>
@@ -165,27 +159,55 @@ function BrowseContent() {
             </p>
           </div>
         ) : (
-          filtered.map(listing => (
-            <Link key={listing.id} href={'/listing/' + listing.id} className="listing-row">
-              <div className="listing-icon" style={{ background: listing.category === 'food' ? '#D0E8BC' : listing.category === 'urgent' ? '#F0CABA' : listing.category === 'work' ? '#BCD0E8' : listing.category === 'ride' ? '#E0D8F0' : '#F0E8BC' }}>
-                {listing.category === 'food' ? '🍲' : listing.category === 'urgent' ? '⚠️' : listing.category === 'work' ? '💼' : listing.category === 'ride' ? '🚗' : listing.category === 'service' ? '🛠️' : '🛍️'}
-              </div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ display: 'flex', gap: 4, marginBottom: 3, flexWrap: 'wrap' }}>
-                  {listing.is_free && <span className="chip chip-free">Free</span>}
-                  {listing.is_anonymous && <span className="chip chip-anon">Anon</span>}
-                  {listing.is_featured && <span className="chip chip-featured">Featured</span>}
-                  {listing.category === 'urgent' && <span className="chip chip-urgent">Urgent</span>}
+          filtered.map((listing, index) => (
+            <>
+              <Link key={listing.id} href={'/listing/' + listing.id} className="listing-row">
+                <div className="listing-icon" style={{ background: listing.category === 'food' ? '#D0E8BC' : listing.category === 'urgent' ? '#F0CABA' : listing.category === 'work' ? '#BCD0E8' : listing.category === 'ride' ? '#E0D8F0' : '#F0E8BC' }}>
+                  {listing.category === 'food' ? '🍲' : listing.category === 'urgent' ? '⚠️' : listing.category === 'work' ? '💼' : listing.category === 'ride' ? '🚗' : listing.category === 'service' ? '🛠️' : '🛍️'}
                 </div>
-                <p style={{ fontSize: 12, fontFamily: '-apple-system, sans-serif', fontWeight: 700, color: '#18180F', marginBottom: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                  {listing.title}
-                </p>
-                <p style={{ fontSize: 10, fontFamily: '-apple-system, sans-serif', color: '#5A5A50' }}>
-                  {listing.district || listing.parish}
-                  {listing.price_jmd ? ' · ' + listing.price_jmd : listing.is_free ? ' · Free' : ''}
-                </p>
-              </div>
-            </Link>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ display: 'flex', gap: 4, marginBottom: 3, flexWrap: 'wrap' }}>
+                    {listing.is_free && <span className="chip chip-free">Free</span>}
+                    {listing.is_anonymous && <span className="chip chip-anon">Anon</span>}
+                    {listing.is_featured && <span className="chip chip-featured">Featured</span>}
+                    {listing.category === 'urgent' && <span className="chip chip-urgent">Urgent</span>}
+                  </div>
+                  <p style={{ fontSize: 12, fontFamily: '-apple-system, sans-serif', fontWeight: 700, color: '#18180F', marginBottom: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {listing.title}
+                  </p>
+                  <p style={{ fontSize: 10, fontFamily: '-apple-system, sans-serif', color: '#5A5A50' }}>
+                    {listing.district || listing.parish}
+                    {listing.price_jmd ? ' · ' + listing.price_jmd : listing.is_free ? ' · Free' : ''}
+                  </p>
+                </div>
+              </Link>
+
+              {index === 2 && sponsor && (
+                
+                  key="sponsor"
+                  href={'https://wa.me/' + sponsor.whatsapp?.replace(/\D/g, '') + '?text=' + encodeURIComponent('Hi, I saw your Naberly sponsorship for ' + sponsor.business_name + '. I am interested.')}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  style={{ display: 'flex', alignItems: 'center', gap: 11, padding: '11px 13px', background: '#F5F0E6', borderBottom: '1px solid #D8D0BC', textDecoration: 'none' }}
+                >
+                  <div style={{ width: 36, height: 36, borderRadius: 8, background: '#1B3A1D', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, flexShrink: 0 }}>
+                    🏪
+                  </div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ marginBottom: 2 }}>
+                      <span style={{ fontSize: 9, fontFamily: '-apple-system, sans-serif', color: '#C8821A', fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase' }}>Community sponsor</span>
+                    </div>
+                    <p style={{ fontSize: 12, fontFamily: '-apple-system, sans-serif', fontWeight: 700, color: '#18180F', marginBottom: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {sponsor.business_name}
+                    </p>
+                    <p style={{ fontSize: 10, fontFamily: '-apple-system, sans-serif', color: '#5A5A50', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {sponsor.tagline}
+                    </p>
+                  </div>
+                  <span style={{ fontSize: 11, background: '#1B3A1D', color: '#fff', borderRadius: 6, padding: '5px 8px', fontFamily: '-apple-system, sans-serif', whiteSpace: 'nowrap' }}>WhatsApp</span>
+                </a>
+              )}
+            </>
           ))
         )}
       </div>
@@ -209,9 +231,7 @@ function BrowseContent() {
                 </button>
               ))}
             </div>
-            <button onClick={() => setShowParishModal(false)} style={{ marginTop: 13, width: '100%', background: '#EDE7D9', border: '1px solid #D8D0BC', borderRadius: 9, padding: 11, fontSize: 13, cursor: 'pointer', color: '#18180F' }}>
-              Done
-            </button>
+            <button onClick={() => setShowParishModal(false)} style={{ marginTop: 13, width: '100%', background: '#EDE7D9', border: '1px solid #D8D0BC', borderRadius: 9, padding: 11, fontSize: 13, cursor: 'pointer', color: '#18180F' }}>Done</button>
           </div>
         </div>
       )}
