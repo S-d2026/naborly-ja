@@ -41,7 +41,6 @@ function getGreeting(name: string, parish: string, listingCount: number, urgentC
   const hour = new Date().getHours()
   const firstName = name ? name.split(' ')[0] : ''
   const parishText = parish || 'your Naberhood'
-
   if (hour >= 5 && hour < 12) {
     if (urgentCount > 0) return { emoji: '🌅', text: 'Good morning' + (firstName ? ', ' + firstName : '') + '. ' + urgentCount + ' urgent need' + (urgentCount > 1 ? 's' : '') + ' in ' + parishText + ' need' + (urgentCount === 1 ? 's' : '') + ' a response today.' }
     if (listingCount > 0) return { emoji: '🌅', text: 'Good morning' + (firstName ? ', ' + firstName : '') + '. ' + listingCount + ' neighbor' + (listingCount > 1 ? 's' : '') + ' posted in ' + parishText + ' this morning.' }
@@ -64,6 +63,7 @@ function getGreeting(name: string, parish: string, listingCount: number, urgentC
 export default function HomePage() {
   const [listings, setListings] = useState<Listing[]>([])
   const [stories, setStories] = useState<ImpactStory[]>([])
+  const [sponsor, setSponsor] = useState<any>(null)
   const [tickerIndex, setTickerIndex] = useState(0)
   const [user, setUser] = useState<any>(null)
   const [loading, setLoading] = useState(true)
@@ -72,22 +72,19 @@ export default function HomePage() {
   const [greeting, setGreeting] = useState<{ text: string; emoji: string } | null>(null)
 
   useEffect(() => {
-    // Try GPS first for non-logged-in users
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (pos) => {
           const { latitude, longitude } = pos.coords
           if (latitude >= JAMAICA_BOUNDS.minLat && latitude <= JAMAICA_BOUNDS.maxLat &&
             longitude >= JAMAICA_BOUNDS.minLng && longitude <= JAMAICA_BOUNDS.maxLng) {
-            const detected = getParishFromCoords(latitude, longitude)
-            setUserParish(detected)
+            setUserParish(getParishFromCoords(latitude, longitude))
           }
         },
-        () => {} // silently fall back to Kingston
+        () => {}
       )
     }
 
-    // Get logged-in user — overrides GPS with profile parish
     supabase.auth.getUser().then(async ({ data }) => {
       setUser(data.user)
       if (data.user) {
@@ -109,9 +106,12 @@ export default function HomePage() {
     getImpactStories().then(({ data }) => {
       if (data) setStories(data as ImpactStory[])
     })
+
+    // Load active sponsor
+    supabase.from('sponsors').select('*').eq('is_active', true).limit(1).single()
+      .then(({ data }) => { if (data) setSponsor(data) })
   }, [])
 
-  // Ticker rotates only after stories load
   useEffect(() => {
     if (stories.length === 0) return
     const interval = setInterval(() => {
@@ -120,7 +120,6 @@ export default function HomePage() {
     return () => clearInterval(interval)
   }, [stories])
 
-  // Update greeting when user or listings change
   useEffect(() => {
     const urgent = listings.filter(l => l.category === 'urgent').length
     setGreeting(getGreeting(userName, userParish, listings.length, urgent))
@@ -128,7 +127,6 @@ export default function HomePage() {
 
   return (
     <div className="app-shell">
-      {/* HEADER */}
       <div className="header">
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
@@ -153,7 +151,6 @@ export default function HomePage() {
         </Link>
       </div>
 
-      {/* PERSONALIZED GREETING */}
       {greeting && (
         <div style={{ background: '#F5F0E6', borderBottom: '1px solid #D8D0BC', padding: '9px 15px', display: 'flex', alignItems: 'center', gap: 9, flexShrink: 0 }}>
           <span style={{ fontSize: 18, lineHeight: 1, flexShrink: 0 }}>{greeting.emoji}</span>
@@ -161,18 +158,14 @@ export default function HomePage() {
         </div>
       )}
 
-      {/* LIVE IMPACT TICKER */}
       <div style={{ background: '#1B3A1D', padding: '8px 15px', display: 'flex', alignItems: 'center', gap: 8, overflow: 'hidden', flexShrink: 0 }}>
         <div className="ticker-dot" />
         <p style={{ color: 'rgba(255,255,255,0.75)', fontSize: 11, fontFamily: '-apple-system, sans-serif', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-          {stories.length > 0
-            ? stories[tickerIndex % stories.length]?.story_text
-            : 'Welcome to Naberly JA — your Naberhood at your fingertips'}
+          {stories.length > 0 ? stories[tickerIndex % stories.length]?.story_text : 'Welcome to Naberly JA — your Naberhood at your fingertips'}
         </p>
       </div>
 
       <div className="scroll-area">
-        {/* MISSION HERO */}
         <div style={{ background: '#1B3A1D', padding: '18px 15px 16px' }}>
           <p className="eyebrow" style={{ color: 'rgba(255,255,255,0.42)', marginBottom: 6 }}>Community mission</p>
           <p style={{ color: '#fff', fontSize: 19, lineHeight: 1.3, marginBottom: 12 }}>
@@ -188,7 +181,6 @@ export default function HomePage() {
           </div>
         </div>
 
-        {/* URGENT STRIP */}
         <Link href="/browse?category=urgent" style={{ background: '#3D1010', padding: '10px 15px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', textDecoration: 'none', borderBottom: '1px solid #5A1010' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#A84B2A' }} />
@@ -200,7 +192,6 @@ export default function HomePage() {
           <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M4 3L9 6.5L4 10" stroke="rgba(255,255,255,0.4)" strokeWidth="1.3" strokeLinecap="round"/></svg>
         </Link>
 
-        {/* IMPACT STORIES */}
         {stories.length > 0 && (
           <div style={{ padding: '14px 13px 6px' }}>
             <p className="eyebrow" style={{ marginBottom: 9 }}>This week in your Naberhood</p>
@@ -223,7 +214,6 @@ export default function HomePage() {
           </div>
         )}
 
-        {/* CATEGORIES */}
         <div style={{ padding: '0 13px 4px' }}>
           <p className="eyebrow" style={{ marginBottom: 9 }}>How can we help?</p>
           <div className="category-grid" style={{ marginBottom: 13 }}>
@@ -253,7 +243,6 @@ export default function HomePage() {
           <p className="eyebrow" style={{ marginBottom: 8 }}>Active in {userParish}</p>
         </div>
 
-        {/* LIVE FEED */}
         <div style={{ borderTop: '1px solid #D8D0BC' }}>
           {loading ? (
             <div className="loading">Loading listings...</div>
@@ -264,35 +253,63 @@ export default function HomePage() {
               <p style={{ fontSize: 11, fontFamily: '-apple-system, sans-serif', color: '#5A5A50' }}>Share food, offer help, or post a need</p>
             </div>
           ) : (
-            listings.map(listing => (
-              <Link key={listing.id} href={'/listing/' + listing.id} className="listing-row">
-                <div className="listing-icon" style={{ background: listing.category === 'food' ? '#D0E8BC' : listing.category === 'urgent' ? '#F0CABA' : listing.category === 'work' ? '#BCD0E8' : listing.category === 'ride' ? '#E0D8F0' : listing.category === 'service' ? '#F0E8BC' : '#EDE7D9' }}>
-                  {listing.category === 'food' ? '🍲' : listing.category === 'urgent' ? '⚠️' : listing.category === 'work' ? '💼' : listing.category === 'ride' ? '🚗' : listing.category === 'service' ? '🛠️' : '🛍️'}
-                </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ display: 'flex', gap: 4, marginBottom: 3 }}>
-                    {listing.is_free && <span className="chip chip-free">Free</span>}
-                    {listing.category === 'urgent' && <span className="chip chip-urgent">Urgent</span>}
-                    {listing.is_anonymous && <span className="chip chip-anon">Anon</span>}
-                    {listing.is_featured && <span className="chip chip-featured">Featured</span>}
-                    {!listing.is_free && listing.category !== 'urgent' && !listing.is_featured && (
-                      <span className={'chip ' + (CHIP_COLORS[listing.category] || 'chip-neutral')}>{listing.category}</span>
-                    )}
+            listings.map((listing, index) => (
+              <>
+                <Link key={listing.id} href={'/listing/' + listing.id} className="listing-row">
+                  <div className="listing-icon" style={{ background: listing.category === 'food' ? '#D0E8BC' : listing.category === 'urgent' ? '#F0CABA' : listing.category === 'work' ? '#BCD0E8' : listing.category === 'ride' ? '#E0D8F0' : listing.category === 'service' ? '#F0E8BC' : '#EDE7D9' }}>
+                    {listing.category === 'food' ? '🍲' : listing.category === 'urgent' ? '⚠️' : listing.category === 'work' ? '💼' : listing.category === 'ride' ? '🚗' : listing.category === 'service' ? '🛠️' : '🛍️'}
                   </div>
-                  <p style={{ fontSize: 13, fontFamily: '-apple-system, sans-serif', fontWeight: 700, color: '#18180F', marginBottom: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                    {listing.title}
-                  </p>
-                  <p style={{ fontSize: 10, fontFamily: '-apple-system, sans-serif', color: '#5A5A50' }}>
-                    {listing.district || listing.parish}
-                    {listing.price_jmd ? ' · ' + listing.price_jmd : listing.is_free ? ' · Free' : ''}
-                  </p>
-                </div>
-              </Link>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <div style={{ display: 'flex', gap: 4, marginBottom: 3 }}>
+                      {listing.is_free && <span className="chip chip-free">Free</span>}
+                      {listing.category === 'urgent' && <span className="chip chip-urgent">Urgent</span>}
+                      {listing.is_anonymous && <span className="chip chip-anon">Anon</span>}
+                      {listing.is_featured && <span className="chip chip-featured">Featured</span>}
+                      {!listing.is_free && listing.category !== 'urgent' && !listing.is_featured && (
+                        <span className={'chip ' + (CHIP_COLORS[listing.category] || 'chip-neutral')}>{listing.category}</span>
+                      )}
+                    </div>
+                    <p style={{ fontSize: 13, fontFamily: '-apple-system, sans-serif', fontWeight: 700, color: '#18180F', marginBottom: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {listing.title}
+                    </p>
+                    <p style={{ fontSize: 10, fontFamily: '-apple-system, sans-serif', color: '#5A5A50' }}>
+                      {listing.district || listing.parish}
+                      {listing.price_jmd ? ' · ' + listing.price_jmd : listing.is_free ? ' · Free' : ''}
+                    </p>
+                  </div>
+                </Link>
+
+                {/* Sponsor card after listing 3 */}
+                {index === 2 && sponsor && (
+                  
+                    key="sponsor"
+                    href={'https://wa.me/' + sponsor.whatsapp?.replace(/\D/g, '') + '?text=' + encodeURIComponent('Hi, I saw your Naberly sponsorship for ' + sponsor.business_name + '. I am interested.')}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    style={{ display: 'flex', alignItems: 'center', gap: 11, padding: '11px 13px', background: '#F5F0E6', borderBottom: '1px solid #D8D0BC', textDecoration: 'none' }}
+                  >
+                    <div style={{ width: 36, height: 36, borderRadius: 8, background: '#1B3A1D', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, flexShrink: 0 }}>
+                      🏪
+                    </div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 2 }}>
+                        <span style={{ fontSize: 9, fontFamily: '-apple-system, sans-serif', color: '#C8821A', fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase' }}>Community sponsor</span>
+                      </div>
+                      <p style={{ fontSize: 12, fontFamily: '-apple-system, sans-serif', fontWeight: 700, color: '#18180F', marginBottom: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {sponsor.business_name}
+                      </p>
+                      <p style={{ fontSize: 10, fontFamily: '-apple-system, sans-serif', color: '#5A5A50', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                        {sponsor.tagline}
+                      </p>
+                    </div>
+                    <span style={{ fontSize: 11, background: '#1B3A1D', color: '#fff', borderRadius: 6, padding: '5px 8px', fontFamily: '-apple-system, sans-serif', whiteSpace: 'nowrap' }}>WhatsApp</span>
+                  </a>
+                )}
+              </>
             ))
           )}
         </div>
 
-        {/* GLOBAL VISION FOOTER */}
         <div style={{ padding: 13 }}>
           <div style={{ borderRadius: 10, padding: 13, background: '#1B3A1D' }}>
             <p className="eyebrow" style={{ color: 'rgba(255,255,255,0.42)', marginBottom: 5 }}>The mission</p>
@@ -305,7 +322,6 @@ export default function HomePage() {
         <div style={{ height: 10 }} />
       </div>
 
-      {/* BOTTOM NAV */}
       <nav className="bottom-nav">
         <Link href="/" className="nav-item active">
           <svg width="20" height="20" viewBox="0 0 22 22" fill="none" stroke="currentColor" strokeWidth="1.7"><path d="M3 9.5L11 3L19 9.5V19H14V14H8V19H3V9.5Z" strokeLinecap="round" strokeLinejoin="round"/></svg>
