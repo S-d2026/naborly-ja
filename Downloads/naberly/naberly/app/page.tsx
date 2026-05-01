@@ -84,30 +84,21 @@ export default function HomePage() {
         () => {}
       )
     }
-
     supabase.auth.getUser().then(async ({ data }) => {
       setUser(data.user)
       if (data.user) {
-        const { data: profile } = await supabase
-          .from('profiles')
-          .select('parish, full_name')
-          .eq('id', data.user.id)
-          .single()
+        const { data: profile } = await supabase.from('profiles').select('parish, full_name').eq('id', data.user.id).single()
         if (profile?.parish) setUserParish(profile.parish)
         if (profile?.full_name) setUserName(profile.full_name)
       }
     })
-
     getApprovedListings().then(({ data }) => {
       if (data) setListings(data as Listing[])
       setLoading(false)
     })
-
     getImpactStories().then(({ data }) => {
       if (data) setStories(data as ImpactStory[])
     })
-
-    // Load active sponsor
     supabase.from('sponsors').select('*').eq('is_active', true).limit(1).single()
       .then(({ data }) => { if (data) setSponsor(data) })
   }, [])
@@ -124,6 +115,12 @@ export default function HomePage() {
     const urgent = listings.filter(l => l.category === 'urgent').length
     setGreeting(getGreeting(userName, userParish, listings.length, urgent))
   }, [userName, userParish, listings])
+
+  function openSponsorWhatsApp() {
+    if (!sponsor?.whatsapp) return
+    const num = sponsor.whatsapp.replace(/\D/g, '')
+    window.open('https://wa.me/' + num, '_blank')
+  }
 
   return (
     <div className="app-shell">
@@ -168,16 +165,10 @@ export default function HomePage() {
       <div className="scroll-area">
         <div style={{ background: '#1B3A1D', padding: '18px 15px 16px' }}>
           <p className="eyebrow" style={{ color: 'rgba(255,255,255,0.42)', marginBottom: 6 }}>Community mission</p>
-          <p style={{ color: '#fff', fontSize: 19, lineHeight: 1.3, marginBottom: 12 }}>
-            Food in your Naberhood —<br />free or low cost
-          </p>
+          <p style={{ color: '#fff', fontSize: 19, lineHeight: 1.3, marginBottom: 12 }}>Food in your Naberhood —<br />free or low cost</p>
           <div style={{ display: 'flex', gap: 7 }}>
-            <Link href="/browse?category=food" style={{ background: '#C8821A', color: '#fff', border: 'none', borderRadius: 7, padding: '8px 13px', fontSize: 12, fontFamily: '-apple-system, sans-serif', fontWeight: 700, cursor: 'pointer', textDecoration: 'none' }}>
-              Find food near me
-            </Link>
-            <Link href="/post" style={{ background: 'rgba(255,255,255,0.09)', color: '#fff', border: '1px solid rgba(255,255,255,0.16)', borderRadius: 7, padding: '8px 10px', fontSize: 11, textDecoration: 'none', fontFamily: '-apple-system, sans-serif' }}>
-              I have food to share
-            </Link>
+            <Link href="/browse?category=food" style={{ background: '#C8821A', color: '#fff', border: 'none', borderRadius: 7, padding: '8px 13px', fontSize: 12, fontFamily: '-apple-system, sans-serif', fontWeight: 700, cursor: 'pointer', textDecoration: 'none' }}>Find food near me</Link>
+            <Link href="/post" style={{ background: 'rgba(255,255,255,0.09)', color: '#fff', border: '1px solid rgba(255,255,255,0.16)', borderRadius: 7, padding: '8px 10px', fontSize: 11, textDecoration: 'none', fontFamily: '-apple-system, sans-serif' }}>I have food to share</Link>
           </div>
         </div>
 
@@ -200,14 +191,8 @@ export default function HomePage() {
                 <p className="eyebrow" style={{ color: 'rgba(255,255,255,0.45)', marginBottom: 5 }}>Community impact</p>
                 <p style={{ color: '#fff', fontSize: 14, lineHeight: 1.4, marginBottom: 8 }}>{story.story_text}</p>
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
-                  <p style={{ fontSize: 10, fontFamily: '-apple-system, sans-serif', color: 'rgba(255,255,255,0.5)' }}>
-                    {story.parish}{story.district ? ' · ' + story.district : ''}
-                  </p>
-                  {story.people_helped > 0 && (
-                    <span style={{ background: 'rgba(255,255,255,0.12)', color: '#fff', fontSize: 9, fontFamily: '-apple-system, sans-serif', fontWeight: 700, padding: '2px 7px', borderRadius: 3 }}>
-                      {story.people_helped} helped
-                    </span>
-                  )}
+                  <p style={{ fontSize: 10, fontFamily: '-apple-system, sans-serif', color: 'rgba(255,255,255,0.5)' }}>{story.parish}{story.district ? ' · ' + story.district : ''}</p>
+                  {story.people_helped > 0 && <span style={{ background: 'rgba(255,255,255,0.12)', color: '#fff', fontSize: 9, fontFamily: '-apple-system, sans-serif', fontWeight: 700, padding: '2px 7px', borderRadius: 3 }}>{story.people_helped} helped</span>}
                 </div>
               </div>
             ))}
@@ -254,8 +239,8 @@ export default function HomePage() {
             </div>
           ) : (
             listings.map((listing, index) => (
-              <>
-                <Link key={listing.id} href={'/listing/' + listing.id} className="listing-row">
+              <div key={listing.id}>
+                <Link href={'/listing/' + listing.id} className="listing-row">
                   <div className="listing-icon" style={{ background: listing.category === 'food' ? '#D0E8BC' : listing.category === 'urgent' ? '#F0CABA' : listing.category === 'work' ? '#BCD0E8' : listing.category === 'ride' ? '#E0D8F0' : listing.category === 'service' ? '#F0E8BC' : '#EDE7D9' }}>
                     {listing.category === 'food' ? '🍲' : listing.category === 'urgent' ? '⚠️' : listing.category === 'work' ? '💼' : listing.category === 'ride' ? '🚗' : listing.category === 'service' ? '🛠️' : '🛍️'}
                   </div>
@@ -269,9 +254,7 @@ export default function HomePage() {
                         <span className={'chip ' + (CHIP_COLORS[listing.category] || 'chip-neutral')}>{listing.category}</span>
                       )}
                     </div>
-                    <p style={{ fontSize: 13, fontFamily: '-apple-system, sans-serif', fontWeight: 700, color: '#18180F', marginBottom: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                      {listing.title}
-                    </p>
+                    <p style={{ fontSize: 13, fontFamily: '-apple-system, sans-serif', fontWeight: 700, color: '#18180F', marginBottom: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{listing.title}</p>
                     <p style={{ fontSize: 10, fontFamily: '-apple-system, sans-serif', color: '#5A5A50' }}>
                       {listing.district || listing.parish}
                       {listing.price_jmd ? ' · ' + listing.price_jmd : listing.is_free ? ' · Free' : ''}
@@ -279,34 +262,23 @@ export default function HomePage() {
                   </div>
                 </Link>
 
-                {/* Sponsor card after listing 3 */}
                 {index === 2 && sponsor && (
-                  
-                    key="sponsor"
-                    href="#"
-onClick={(e) => { e.preventDefault(); window.open('https://wa.me/' + sponsor.whatsapp?.replace(/\D/g, ''), '_blank') }}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    style={{ display: 'flex', alignItems: 'center', gap: 11, padding: '11px 13px', background: '#F5F0E6', borderBottom: '1px solid #D8D0BC', textDecoration: 'none' }}
+                  <div
+                    onClick={openSponsorWhatsApp}
+                    style={{ display: 'flex', alignItems: 'center', gap: 11, padding: '11px 13px', background: '#F5F0E6', borderBottom: '1px solid #D8D0BC', cursor: 'pointer' }}
                   >
                     <div style={{ width: 36, height: 36, borderRadius: 8, background: '#1B3A1D', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, flexShrink: 0 }}>
                       🏪
                     </div>
                     <div style={{ flex: 1, minWidth: 0 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 2 }}>
-                        <span style={{ fontSize: 9, fontFamily: '-apple-system, sans-serif', color: '#C8821A', fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase' }}>Community sponsor</span>
-                      </div>
-                      <p style={{ fontSize: 12, fontFamily: '-apple-system, sans-serif', fontWeight: 700, color: '#18180F', marginBottom: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {sponsor.business_name}
-                      </p>
-                      <p style={{ fontSize: 10, fontFamily: '-apple-system, sans-serif', color: '#5A5A50', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-                        {sponsor.tagline}
-                      </p>
+                      <span style={{ fontSize: 9, fontFamily: '-apple-system, sans-serif', color: '#C8821A', fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase' }}>Community sponsor</span>
+                      <p style={{ fontSize: 12, fontFamily: '-apple-system, sans-serif', fontWeight: 700, color: '#18180F', marginBottom: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{sponsor.business_name}</p>
+                      <p style={{ fontSize: 10, fontFamily: '-apple-system, sans-serif', color: '#5A5A50', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{sponsor.tagline}</p>
                     </div>
                     <span style={{ fontSize: 11, background: '#1B3A1D', color: '#fff', borderRadius: 6, padding: '5px 8px', fontFamily: '-apple-system, sans-serif', whiteSpace: 'nowrap' }}>WhatsApp</span>
-                  </a>
+                  </div>
                 )}
-              </>
+              </div>
             ))
           )}
         </div>
