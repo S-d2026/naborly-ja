@@ -188,7 +188,7 @@ function PostContent() {
         <div style={{ textAlign: 'center' }}>
           <p style={{ fontSize: 48, marginBottom: 16 }}>✅</p>
           <p style={{ fontSize: 18, marginBottom: 8 }}>Posted successfully</p>
-          <p style={{ fontSize: 13, fontFamily: '-apple-system, sans-serif', color: '#5A5A50', lineHeight: 1.6 }}>Your post is under review. We will WhatsApp you when it goes live.</p>
+          <p style={{ fontSize: 13, fontFamily: '-apple-system, sans-serif', color: '#5A5A50', lineHeight: 1.6 }}>Your post is now live in your Naberhood.</p>
           <p style={{ fontSize: 12, fontFamily: '-apple-system, sans-serif', color: '#5A5A50', marginTop: 16 }}>Redirecting to home...</p>
         </div>
       </div>
