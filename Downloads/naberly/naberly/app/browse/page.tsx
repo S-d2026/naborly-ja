@@ -2,7 +2,7 @@
 import { useState, useEffect, useCallback, Suspense } from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
-import { supabase, getApprovedListings, type Listing } from '@/lib/supabase'
+import { supabase, getApprovedListings, getDistanceKm, formatDistance, type Listing } from '@/lib/supabase'
 
 const PARISHES = ['All Parishes','Kingston','St. Andrew','St. Thomas','Portland','St. Mary','St. Ann','Trelawny','St. James','Hanover','Westmoreland','St. Elizabeth','Manchester','Clarendon','St. Catherine']
 
@@ -61,15 +61,30 @@ function BrowseContent() {
   const [district, setDistrict] = useState('all')
   const [showParishModal, setShowParishModal] = useState(false)
   const [sponsor, setSponsor] = useState<any>(null)
+  const [userLat, setUserLat] = useState<number | null>(null)
+  const [userLng, setUserLng] = useState<number | null>(null)
 
   const districts = DISTRICTS[parish] || DISTRICTS['default']
 
   useEffect(() => {
+    // Get user GPS for distance display
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => {
+          setUserLat(pos.coords.latitude)
+          setUserLng(pos.coords.longitude)
+        },
+        () => {}
+      )
+    }
+
+    // GPS parish detection
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         async (pos) => {
           const { latitude, longitude } = pos.coords
-          const inJamaica = latitude >= 17.70 && latitude <= 18.55 && longitude >= -78.40 && longitude <= -76.18
+          const inJamaica = latitude >= JAMAICA_BOUNDS.minLat && latitude <= JAMAICA_BOUNDS.maxLat &&
+            longitude >= JAMAICA_BOUNDS.minLng && longitude <= JAMAICA_BOUNDS.maxLng
           if (inJamaica) {
             setParish(getParishFromCoords(latitude, longitude))
           } else {
@@ -85,12 +100,20 @@ function BrowseContent() {
         () => {}
       )
     }
+
+    // Logged-in user parish overrides GPS
     supabase.auth.getUser().then(async ({ data }) => {
       if (data.user) {
-        const { data: profile } = await supabase.from('profiles').select('parish').eq('id', data.user.id).single()
+        const { data: profile } = await supabase
+          .from('profiles')
+          .select('parish')
+          .eq('id', data.user.id)
+          .single()
         if (profile?.parish) setParish(profile.parish)
       }
     })
+
+    // Load active sponsor
     supabase.from('sponsors').select('*').eq('is_active', true).limit(1).single()
       .then(({ data }) => { if (data) setSponsor(data) })
   }, [])
@@ -124,20 +147,34 @@ function BrowseContent() {
     <div className="app-shell">
       <div className="header-sm">
         <Link href="/" className="back-btn">←</Link>
-        <input className="search-input" placeholder={parish === 'All Parishes' ? 'Search all listings...' : 'Search in ' + parish + '...'} value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
-        <button onClick={() => setShowParishModal(true)} style={{ background: 'rgba(255,255,255,0.09)', border: 'none', borderRadius: 6, padding: '6px 8px', color: 'rgba(255,255,255,0.65)', fontSize: 10, fontFamily: '-apple-system, sans-serif', cursor: 'pointer', whiteSpace: 'nowrap' }}>
+        <input
+          className="search-input"
+          placeholder={parish === 'All Parishes' ? 'Search all listings...' : 'Search in ' + parish + '...'}
+          value={searchQuery}
+          onChange={e => setSearchQuery(e.target.value)}
+        />
+        <button
+          onClick={() => setShowParishModal(true)}
+          style={{ background: 'rgba(255,255,255,0.09)', border: 'none', borderRadius: 6, padding: '6px 8px', color: 'rgba(255,255,255,0.65)', fontSize: 10, fontFamily: '-apple-system, sans-serif', cursor: 'pointer', whiteSpace: 'nowrap' }}
+        >
           {parish === 'All Parishes' ? 'All' : parish.replace('St. ', '')} ⌄
         </button>
       </div>
 
+      {/* Category pills */}
       <div className="pill-row">
         {CATEGORIES.map(cat => (
-          <button key={cat.key} className={'pill ' + (category === cat.key ? 'active' : '')} onClick={() => setCategory(cat.key)}>
+          <button
+            key={cat.key}
+            className={'pill ' + (category === cat.key ? 'active' : '')}
+            onClick={() => setCategory(cat.key)}
+          >
             {cat.label}
           </button>
         ))}
       </div>
 
+      {/* Food sub-filter */}
       {category === 'food' && (
         <div className="pill-row" style={{ background: '#D0E8BC' }}>
           <button className={'pill ' + (!searchQuery ? 'active' : '')} onClick={() => setSearchQuery('')}>All food</button>
@@ -147,9 +184,14 @@ function BrowseContent() {
         </div>
       )}
 
+      {/* District filter */}
       <div className="district-row">
         {districts.map(d => (
-          <button key={d} className={'district-pill ' + ((d === 'All areas' && district === 'all') || district === d ? 'active' : '')} onClick={() => setDistrict(d === 'All areas' ? 'all' : d)}>
+          <button
+            key={d}
+            className={'district-pill ' + ((d === 'All areas' && district === 'all') || district === d ? 'active' : '')}
+            onClick={() => setDistrict(d === 'All areas' ? 'all' : d)}
+          >
             {d}
           </button>
         ))}
@@ -186,14 +228,18 @@ function BrowseContent() {
                     {listing.is_featured && <span className="chip chip-featured">Featured</span>}
                     {listing.category === 'urgent' && <span className="chip chip-urgent">Urgent</span>}
                   </div>
-                  <p style={{ fontSize: 12, fontFamily: '-apple-system, sans-serif', fontWeight: 700, color: '#18180F', marginBottom: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{listing.title}</p>
+                  <p style={{ fontSize: 12, fontFamily: '-apple-system, sans-serif', fontWeight: 700, color: '#18180F', marginBottom: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                    {listing.title}
+                  </p>
                   <p style={{ fontSize: 10, fontFamily: '-apple-system, sans-serif', color: '#5A5A50' }}>
                     {listing.district || listing.parish}
                     {listing.price_jmd ? ' · ' + listing.price_jmd : listing.is_free ? ' · Free' : ''}
+                    {listing.lat && userLat && userLng ? ' · 📍 ' + formatDistance(getDistanceKm(userLat, userLng, listing.lat, listing.lng!)) : ''}
                   </p>
                 </div>
               </Link>
 
+              {/* Sponsor card after listing 3 */}
               {index === 2 && sponsor && (
                 <div
                   onClick={openSponsorWhatsApp}
@@ -204,8 +250,12 @@ function BrowseContent() {
                   </div>
                   <div style={{ flex: 1, minWidth: 0 }}>
                     <span style={{ fontSize: 9, fontFamily: '-apple-system, sans-serif', color: '#C8821A', fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase' }}>Community sponsor</span>
-                    <p style={{ fontSize: 12, fontFamily: '-apple-system, sans-serif', fontWeight: 700, color: '#18180F', marginBottom: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{sponsor.business_name}</p>
-                    <p style={{ fontSize: 10, fontFamily: '-apple-system, sans-serif', color: '#5A5A50', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{sponsor.tagline}</p>
+                    <p style={{ fontSize: 12, fontFamily: '-apple-system, sans-serif', fontWeight: 700, color: '#18180F', marginBottom: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {sponsor.business_name}
+                    </p>
+                    <p style={{ fontSize: 10, fontFamily: '-apple-system, sans-serif', color: '#5A5A50', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {sponsor.tagline}
+                    </p>
                   </div>
                   <span style={{ fontSize: 11, background: '#1B3A1D', color: '#fff', borderRadius: 6, padding: '5px 8px', fontFamily: '-apple-system, sans-serif', whiteSpace: 'nowrap' }}>WhatsApp</span>
                 </div>
@@ -234,7 +284,9 @@ function BrowseContent() {
                 </button>
               ))}
             </div>
-            <button onClick={() => setShowParishModal(false)} style={{ marginTop: 13, width: '100%', background: '#EDE7D9', border: '1px solid #D8D0BC', borderRadius: 9, padding: 11, fontSize: 13, cursor: 'pointer', color: '#18180F' }}>Done</button>
+            <button onClick={() => setShowParishModal(false)} style={{ marginTop: 13, width: '100%', background: '#EDE7D9', border: '1px solid #D8D0BC', borderRadius: 9, padding: 11, fontSize: 13, cursor: 'pointer', color: '#18180F' }}>
+              Done
+            </button>
           </div>
         </div>
       )}
