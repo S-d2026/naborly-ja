@@ -188,7 +188,7 @@ function PostContent() {
         <div style={{ textAlign: 'center' }}>
           <p style={{ fontSize: 48, marginBottom: 16 }}>✅</p>
           <p style={{ fontSize: 18, marginBottom: 8 }}>Posted successfully</p>
-          <p style={{ fontSize: 13, fontFamily: '-apple-system, sans-serif', color: '#5A5A50', lineHeight: 1.6 }}>Your post is now live in your Naberhood.</p>
+          <p style={{ fontSize: 13, fontFamily: '-apple-system, sans-serif', color: '#5A5A50', lineHeight: 1.6 }}>Your listing is now live in your Naberhood.</p>
           <p style={{ fontSize: 12, fontFamily: '-apple-system, sans-serif', color: '#5A5A50', marginTop: 16 }}>Redirecting to home...</p>
         </div>
       </div>
@@ -340,7 +340,7 @@ function PostContent() {
         </button>
 
         <div className="info-box" style={{ marginBottom: 6 }}>
-          <p style={{ fontSize: 10, fontFamily: '-apple-system, sans-serif', color: '#2D5A2E', lineHeight: 1.6 }}>Posts go live after a quick review. We will WhatsApp you when it is live.</p>
+          <p style={{ fontSize: 10, fontFamily: '-apple-system, sans-serif', color: '#2D5A2E', lineHeight: 1.6 }}>Your listing goes live instantly. The community can see it right away.</p>
         </div>
 
         <Link href="/boost" className="btn-gold" style={{ marginBottom: 14, textAlign: 'center' }}>
