@@ -95,7 +95,7 @@ export async function createListing(listing: Partial<Listing>) {
     .from('listings')
     .insert([{
       ...listing,
-      status: 'pending',
+      status: listing.status || 'approved',
       is_featured: false,
     }])
     .select()
