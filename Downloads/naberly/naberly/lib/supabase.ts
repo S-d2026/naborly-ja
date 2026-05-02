@@ -26,6 +26,8 @@ export interface Listing {
   is_featured: boolean
   featured_until: string | null
   photo_url: string | null
+  lat: number | null
+  lng: number | null
   view_count: number
   response_count: number
   families_helped: number
@@ -58,6 +60,33 @@ export interface ImpactStory {
   district: string | null
   people_helped: number
   created_at: string
+}
+
+export interface VendorLocation {
+  id: string
+  listing_id: string
+  user_id: string
+  lat: number
+  lng: number
+  is_live: boolean
+  updated_at: string
+}
+
+// Distance calculation (haversine formula) — returns km
+export function getDistanceKm(lat1: number, lng1: number, lat2: number, lng2: number): number {
+  const R = 6371
+  const dLat = (lat2 - lat1) * Math.PI / 180
+  const dLng = (lng2 - lng1) * Math.PI / 180
+  const a = Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+    Math.sin(dLng / 2) * Math.sin(dLng / 2)
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a))
+}
+
+export function formatDistance(km: number): string {
+  if (km < 1) return Math.round(km * 1000) + ' m away'
+  if (km < 10) return km.toFixed(1) + ' km away'
+  return Math.round(km) + ' km away'
 }
 
 export async function getApprovedListings(filters?: {
@@ -95,7 +124,6 @@ export async function createListing(listing: Partial<Listing>) {
     .from('listings')
     .insert([{
       ...listing,
-      status: listing.status || 'approved',
       is_featured: false,
     }])
     .select()
@@ -191,11 +219,45 @@ export async function requestBoost(boostData: {
 }) {
   const { data, error } = await supabase
     .from('boosts')
-    .insert([{
-      ...boostData,
-      payment_status: 'pending',
-    }])
+    .insert([{ ...boostData, payment_status: 'pending' }])
     .select()
+    .single()
+  return { data, error }
+}
+
+// Vendor live location
+export async function goLive(listingId: string, userId: string, lat: number, lng: number) {
+  // Upsert — create or update
+  const { data, error } = await supabase
+    .from('vendor_locations')
+    .upsert([{ listing_id: listingId, user_id: userId, lat, lng, is_live: true, updated_at: new Date().toISOString() }], { onConflict: 'listing_id' })
+    .select()
+    .single()
+  return { data, error }
+}
+
+export async function updateLiveLocation(listingId: string, lat: number, lng: number) {
+  const { error } = await supabase
+    .from('vendor_locations')
+    .update({ lat, lng, updated_at: new Date().toISOString() })
+    .eq('listing_id', listingId)
+  return { error }
+}
+
+export async function stopLive(listingId: string) {
+  const { error } = await supabase
+    .from('vendor_locations')
+    .update({ is_live: false })
+    .eq('listing_id', listingId)
+  return { error }
+}
+
+export async function getLiveLocation(listingId: string) {
+  const { data, error } = await supabase
+    .from('vendor_locations')
+    .select('*')
+    .eq('listing_id', listingId)
+    .eq('is_live', true)
     .single()
   return { data, error }
 }
