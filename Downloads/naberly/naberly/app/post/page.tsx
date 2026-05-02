@@ -167,7 +167,7 @@ function PostContent() {
       whatsapp: isAnonymous ? null : whatsapp.trim(),
       is_anonymous: isAnonymous,
       photo_url: photoUrl || null,
-      status: 'pending',
+      status: 'approved',
     })
     setSubmitting(false)
     if (err) {
