@@ -45,6 +45,15 @@ const PARISH_COORDS: Record<string, { lat: number; lng: number }> = {
   'St. Catherine': { lat: 17.9923, lng: -77.0234 },
 }
 
+const REPORT_REASONS = [
+  'Spam or fake listing',
+  'Offensive or inappropriate content',
+  'Scam or fraud',
+  'Wrong category',
+  'Already fulfilled',
+  'Other',
+]
+
 export default function ListingPage() {
   const { id } = useParams()
   const router = useRouter()
@@ -53,6 +62,10 @@ export default function ListingPage() {
   const [saved, setSaved] = useState(false)
   const [user, setUser] = useState<any>(null)
   const [showMap, setShowMap] = useState(false)
+  const [showReport, setShowReport] = useState(false)
+  const [reportReason, setReportReason] = useState('')
+  const [reportSubmitted, setReportSubmitted] = useState(false)
+  const [reporting, setReporting] = useState(false)
 
   useEffect(() => {
     supabase.auth.getUser().then(({ data }) => setUser(data.user))
@@ -80,6 +93,19 @@ export default function ListingPage() {
     setSaved(newSaved)
   }
 
+  async function handleReport() {
+    if (!reportReason) return
+    setReporting(true)
+    await supabase.from('listing_reports').insert([{
+      listing_id: id,
+      reason: reportReason,
+      reporter_whatsapp: user?.user_metadata?.whatsapp || null,
+    }])
+    setReporting(false)
+    setReportSubmitted(true)
+    setShowReport(false)
+  }
+
   if (loading) return <div className="app-shell"><div className="loading">Loading...</div></div>
   if (!listing) return null
 
@@ -92,8 +118,6 @@ export default function ListingPage() {
   }
 
   const whatsappContact = listing.is_anonymous ? RELAY_NUMBER : listing.whatsapp
-
-  // WhatsApp message with cursor on new line after pre-filled text
   const whatsappMessage = listing.is_anonymous
     ? encodeURIComponent('Hi, I saw your naberlyja.com listing for "' + listing.title + '". I want to help. Please relay my message.\n\n')
     : encodeURIComponent('Hi, I saw your naberlyja.com listing for "' + listing.title + '". I am interested.\n\n')
@@ -186,7 +210,7 @@ export default function ListingPage() {
           {listing.is_anonymous && (
             <div className="anon-box" style={{ marginBottom: 12 }}>
               <p style={{ fontSize: 11, fontFamily: '-apple-system, sans-serif', fontWeight: 700, color: '#4A1A80', marginBottom: 4 }}>This post is anonymous</p>
-              <p style={{ fontSize: 11, fontFamily: '-apple-system, sans-serif', color: '#6B2A9A', lineHeight: 1.65 }}>The poster's name and number are hidden. Your message goes through Naberly's relay — neither contact is shared unless you both agree.</p>
+              <p style={{ fontSize: 11, fontFamily: '-apple-system, sans-serif', color: '#6B2A9A', lineHeight: 1.65 }}>The poster's name and number are hidden. Your message goes through Naberly's relay.</p>
             </div>
           )}
 
@@ -209,9 +233,16 @@ export default function ListingPage() {
 
           {whatsappContact && (
             <div style={{ display: 'flex', gap: 7, marginBottom: 8 }}>
-              <a href={'https://wa.me/' + whatsappContact.replace(/\D/g, '') + '?text=' + whatsappMessage} target="_blank" rel="noopener noreferrer" className="btn-wa" style={{ flex: 1 }}>
+              <div
+                onClick={() => {
+                  const num = whatsappContact.replace(/\D/g, '')
+                  window.open('https://wa.me/' + num + '?text=' + whatsappMessage, '_blank')
+                }}
+                className="btn-wa"
+                style={{ flex: 1, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+              >
                 💬 {listing.is_anonymous ? 'Send help via Naberly' : 'WhatsApp'}
-              </a>
+              </div>
               {!listing.is_anonymous && listing.whatsapp && (
                 <a href={'tel:' + listing.whatsapp} className="btn-call" style={{ flex: 0.55, fontSize: 12 }}>
                   📞 Call
@@ -250,10 +281,64 @@ export default function ListingPage() {
               </div>
             )}
 
-            <a href={directionsUrl} target="_blank" rel="noopener noreferrer" style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, background: '#EDE7D9', border: '1.5px solid #1B3A1D', borderRadius: 10, padding: '10px 14px', fontSize: 12, fontFamily: '-apple-system, sans-serif', fontWeight: 700, color: '#1B3A1D', textDecoration: 'none' }}>
+            <div
+              onClick={() => window.open(directionsUrl, '_blank')}
+              style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, background: '#EDE7D9', border: '1.5px solid #1B3A1D', borderRadius: 10, padding: '10px 14px', fontSize: 12, fontFamily: '-apple-system, sans-serif', fontWeight: 700, color: '#1B3A1D', cursor: 'pointer' }}
+            >
               Get directions in Google Maps
-            </a>
+            </div>
           </div>
+
+          <div className="divider" />
+
+          {/* Report section */}
+          {reportSubmitted ? (
+            <div style={{ background: '#D0E8BC', borderRadius: 8, padding: '10px 12px', marginBottom: 12, border: '1px solid #2D5A2E' }}>
+              <p style={{ fontSize: 12, fontFamily: '-apple-system, sans-serif', color: '#1B3A1D', fontWeight: 700 }}>Report submitted</p>
+              <p style={{ fontSize: 11, fontFamily: '-apple-system, sans-serif', color: '#2D5A2E', marginTop: 3 }}>Thank you. Our team will review this listing.</p>
+            </div>
+          ) : (
+            <div style={{ marginBottom: 12 }}>
+              {!showReport ? (
+                <button
+                  onClick={() => setShowReport(true)}
+                  style={{ background: 'none', border: 'none', fontSize: 11, fontFamily: '-apple-system, sans-serif', color: '#5A5A50', cursor: 'pointer', padding: 0, textDecoration: 'underline' }}
+                >
+                  Report this listing
+                </button>
+              ) : (
+                <div style={{ background: '#F5F0E6', borderRadius: 10, padding: 13, border: '1px solid #D8D0BC' }}>
+                  <p style={{ fontSize: 12, fontFamily: '-apple-system, sans-serif', fontWeight: 700, color: '#18180F', marginBottom: 10 }}>Why are you reporting this?</p>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 7, marginBottom: 12 }}>
+                    {REPORT_REASONS.map(reason => (
+                      <button
+                        key={reason}
+                        onClick={() => setReportReason(reason)}
+                        style={{ background: reportReason === reason ? '#1B3A1D' : '#EDE7D9', color: reportReason === reason ? '#fff' : '#18180F', border: '1px solid ' + (reportReason === reason ? '#1B3A1D' : '#D8D0BC'), borderRadius: 7, padding: '8px 11px', fontSize: 12, fontFamily: '-apple-system, sans-serif', cursor: 'pointer', textAlign: 'left' }}
+                      >
+                        {reason}
+                      </button>
+                    ))}
+                  </div>
+                  <div style={{ display: 'flex', gap: 7 }}>
+                    <button
+                      onClick={handleReport}
+                      disabled={!reportReason || reporting}
+                      style={{ flex: 1, background: reportReason ? '#A84B2A' : '#D8D0BC', color: '#fff', border: 'none', borderRadius: 7, padding: 10, fontSize: 12, fontFamily: '-apple-system, sans-serif', fontWeight: 700, cursor: reportReason ? 'pointer' : 'default', opacity: reporting ? 0.7 : 1 }}
+                    >
+                      {reporting ? 'Submitting...' : 'Submit report'}
+                    </button>
+                    <button
+                      onClick={() => { setShowReport(false); setReportReason('') }}
+                      style={{ background: '#EDE7D9', color: '#5A5A50', border: '1px solid #D8D0BC', borderRadius: 7, padding: '10px 14px', fontSize: 12, fontFamily: '-apple-system, sans-serif', cursor: 'pointer' }}
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
 
           <Link href="/boost" className="btn-ghost" style={{ fontSize: 12, marginBottom: 14 }}>
             Boost this listing
