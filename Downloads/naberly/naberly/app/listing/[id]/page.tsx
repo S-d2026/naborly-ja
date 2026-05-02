@@ -1,32 +1,10 @@
 'use client'
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { useParams, useRouter } from 'next/navigation'
-import { supabase, toggleSaved, type Listing } from '@/lib/supabase'
+import { supabase, toggleSaved, goLive, updateLiveLocation, stopLive, getLiveLocation, getDistanceKm, formatDistance, type Listing, type VendorLocation } from '@/lib/supabase'
 
 const RELAY_NUMBER = '+19174432797'
-
-const DISTRICT_COORDS: Record<string, { lat: number; lng: number }> = {
-  'Cross Roads': { lat: 17.9934, lng: -76.7857 },
-  'Maxfield Ave': { lat: 17.9923, lng: -76.8012 },
-  'Half Way Tree': { lat: 18.0106, lng: -76.7956 },
-  'Dunrobin': { lat: 17.9756, lng: -76.8234 },
-  'August Town': { lat: 18.0234, lng: -76.7612 },
-  'Duhaney Park': { lat: 17.9812, lng: -76.7534 },
-  'Arnett Gardens': { lat: 17.9889, lng: -76.8134 },
-  'Trench Town': { lat: 17.9912, lng: -76.8089 },
-  'New Kingston': { lat: 18.0067, lng: -76.7823 },
-  'Barbican': { lat: 18.0234, lng: -76.7712 },
-  'Constant Spring': { lat: 18.0445, lng: -76.7978 },
-  'Papine': { lat: 18.0312, lng: -76.7456 },
-  'Montego Bay': { lat: 18.4762, lng: -77.8939 },
-  'Mandeville': { lat: 18.0415, lng: -77.5042 },
-  'May Pen': { lat: 17.9643, lng: -77.2434 },
-  'Santa Cruz': { lat: 18.0523, lng: -77.7987 },
-  'Black River': { lat: 18.0234, lng: -77.8512 },
-  'Junction': { lat: 17.9834, lng: -77.6234 },
-  'Malvern': { lat: 18.0123, lng: -77.7123 },
-}
 
 const PARISH_COORDS: Record<string, { lat: number; lng: number }> = {
   'Kingston': { lat: 17.9971, lng: -76.7936 },
@@ -66,9 +44,26 @@ export default function ListingPage() {
   const [reportReason, setReportReason] = useState('')
   const [reportSubmitted, setReportSubmitted] = useState(false)
   const [reporting, setReporting] = useState(false)
+  const [userLat, setUserLat] = useState<number | null>(null)
+  const [userLng, setUserLng] = useState<number | null>(null)
+  const [distance, setDistance] = useState<string | null>(null)
+  const [vendorLocation, setVendorLocation] = useState<VendorLocation | null>(null)
+  const [isOwner, setIsOwner] = useState(false)
+  const [isLive, setIsLive] = useState(false)
+  const [goingLive, setGoingLive] = useState(false)
+  const liveIntervalRef = useRef<NodeJS.Timeout | null>(null)
 
   useEffect(() => {
+    // Get user GPS for distance
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (pos) => { setUserLat(pos.coords.latitude); setUserLng(pos.coords.longitude) },
+        () => {}
+      )
+    }
+
     supabase.auth.getUser().then(({ data }) => setUser(data.user))
+
     supabase
       .from('listings')
       .select('*, profiles(full_name, whatsapp, is_verified)')
@@ -80,17 +75,89 @@ export default function ListingPage() {
         setLoading(false)
         supabase.from('listings').update({ view_count: (data.view_count || 0) + 1 }).eq('id', id)
       })
+
     supabase.auth.getUser().then(({ data: { user } }) => {
       if (!user) return
       supabase.from('saved_listings').select('id').eq('user_id', user.id).eq('listing_id', id).single()
         .then(({ data }) => { if (data) setSaved(true) })
     })
+
+    // Load existing live location
+    getLiveLocation(id as string).then(({ data }) => {
+      if (data) { setVendorLocation(data); setIsLive(true) }
+    })
+
+    // Subscribe to live location updates
+    const channel = supabase
+      .channel('vendor-location-' + id)
+      .on('postgres_changes', {
+        event: '*',
+        schema: 'public',
+        table: 'vendor_locations',
+        filter: 'listing_id=eq.' + id,
+      }, (payload) => {
+        const loc = payload.new as VendorLocation
+        if (loc.is_live) {
+          setVendorLocation(loc)
+          setIsLive(true)
+        } else {
+          setVendorLocation(null)
+          setIsLive(false)
+        }
+      })
+      .subscribe()
+
+    return () => {
+      supabase.removeChannel(channel)
+      if (liveIntervalRef.current) clearInterval(liveIntervalRef.current)
+    }
   }, [id, router])
+
+  useEffect(() => {
+    if (listing && userLat && userLng && listing.lat && listing.lng) {
+      const km = getDistanceKm(userLat, userLng, listing.lat, listing.lng)
+      setDistance(formatDistance(km))
+    }
+  }, [listing, userLat, userLng])
+
+  useEffect(() => {
+    if (listing && user) {
+      setIsOwner(listing.user_id === user.id)
+    }
+  }, [listing, user])
 
   async function handleSave() {
     if (!user) { router.push('/login'); return }
     const { saved: newSaved } = await toggleSaved(user.id, id as string)
     setSaved(newSaved)
+  }
+
+  async function handleGoLive() {
+    if (!user || !listing) return
+    setGoingLive(true)
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        const { latitude, longitude } = pos.coords
+        await goLive(id as string, user.id, latitude, longitude)
+        setIsLive(true)
+        setGoingLive(false)
+        // Update location every 30 seconds
+        liveIntervalRef.current = setInterval(async () => {
+          navigator.geolocation.getCurrentPosition(
+            async (p) => { await updateLiveLocation(id as string, p.coords.latitude, p.coords.longitude) },
+            () => {}
+          )
+        }, 30000)
+      },
+      () => { setGoingLive(false); alert('Could not get your location.') }
+    )
+  }
+
+  async function handleStopLive() {
+    await stopLive(id as string)
+    setIsLive(false)
+    setVendorLocation(null)
+    if (liveIntervalRef.current) clearInterval(liveIntervalRef.current)
   }
 
   async function handleReport() {
@@ -119,15 +186,15 @@ export default function ListingPage() {
 
   const whatsappContact = listing.is_anonymous ? RELAY_NUMBER : listing.whatsapp
   const whatsappMessage = listing.is_anonymous
-    ? encodeURIComponent('Hi, I saw your naberlyja.com listing for "' + listing.title + '". I want to help. Please relay my message.\n\n')
-    : encodeURIComponent('Hi, I saw your naberlyja.com listing for "' + listing.title + '". I am interested.\n\n')
+    ? encodeURIComponent('Hi Naberly, I want to help the anonymous listing "' + listing.title + '" in ' + (listing.district || listing.parish) + '. Please relay my message.\n\nnaberlyja.com\n\n')
+    : encodeURIComponent('Hi, I saw your Naberly listing for "' + listing.title + '". I am interested.\n\nnaberlyja.com\n\n')
 
   const isUrgent = listing.category === 'urgent'
   const headerBg = isUrgent ? '#3D1010' : '#1B3A1D'
 
-  const coords = listing.district
-    ? (DISTRICT_COORDS[listing.district] || PARISH_COORDS[listing.parish] || PARISH_COORDS['Kingston'])
-    : (PARISH_COORDS[listing.parish] || PARISH_COORDS['Kingston'])
+  // Map coordinates — use live vendor location if available, else listing GPS, else parish center
+  const mapLat = vendorLocation?.lat ?? listing.lat ?? PARISH_COORDS[listing.parish]?.lat ?? 17.9971
+  const mapLng = vendorLocation?.lng ?? listing.lng ?? PARISH_COORDS[listing.parish]?.lng ?? -76.7936
 
   const directionsUrl = 'https://www.google.com/maps/search/' + encodeURIComponent((listing.district || listing.parish) + ', Jamaica')
 
@@ -136,6 +203,7 @@ export default function ListingPage() {
       <div style={{ background: headerBg, padding: '12px 15px', flexShrink: 0, display: 'flex', alignItems: 'center', gap: 10, position: 'sticky', top: 0, zIndex: 100 }}>
         <Link href="/browse" className="back-btn" style={{ background: 'rgba(255,255,255,0.1)' }}>←</Link>
         <span style={{ color: '#fff', fontSize: 14, flex: 1 }}>{isUrgent ? 'Urgent Need' : 'Listing'}</span>
+        {isLive && <span style={{ background: '#A84B2A', color: '#fff', fontSize: 9, fontFamily: '-apple-system, sans-serif', fontWeight: 700, padding: '3px 7px', borderRadius: 20, letterSpacing: 0.5 }}>🔴 LIVE</span>}
         {listing.is_anonymous && <span className="chip chip-anon" style={{ fontSize: 9 }}>Anonymous</span>}
         <button onClick={handleSave} style={{ background: 'rgba(255,255,255,0.09)', border: 'none', borderRadius: '50%', width: 29, height: 29, cursor: 'pointer', color: saved ? '#C0392B' : 'rgba(255,255,255,0.7)', fontSize: 14 }}>
           {saved ? '♥' : '♡'}
@@ -167,8 +235,10 @@ export default function ListingPage() {
             {listing.category === 'urgent' && <span className="chip chip-urgent">Urgent</span>}
             {listing.is_anonymous && <span className="chip chip-anon">Anonymous</span>}
             {listing.is_featured && <span className="chip chip-featured">Featured</span>}
+            {isLive && <span style={{ background: '#F0CABA', color: '#6B1E10', fontSize: 9, fontFamily: '-apple-system, sans-serif', fontWeight: 700, padding: '2px 7px', borderRadius: 3, letterSpacing: 0.5, textTransform: 'uppercase' }}>Live location</span>}
             <span className="chip chip-neutral">{listing.parish}</span>
             {listing.district && <span className="chip chip-neutral">{listing.district}</span>}
+            {distance && <span className="chip chip-neutral">📍 {distance}</span>}
           </div>
 
           <p style={{ fontSize: 17, color: '#18180F', lineHeight: 1.3, marginBottom: 5 }}>{listing.title}</p>
@@ -190,20 +260,40 @@ export default function ListingPage() {
             </div>
           )}
 
-          {listing.families_helped > 0 && (
-            <div style={{ background: '#1B3A1D', borderRadius: 8, padding: '10px 12px', marginBottom: 12, display: 'flex', alignItems: 'center', gap: 10 }}>
-              <div style={{ textAlign: 'center', flex: 1, borderRight: '1px solid rgba(255,255,255,0.12)', paddingRight: 10 }}>
-                <p style={{ fontSize: 17, color: '#fff' }}>{listing.families_helped}</p>
-                <p className="eyebrow" style={{ color: 'rgba(255,255,255,0.45)' }}>Helped</p>
+          {/* Live vendor tracking panel */}
+          {isLive && vendorLocation && (
+            <div style={{ background: '#3D1010', borderRadius: 10, padding: 12, marginBottom: 12, border: '1px solid #7A2020' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
+                <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#A84B2A', animation: 'pulse 1.5s infinite' }} />
+                <p style={{ fontSize: 12, fontFamily: '-apple-system, sans-serif', fontWeight: 700, color: '#fff' }}>Vendor is live now</p>
               </div>
-              <div style={{ textAlign: 'center', flex: 1, borderRight: '1px solid rgba(255,255,255,0.12)', paddingRight: 10 }}>
-                <p style={{ fontSize: 17, color: '#fff' }}>{listing.response_count}</p>
-                <p className="eyebrow" style={{ color: 'rgba(255,255,255,0.45)' }}>Responses</p>
-              </div>
-              <div style={{ textAlign: 'center', flex: 1 }}>
-                <p style={{ fontSize: 17, color: '#fff' }}>{listing.view_count}</p>
-                <p className="eyebrow" style={{ color: 'rgba(255,255,255,0.45)' }}>Views</p>
-              </div>
+              <p style={{ fontSize: 10, fontFamily: '-apple-system, sans-serif', color: 'rgba(255,255,255,0.6)', marginBottom: 8 }}>
+                Location updates every 30 seconds · Last updated {new Date(vendorLocation.updated_at).toLocaleTimeString()}
+              </p>
+              {userLat && userLng && (
+                <p style={{ fontSize: 11, fontFamily: '-apple-system, sans-serif', color: 'rgba(255,255,255,0.8)' }}>
+                  📍 {formatDistance(getDistanceKm(userLat, userLng, vendorLocation.lat, vendorLocation.lng))} from you right now
+                </p>
+              )}
+            </div>
+          )}
+
+          {/* Owner Go Live / Stop Live controls */}
+          {isOwner && (
+            <div style={{ background: '#EDE7D9', borderRadius: 10, padding: 12, marginBottom: 12, border: '1px solid #D8D0BC' }}>
+              <p style={{ fontSize: 12, fontFamily: '-apple-system, sans-serif', fontWeight: 700, color: '#18180F', marginBottom: 4 }}>Live location</p>
+              <p style={{ fontSize: 10, fontFamily: '-apple-system, sans-serif', color: '#5A5A50', marginBottom: 9, lineHeight: 1.6 }}>
+                {isLive ? 'Your live location is broadcasting. Customers can see where you are in real time.' : 'Go live to let customers see your exact location as you move — perfect for food trucks, mobile services and taxis.'}
+              </p>
+              {isLive ? (
+                <button onClick={handleStopLive} style={{ background: '#A84B2A', color: '#fff', border: 'none', borderRadius: 7, padding: '9px 16px', fontSize: 12, fontFamily: '-apple-system, sans-serif', fontWeight: 700, cursor: 'pointer' }}>
+                  Stop broadcasting
+                </button>
+              ) : (
+                <button onClick={handleGoLive} disabled={goingLive} style={{ background: '#1B3A1D', color: '#fff', border: 'none', borderRadius: 7, padding: '9px 16px', fontSize: 12, fontFamily: '-apple-system, sans-serif', fontWeight: 700, cursor: 'pointer', opacity: goingLive ? 0.7 : 1 }}>
+                  {goingLive ? 'Starting...' : '🔴 Go Live'}
+                </button>
+              )}
             </div>
           )}
 
@@ -259,10 +349,11 @@ export default function ListingPage() {
 
           <div className="divider" />
 
+          {/* Map — shows live vendor location if broadcasting, else listing GPS, else parish */}
           <div style={{ marginBottom: 13 }}>
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
               <p style={{ fontSize: 12, fontFamily: '-apple-system, sans-serif', fontWeight: 700, color: '#18180F' }}>
-                {listing.district || listing.parish}
+                {isLive ? '🔴 Live location' : listing.district || listing.parish}
               </p>
               <button onClick={() => setShowMap(!showMap)} style={{ background: 'none', border: 'none', fontSize: 11, fontFamily: '-apple-system, sans-serif', color: '#1B3A1D', cursor: 'pointer', fontWeight: 700 }}>
                 {showMap ? 'Hide map' : 'Show map'}
@@ -270,14 +361,19 @@ export default function ListingPage() {
             </div>
 
             {showMap && (
-              <div style={{ borderRadius: 10, overflow: 'hidden', marginBottom: 8, border: '1px solid #D8D0BC' }}>
+              <div style={{ borderRadius: 10, overflow: 'hidden', marginBottom: 8, border: isLive ? '2px solid #A84B2A' : '1px solid #D8D0BC' }}>
                 <iframe
                   width="100%"
-                  height="180"
+                  height="200"
                   style={{ border: 0, display: 'block' }}
                   loading="lazy"
-                  src={'https://www.openstreetmap.org/export/embed.html?bbox=' + (coords.lng - 0.02) + ',' + (coords.lat - 0.02) + ',' + (coords.lng + 0.02) + ',' + (coords.lat + 0.02) + '&layer=mapnik&marker=' + coords.lat + ',' + coords.lng}
+                  src={'https://www.openstreetmap.org/export/embed.html?bbox=' + (mapLng - 0.01) + ',' + (mapLat - 0.01) + ',' + (mapLng + 0.01) + ',' + (mapLat + 0.01) + '&layer=mapnik&marker=' + mapLat + ',' + mapLng}
                 />
+                {isLive && (
+                  <p style={{ fontSize: 10, fontFamily: '-apple-system, sans-serif', color: '#A84B2A', textAlign: 'center', padding: '6px 0', background: '#F5F0E6', fontWeight: 700 }}>
+                    🔴 Live — updates every 30 seconds
+                  </p>
+                )}
               </div>
             )}
 
@@ -291,7 +387,6 @@ export default function ListingPage() {
 
           <div className="divider" />
 
-          {/* Report section */}
           {reportSubmitted ? (
             <div style={{ background: '#D0E8BC', borderRadius: 8, padding: '10px 12px', marginBottom: 12, border: '1px solid #2D5A2E' }}>
               <p style={{ fontSize: 12, fontFamily: '-apple-system, sans-serif', color: '#1B3A1D', fontWeight: 700 }}>Report submitted</p>
