@@ -15,13 +15,6 @@ const CATEGORIES = [
   { key: 'buy-sell', label: 'Buy/Sell', emoji: '🛍️', bg: '#EDE7D9' },
 ]
 
-const JAMAICA_BOUNDS = { minLat: 17.70, maxLat: 18.55, minLng: -78.40, maxLng: -76.18 }
-
-function isInJamaica(lat: number, lng: number): boolean {
-  return lat >= JAMAICA_BOUNDS.minLat && lat <= JAMAICA_BOUNDS.maxLat &&
-    lng >= JAMAICA_BOUNDS.minLng && lng <= JAMAICA_BOUNDS.maxLng
-}
-
 function getParishFromCoords(lat: number, lng: number): string {
   if (lat >= 17.85 && lat <= 18.05 && lng >= -76.95 && lng <= -76.65) return 'Kingston'
   if (lat >= 17.85 && lat <= 18.15 && lng >= -77.05 && lng <= -76.65) return 'St. Andrew'
@@ -62,15 +55,15 @@ function PostContent() {
   const [error, setError] = useState('')
   const [success, setSuccess] = useState(false)
   const [authChecked, setAuthChecked] = useState(false)
+  const [gpsLat, setGpsLat] = useState<number | null>(null)
+  const [gpsLng, setGpsLng] = useState<number | null>(null)
 
   useEffect(() => {
-    // Check if logged in — redirect to signup if not
     supabase.auth.getUser().then(async ({ data }) => {
       if (!data.user) {
         router.push('/signup?message=Please+sign+up+to+post+a+listing')
         return
       }
-      // Load user parish as default
       const { data: profile } = await supabase
         .from('profiles')
         .select('parish, whatsapp')
@@ -94,32 +87,25 @@ function PostContent() {
       if (uploadError) {
         alert('Photo upload failed: ' + uploadError.message)
       } else if (data) {
-        const { data: urlData } = supabase.storage
-          .from('Listings')
-          .getPublicUrl(fileName)
+        const { data: urlData } = supabase.storage.from('Listings').getPublicUrl(fileName)
         setPhotoUrl(urlData.publicUrl)
       }
-    } catch (err) {
-      console.error(err)
-    }
+    } catch (err) { console.error(err) }
     setUploading(false)
   }
 
   function handleUseLocation() {
-    if (!navigator.geolocation) {
-      setLocationError('Location not supported on this device.')
-      return
-    }
+    if (!navigator.geolocation) { setLocationError('Location not supported.'); return }
     setLocating(true)
     setLocationError('')
     navigator.geolocation.getCurrentPosition(
       async (pos) => {
         const { latitude, longitude } = pos.coords
+        setGpsLat(latitude)
+        setGpsLng(longitude)
         const inJamaica = latitude >= 17.70 && latitude <= 18.55 && longitude >= -78.40 && longitude <= -76.18
         try {
-          const res = await fetch(
-            'https://nominatim.openstreetmap.org/reverse?lat=' + latitude + '&lon=' + longitude + '&format=json'
-          )
+          const res = await fetch('https://nominatim.openstreetmap.org/reverse?lat=' + latitude + '&lon=' + longitude + '&format=json')
           const data = await res.json()
           if (inJamaica) {
             const detectedParish = getParishFromCoords(latitude, longitude)
@@ -130,19 +116,14 @@ function PostContent() {
             const neighborhood = data.address?.suburb || data.address?.neighbourhood || data.address?.city_district || data.address?.town || data.address?.city || ''
             const city = data.address?.city || data.address?.town || data.address?.county || ''
             if (neighborhood) setParish(neighborhood + (city ? ', ' + city : ''))
-            const district = data.address?.suburb || data.address?.neighbourhood || ''
-            if (district) setDistrict(district)
+            const dist = data.address?.suburb || data.address?.neighbourhood || ''
+            if (dist) setDistrict(dist)
           }
-        } catch (e) {
-          console.error(e)
-        }
+        } catch (e) { console.error(e) }
         setLocationSet(true)
         setLocating(false)
       },
-      () => {
-        setLocationError('Could not get your location. Please select your parish manually.')
-        setLocating(false)
-      },
+      () => { setLocationError('Could not get your location. Please select manually.'); setLocating(false) },
       { timeout: 10000 }
     )
   }
@@ -167,6 +148,8 @@ function PostContent() {
       whatsapp: isAnonymous ? null : whatsapp.trim(),
       is_anonymous: isAnonymous,
       photo_url: photoUrl || null,
+      lat: gpsLat,
+      lng: gpsLng,
       status: 'approved',
     })
     setSubmitting(false)
@@ -178,9 +161,7 @@ function PostContent() {
     }
   }
 
-  if (!authChecked) {
-    return <div className="app-shell"><div className="loading">Loading...</div></div>
-  }
+  if (!authChecked) return <div className="app-shell"><div className="loading">Loading...</div></div>
 
   if (success) {
     return (
@@ -188,7 +169,7 @@ function PostContent() {
         <div style={{ textAlign: 'center' }}>
           <p style={{ fontSize: 48, marginBottom: 16 }}>✅</p>
           <p style={{ fontSize: 18, marginBottom: 8 }}>Posted successfully</p>
-          <p style={{ fontSize: 13, fontFamily: '-apple-system, sans-serif', color: '#5A5A50', lineHeight: 1.6 }}>Your listing is now live in your Naberhood.</p>
+          <p style={{ fontSize: 13, fontFamily: '-apple-system, sans-serif', color: '#5A5A50', lineHeight: 1.6 }}>Your post is now live in your Naberhood.</p>
           <p style={{ fontSize: 12, fontFamily: '-apple-system, sans-serif', color: '#5A5A50', marginTop: 16 }}>Redirecting to home...</p>
         </div>
       </div>
@@ -253,16 +234,21 @@ function PostContent() {
             <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
               <div>
                 <p style={{ fontSize: 12, fontFamily: '-apple-system, sans-serif', fontWeight: 700, color: '#18180F' }}>
-                  {locationSet ? 'Location detected' : 'Use my location'}
+                  {locationSet ? '📍 Location saved' : 'Use my location'}
                 </p>
                 <p style={{ fontSize: 10, fontFamily: '-apple-system, sans-serif', color: '#5A5A50', marginTop: 1 }}>
-                  {locationSet ? parish + (district ? ', ' + district : '') : 'Auto-fills your parish and district'}
+                  {locationSet ? parish + (district ? ', ' + district : '') + ' · GPS saved' : 'Auto-fills parish, district and saves your GPS coordinates'}
                 </p>
               </div>
               <button onClick={handleUseLocation} disabled={locating} style={{ background: locationSet ? '#2D5A2E' : '#1B3A1D', color: '#fff', border: 'none', borderRadius: 6, padding: '6px 11px', fontSize: 10, fontFamily: '-apple-system, sans-serif', cursor: 'pointer', opacity: locating ? 0.7 : 1 }}>
                 {locating ? 'Locating...' : locationSet ? 'Update' : 'Detect'}
               </button>
             </div>
+            {locationSet && (
+              <p style={{ fontSize: 10, fontFamily: '-apple-system, sans-serif', color: '#2D5A2E', marginTop: 6 }}>
+                GPS saved — users will see distance to your listing
+              </p>
+            )}
             {locationError && (
               <p style={{ fontSize: 10, fontFamily: '-apple-system, sans-serif', color: '#A84B2A', marginTop: 7, lineHeight: 1.5 }}>{locationError}</p>
             )}
@@ -296,15 +282,11 @@ function PostContent() {
                 {uploading ? 'Uploading...' : photoUrl ? 'Photo added!' : 'Add a photo or flyer'}
               </p>
               <p style={{ fontSize: 10, fontFamily: '-apple-system, sans-serif', color: '#5A5A50', marginBottom: 4 }}>
-                {photoUrl ? 'Tap a button to change' : 'Take a new photo or choose from your gallery'}
+                {photoUrl ? 'Tap to change' : 'Take a new photo or choose from your gallery'}
               </p>
               <div style={{ display: 'flex', gap: 8 }}>
-                <label htmlFor="camera-input" style={{ background: '#1B3A1D', color: '#fff', borderRadius: 7, padding: '7px 14px', fontSize: 11, fontFamily: '-apple-system, sans-serif', cursor: 'pointer', display: 'inline-block' }}>
-                  Take photo
-                </label>
-                <label htmlFor="gallery-input" style={{ background: '#fff', color: '#1B3A1D', border: '1.5px solid #1B3A1D', borderRadius: 7, padding: '7px 14px', fontSize: 11, fontFamily: '-apple-system, sans-serif', cursor: 'pointer', display: 'inline-block' }}>
-                  Choose file
-                </label>
+                <label htmlFor="camera-input" style={{ background: '#1B3A1D', color: '#fff', borderRadius: 7, padding: '7px 14px', fontSize: 11, fontFamily: '-apple-system, sans-serif', cursor: 'pointer', display: 'inline-block' }}>Take photo</label>
+                <label htmlFor="gallery-input" style={{ background: '#fff', color: '#1B3A1D', border: '1.5px solid #1B3A1D', borderRadius: 7, padding: '7px 14px', fontSize: 11, fontFamily: '-apple-system, sans-serif', cursor: 'pointer', display: 'inline-block' }}>Choose file</label>
               </div>
               <input type="file" accept="image/*" capture="environment" id="camera-input" style={{ display: 'none' }} onChange={handlePhotoUpload} />
               <input type="file" accept="image/*" id="gallery-input" style={{ display: 'none' }} onChange={handlePhotoUpload} />
@@ -312,7 +294,6 @@ function PostContent() {
           </div>
         </div>
 
-        {/* Anonymous toggle — clearer wording */}
         <div style={{ background: isAnonymous ? '#EDE0F5' : '#EDE7D9', borderRadius: 9, padding: 11, marginBottom: 10, border: isAnonymous ? '1px solid #CEB8E8' : '1px solid #D8D0BC' }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <div>
@@ -338,10 +319,6 @@ function PostContent() {
         <button className="btn-primary" onClick={handleSubmit} disabled={submitting} style={{ marginBottom: 6, opacity: submitting ? 0.7 : 1 }}>
           {submitting ? 'Posting...' : 'Post to my Naberhood'}
         </button>
-
-        <div className="info-box" style={{ marginBottom: 6 }}>
-          <p style={{ fontSize: 10, fontFamily: '-apple-system, sans-serif', color: '#2D5A2E', lineHeight: 1.6 }}>Your listing goes live instantly. The community can see it right away.</p>
-        </div>
 
         <Link href="/boost" className="btn-gold" style={{ marginBottom: 14, textAlign: 'center' }}>
           Boost as featured listing
