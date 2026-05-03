@@ -190,14 +190,20 @@ function BoostContent() {
 
         {/* Step 3 — Payment method */}
         <p className="eyebrow" style={{ marginBottom: 8 }}>3. How will you pay?</p>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, marginBottom: 10 }}>
-          {['Cash', 'Lynk', 'WiPay', 'Bank transfer'].map(method => (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 10 }}>
+          {[
+            { label: 'Cash', sub: 'Pay in person or on delivery', active: true },
+            { label: 'Bank transfer', sub: 'Wire to Naberly account — we confirm on receipt', active: true },
+            { label: 'Lynk', sub: 'Coming soon', active: false },
+            { label: 'WiPay', sub: 'Coming soon', active: false },
+          ].map(method => (
             <button
-              key={method}
-              onClick={() => setPaymentMethod(method.toLowerCase())}
-              style={{ background: paymentMethod === method.toLowerCase() ? '#1B3A1D' : '#EDE7D9', border: '1.5px solid ' + (paymentMethod === method.toLowerCase() ? '#1B3A1D' : '#D8D0BC'), borderRadius: 8, padding: '9px 0', fontSize: 12, fontFamily: '-apple-system, sans-serif', fontWeight: 700, color: paymentMethod === method.toLowerCase() ? '#fff' : '#5A5A50', cursor: 'pointer' }}
+              key={method.label}
+              onClick={() => method.active && setPaymentMethod(method.label.toLowerCase())}
+              style={{ background: paymentMethod === method.label.toLowerCase() ? '#1B3A1D' : method.active ? '#EDE7D9' : '#F5F0E6', border: '1.5px solid ' + (paymentMethod === method.label.toLowerCase() ? '#1B3A1D' : '#D8D0BC'), borderRadius: 8, padding: '10px 12px', fontSize: 12, fontFamily: '-apple-system, sans-serif', fontWeight: 700, color: paymentMethod === method.label.toLowerCase() ? '#fff' : method.active ? '#18180F' : '#B0A898', cursor: method.active ? 'pointer' : 'default', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
             >
-              {method}
+              <span>{method.label}</span>
+              <span style={{ fontSize: 10, fontWeight: 400, color: paymentMethod === method.label.toLowerCase() ? 'rgba(255,255,255,0.7)' : method.active ? '#5A5A50' : '#B0A898' }}>{method.sub}</span>
             </button>
           ))}
         </div>
