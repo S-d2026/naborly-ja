@@ -62,6 +62,7 @@ function getGreeting(name: string, parish: string, listingCount: number, urgentC
 
 export default function HomePage() {
   const [listings, setListings] = useState<Listing[]>([])
+  const [featuredListings, setFeaturedListings] = useState<Listing[]>([])
   const [stories, setStories] = useState<ImpactStory[]>([])
   const [sponsor, setSponsor] = useState<any>(null)
   const [tickerIndex, setTickerIndex] = useState(0)
@@ -72,11 +73,13 @@ export default function HomePage() {
   const [greeting, setGreeting] = useState<{ text: string; emoji: string } | null>(null)
 
   useEffect(() => {
+    // GPS detection
     if (navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         async (pos) => {
           const { latitude, longitude } = pos.coords
-          const inJamaica = latitude >= 17.70 && latitude <= 18.55 && longitude >= -78.40 && longitude <= -76.18
+          const inJamaica = latitude >= JAMAICA_BOUNDS.minLat && latitude <= JAMAICA_BOUNDS.maxLat &&
+            longitude >= JAMAICA_BOUNDS.minLng && longitude <= JAMAICA_BOUNDS.maxLng
           if (inJamaica) {
             setUserParish(getParishFromCoords(latitude, longitude))
           } else {
@@ -92,6 +95,8 @@ export default function HomePage() {
         () => {}
       )
     }
+
+    // User profile
     supabase.auth.getUser().then(async ({ data }) => {
       setUser(data.user)
       if (data.user) {
@@ -100,13 +105,24 @@ export default function HomePage() {
         if (profile?.full_name) setUserName(profile.full_name)
       }
     })
+
+    // Auto-expire featured listings
+    supabase.rpc('expire_featured_listings').then(() => {})
+
+    // All approved listings
     getApprovedListings().then(({ data }) => {
-      if (data) setListings(data as Listing[])
+      if (data) {
+        const all = data as Listing[]
+        setListings(all)
+        setFeaturedListings(all.filter(l => l.is_featured))
+      }
       setLoading(false)
     })
+
     getImpactStories().then(({ data }) => {
       if (data) setStories(data as ImpactStory[])
     })
+
     supabase.from('sponsors').select('*').eq('is_active', true).limit(1).single()
       .then(({ data }) => { if (data) setSponsor(data) })
   }, [])
@@ -126,12 +142,12 @@ export default function HomePage() {
 
   function openSponsorWhatsApp() {
     if (!sponsor?.whatsapp) return
-    const num = sponsor.whatsapp.replace(/\D/g, '')
-    window.open('https://wa.me/' + num, '_blank')
+    window.open('https://wa.me/' + sponsor.whatsapp.replace(/\D/g, ''), '_blank')
   }
 
   return (
     <div className="app-shell">
+      {/* HEADER */}
       <div className="header">
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
@@ -156,6 +172,7 @@ export default function HomePage() {
         </Link>
       </div>
 
+      {/* GREETING */}
       {greeting && (
         <div style={{ background: '#F5F0E6', borderBottom: '1px solid #D8D0BC', padding: '9px 15px', display: 'flex', alignItems: 'center', gap: 9, flexShrink: 0 }}>
           <span style={{ fontSize: 18, lineHeight: 1, flexShrink: 0 }}>{greeting.emoji}</span>
@@ -163,6 +180,7 @@ export default function HomePage() {
         </div>
       )}
 
+      {/* TICKER */}
       <div style={{ background: '#1B3A1D', padding: '8px 15px', display: 'flex', alignItems: 'center', gap: 8, overflow: 'hidden', flexShrink: 0 }}>
         <div className="ticker-dot" />
         <p style={{ color: 'rgba(255,255,255,0.75)', fontSize: 11, fontFamily: '-apple-system, sans-serif', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
@@ -171,6 +189,7 @@ export default function HomePage() {
       </div>
 
       <div className="scroll-area">
+        {/* MISSION HERO */}
         <div style={{ background: '#1B3A1D', padding: '18px 15px 16px' }}>
           <p className="eyebrow" style={{ color: 'rgba(255,255,255,0.42)', marginBottom: 6 }}>Community mission</p>
           <p style={{ color: '#fff', fontSize: 19, lineHeight: 1.3, marginBottom: 12 }}>Food in your Naberhood —<br />free or low cost</p>
@@ -180,6 +199,7 @@ export default function HomePage() {
           </div>
         </div>
 
+        {/* URGENT STRIP */}
         <Link href="/browse?category=urgent" style={{ background: '#3D1010', padding: '10px 15px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', textDecoration: 'none', borderBottom: '1px solid #5A1010' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
             <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#A84B2A' }} />
@@ -191,6 +211,36 @@ export default function HomePage() {
           <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M4 3L9 6.5L4 10" stroke="rgba(255,255,255,0.4)" strokeWidth="1.3" strokeLinecap="round"/></svg>
         </Link>
 
+        {/* FEATURED LISTINGS ROW */}
+        {featuredListings.length > 0 && (
+          <div style={{ borderBottom: '1px solid #D8D0BC' }}>
+            <div style={{ padding: '12px 13px 8px', display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span style={{ fontSize: 13 }}>⭐</span>
+                <p className="eyebrow">Featured in your Naberhood</p>
+              </div>
+              <Link href="/browse" style={{ fontSize: 10, fontFamily: '-apple-system, sans-serif', color: '#1B3A1D', fontWeight: 700, textDecoration: 'none' }}>See all</Link>
+            </div>
+            <div style={{ display: 'flex', gap: 8, padding: '0 13px 13px', overflowX: 'auto' }}>
+              {featuredListings.slice(0, 6).map(listing => (
+                <Link
+                  key={listing.id}
+                  href={'/listing/' + listing.id}
+                  style={{ flexShrink: 0, width: 140, background: '#F5F0E6', borderRadius: 10, border: '1.5px solid #C8821A', padding: 10, textDecoration: 'none', display: 'block' }}
+                >
+                  <div style={{ fontSize: 22, marginBottom: 5, lineHeight: 1 }}>
+                    {listing.category === 'food' ? '🍲' : listing.category === 'urgent' ? '⚠️' : listing.category === 'work' ? '💼' : listing.category === 'ride' ? '🚗' : listing.category === 'service' ? '🛠️' : '🛍️'}
+                  </div>
+                  <p style={{ fontSize: 11, fontFamily: '-apple-system, sans-serif', fontWeight: 700, color: '#18180F', marginBottom: 3, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{listing.title}</p>
+                  <p style={{ fontSize: 10, fontFamily: '-apple-system, sans-serif', color: '#5A5A50', marginBottom: 4, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{listing.district || listing.parish}</p>
+                  <span style={{ fontSize: 9, background: '#C8821A', color: '#fff', borderRadius: 3, padding: '2px 5px', fontFamily: '-apple-system, sans-serif', fontWeight: 700, letterSpacing: 0.3, textTransform: 'uppercase' }}>Featured</span>
+                </Link>
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* IMPACT STORIES */}
         {stories.length > 0 && (
           <div style={{ padding: '14px 13px 6px' }}>
             <p className="eyebrow" style={{ marginBottom: 9 }}>This week in your Naberhood</p>
@@ -207,6 +257,7 @@ export default function HomePage() {
           </div>
         )}
 
+        {/* CATEGORIES */}
         <div style={{ padding: '0 13px 4px' }}>
           <p className="eyebrow" style={{ marginBottom: 9 }}>How can we help?</p>
           <div className="category-grid" style={{ marginBottom: 13 }}>
@@ -236,6 +287,7 @@ export default function HomePage() {
           <p className="eyebrow" style={{ marginBottom: 8 }}>Active in {userParish}</p>
         </div>
 
+        {/* LIVE FEED */}
         <div style={{ borderTop: '1px solid #D8D0BC' }}>
           {loading ? (
             <div className="loading">Loading listings...</div>
@@ -271,13 +323,8 @@ export default function HomePage() {
                 </Link>
 
                 {index === 2 && sponsor && (
-                  <div
-                    onClick={openSponsorWhatsApp}
-                    style={{ display: 'flex', alignItems: 'center', gap: 11, padding: '11px 13px', background: '#F5F0E6', borderBottom: '1px solid #D8D0BC', cursor: 'pointer' }}
-                  >
-                    <div style={{ width: 36, height: 36, borderRadius: 8, background: '#1B3A1D', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, flexShrink: 0 }}>
-                      🏪
-                    </div>
+                  <div onClick={openSponsorWhatsApp} style={{ display: 'flex', alignItems: 'center', gap: 11, padding: '11px 13px', background: '#F5F0E6', borderBottom: '1px solid #D8D0BC', cursor: 'pointer' }}>
+                    <div style={{ width: 36, height: 36, borderRadius: 8, background: '#1B3A1D', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, flexShrink: 0 }}>🏪</div>
                     <div style={{ flex: 1, minWidth: 0 }}>
                       <span style={{ fontSize: 9, fontFamily: '-apple-system, sans-serif', color: '#C8821A', fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase' }}>Community sponsor</span>
                       <p style={{ fontSize: 12, fontFamily: '-apple-system, sans-serif', fontWeight: 700, color: '#18180F', marginBottom: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{sponsor.business_name}</p>
@@ -291,6 +338,7 @@ export default function HomePage() {
           )}
         </div>
 
+        {/* FOOTER */}
         <div style={{ padding: 13 }}>
           <div style={{ borderRadius: 10, padding: 13, background: '#1B3A1D' }}>
             <p className="eyebrow" style={{ color: 'rgba(255,255,255,0.42)', marginBottom: 5 }}>The mission</p>
@@ -303,6 +351,7 @@ export default function HomePage() {
         <div style={{ height: 10 }} />
       </div>
 
+      {/* BOTTOM NAV */}
       <nav className="bottom-nav">
         <Link href="/" className="nav-item active">
           <svg width="20" height="20" viewBox="0 0 22 22" fill="none" stroke="currentColor" strokeWidth="1.7"><path d="M3 9.5L11 3L19 9.5V19H14V14H8V19H3V9.5Z" strokeLinecap="round" strokeLinejoin="round"/></svg>
