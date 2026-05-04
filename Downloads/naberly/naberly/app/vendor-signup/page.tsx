@@ -28,6 +28,7 @@ function VendorSignupContent() {
   })
   const [status, setStatus] = useState<'idle'|'loading'|'success'|'error'>('idle')
   const [errorMsg, setErrorMsg] = useState('')
+  const [isAdmin, setIsAdmin] = useState(false)
   const fromSignup = !!(searchParams.get('name') || searchParams.get('whatsapp'))
 
   useEffect(() => {
@@ -40,8 +41,11 @@ function VendorSignupContent() {
     }
     supabase.auth.getUser().then(async ({ data: { user } }) => {
       if (!user) return
-      const { data: profile } = await supabase.from('profiles').select('full_name, whatsapp, parish').eq('id', user.id).single()
-      if (profile) setForm(f => ({ ...f, name: profile.full_name || f.name, whatsapp: profile.whatsapp || f.whatsapp, parish: profile.parish || f.parish }))
+      const { data: profile } = await supabase.from('profiles').select('full_name, whatsapp, parish, is_admin').eq('id', user.id).single()
+      if (profile) {
+        setForm(f => ({ ...f, name: profile.full_name || f.name, whatsapp: profile.whatsapp || f.whatsapp, parish: profile.parish || f.parish }))
+        setIsAdmin(profile.is_admin || false)
+      }
     })
   }, [searchParams])
 
@@ -56,11 +60,14 @@ function VendorSignupContent() {
     const sellsStr = form.sells.length ? 'Sells: ' + form.sells.join(', ') + '.' : ''
     const daysStr  = form.days.length  ? ' Trading days: ' + form.days.join(', ') + '.' : ''
     const fullDescription = [form.description, sellsStr, daysStr].filter(Boolean).join('\n')
+    // Admin adds vendor → approved instantly. Vendor self-signup → pending until email verified.
+    const listingStatus = isAdmin ? 'approved' : 'pending'
+
     const { error } = await supabase.from('listings').insert([{
       title: form.name, description: fullDescription, category: 'vendor' as any,
       listing_type: 'offer', parish: form.parish, district: form.district || null,
       whatsapp: form.whatsapp, is_free: false, is_anonymous: false,
-      status: 'approved', is_featured: false, user_id: null,
+      status: listingStatus, is_featured: false, user_id: null,
     }])
     if (error) { setErrorMsg('Something went wrong. Please try again.'); setStatus('error'); return }
     setStatus('success')
@@ -68,36 +75,59 @@ function VendorSignupContent() {
 
   if (status === 'success') {
     const firstName = form.name.split(' ')[0]
-    const waText = encodeURIComponent(`Hi ${firstName}! 🎉\n\nYou are now LIVE on NaberlyJA!\n\nCustomers near you can find your listing in the Browse section right now.\n\nShare with friends, family & neighbours so they can find you too! 💛💚\n\nWelcome to the NaberlyJA family! 🇯🇲`)
+
+    // Admin success screen — listing is live immediately
+    if (isAdmin) {
+      const waText = encodeURIComponent(`Hi ${firstName}! 🎉\n\nYou are now LIVE on NaberlyJA!\n\nCustomers near you can find your listing in the Browse section right now.\n\nShare with friends, family & neighbours so they can find you too! 💛💚\n\nWelcome to the NaberlyJA family! 🇯🇲`)
+      return (
+        <div className="app-shell">
+          <div style={{ background: '#1B3A1D', padding: '12px 15px', display: 'flex', alignItems: 'center', gap: 10 }}>
+            <span style={{ color: '#fff', fontSize: 14 }}>Vendor added!</span>
+          </div>
+          <div style={{ padding: '2rem 1rem', textAlign: 'center' }}>
+            <div style={{ fontSize: 52, marginBottom: '1rem' }}>🎉</div>
+            <h1 style={{ fontSize: 20, color: '#18180F', marginBottom: 8 }}>{form.name} is LIVE!</h1>
+            <p style={{ fontSize: 13, color: '#5A5A50', marginBottom: '1.5rem', lineHeight: 1.6, fontFamily: '-apple-system, sans-serif' }}>
+              Listing is approved and visible in Browse under Vendors.
+            </p>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <a href={`https://wa.me/${form.whatsapp.replace(/[^0-9]/g, '')}?text=${waText}`} target="_blank" rel="noreferrer"
+                style={{ background: '#25d366', color: '#fff', padding: '12px', borderRadius: 8, textDecoration: 'none', fontWeight: 700, fontSize: 14, textAlign: 'center', fontFamily: '-apple-system, sans-serif' }}>
+                Send WhatsApp Confirmation to Vendor
+              </a>
+              <Link href="/admin"
+                style={{ background: '#1B3A1D', color: '#F5F0E6', padding: '12px', borderRadius: 8, textDecoration: 'none', fontWeight: 700, fontSize: 14, textAlign: 'center', fontFamily: '-apple-system, sans-serif' }}>
+                Back to Admin
+              </Link>
+            </div>
+          </div>
+        </div>
+      )
+    }
+
+    // Vendor self-signup success screen — pending email verification
     return (
       <div className="app-shell">
         <div style={{ background: '#1B3A1D', padding: '12px 15px', display: 'flex', alignItems: 'center', gap: 10 }}>
-          <span style={{ color: '#fff', fontSize: 14 }}>You're live!</span>
+          <span style={{ color: '#fff', fontSize: 14 }}>Almost live!</span>
         </div>
         <div style={{ padding: '2rem 1rem', textAlign: 'center' }}>
-          <div style={{ fontSize: 52, marginBottom: '1rem' }}>🎉</div>
-          <h1 style={{ fontSize: 20, color: '#18180F', marginBottom: 8 }}>{form.name} is LIVE on NaberlyJA!</h1>
+          <div style={{ fontSize: 52, marginBottom: '1rem' }}>📧</div>
+          <h1 style={{ fontSize: 20, color: '#18180F', marginBottom: 8 }}>One last step, {firstName}!</h1>
           <p style={{ fontSize: 13, color: '#5A5A50', marginBottom: '1.5rem', lineHeight: 1.6, fontFamily: '-apple-system, sans-serif' }}>
-            Customers in <strong>{form.parish}</strong> can find your listing in Browse right now.
+            Your listing is ready. <strong>Check your email and click the verification link</strong> to make your business go live on NaberlyJA.
           </p>
           <div style={{ background: '#D0E8BC', border: '1px solid #2D5A2E', borderRadius: 12, padding: '1rem', marginBottom: '1.5rem', textAlign: 'left' }}>
-            <p style={{ fontSize: 11, color: '#2D5A2E', fontWeight: 700, marginBottom: 6, textTransform: 'uppercase', letterSpacing: 1, fontFamily: '-apple-system, sans-serif' }}>Send this to {firstName} on WhatsApp</p>
-            <p style={{ fontSize: 12, color: '#1B3A1D', lineHeight: 1.7, whiteSpace: 'pre-line', fontFamily: '-apple-system, sans-serif' }}>{`Hi ${firstName}! 🎉\n\nYou are now LIVE on NaberlyJA!\n\nCustomers near you can find your listing in Browse right now.\n\nShare with friends, family & neighbours! 💛💚\n\nWelcome to the NaberlyJA family! 🇯🇲`}</p>
+            <p style={{ fontSize: 12, color: '#1B3A1D', lineHeight: 1.7, fontFamily: '-apple-system, sans-serif' }}>
+              ✓ Business details saved{'\n'}
+              ✓ Verification email sent{'\n'}
+              ⏳ Listing goes live once you verify your email
+            </p>
           </div>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            <a href={`https://wa.me/${form.whatsapp.replace(/[^0-9]/g, '')}?text=${waText}`} target="_blank" rel="noreferrer"
-              style={{ background: '#25d366', color: '#fff', padding: '12px', borderRadius: 8, textDecoration: 'none', fontWeight: 700, fontSize: 14, textAlign: 'center', fontFamily: '-apple-system, sans-serif' }}>
-              Send WhatsApp Confirmation
-            </a>
-            <Link href="/browse?category=vendor"
-              style={{ background: '#1B3A1D', color: '#F5F0E6', padding: '12px', borderRadius: 8, textDecoration: 'none', fontWeight: 700, fontSize: 14, textAlign: 'center', fontFamily: '-apple-system, sans-serif' }}>
-              View Vendor Listings
-            </Link>
-            <Link href="/"
-              style={{ color: '#5A5A50', fontSize: 13, padding: '8px', textAlign: 'center', textDecoration: 'none', fontFamily: '-apple-system, sans-serif' }}>
-              Go to home
-            </Link>
-          </div>
+          <Link href="/"
+            style={{ color: '#5A5A50', fontSize: 13, padding: '8px', textAlign: 'center', textDecoration: 'none', fontFamily: '-apple-system, sans-serif' }}>
+            Go to home
+          </Link>
         </div>
       </div>
     )
@@ -161,3 +191,4 @@ export default function VendorSignupPage() {
     </Suspense>
   )
 }
+
