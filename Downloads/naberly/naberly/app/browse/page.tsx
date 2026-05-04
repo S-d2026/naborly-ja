@@ -27,6 +27,7 @@ const CATEGORIES = [
   { key: 'ride', label: 'Rides' },
   { key: 'buy-sell', label: 'Buy/Sell' },
   { key: 'service', label: 'Services' },
+  { key: 'vendor', label: 'Vendors' },
 ]
 
 const JAMAICA_BOUNDS = { minLat: 17.70, maxLat: 18.55, minLng: -78.40, maxLng: -76.18 }
