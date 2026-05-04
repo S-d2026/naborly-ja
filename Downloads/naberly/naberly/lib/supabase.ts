@@ -5,7 +5,7 @@ const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey)
 
-export type ListingCategory = 'food' | 'urgent' | 'work' | 'ride' | 'service' | 'buy-sell'
+export type ListingCategory = 'food' | 'urgent' | 'work' | 'ride' | 'service' | 'buy-sell' | 'vendor'
 export type ListingType = 'need' | 'offer'
 export type ListingStatus = 'pending' | 'approved' | 'hidden' | 'archived' | 'rejected'
 
