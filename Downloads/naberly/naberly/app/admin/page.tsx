@@ -104,23 +104,6 @@ export default function AdminPage() {
     setBoosts(prev => prev.map(b => b.id === boostId ? { ...b, payment_status: 'rejected' } : b))
   }
 
-  async function deleteUser(userId: string) {
-    if (!confirm('Delete this user and all their listings? This cannot be undone.')) return
-    // Delete all their listings first
-    await supabase.from('listings').delete().eq('user_id', userId)
-    // Delete profile
-    await supabase.from('profiles').delete().eq('id', userId)
-    // Delete auth user via service role
-    await supabase.auth.admin.deleteUser(userId)
-    setUsers(prev => prev.filter(u => u.id !== userId))
-  }
-
-  async function deleteVendorListing(listingId: string) {
-    if (!confirm('Remove this vendor listing? This cannot be undone.')) return
-    await supabase.from('listings').delete().eq('id', listingId)
-    setListings(prev => prev.filter(l => l.id !== listingId))
-  }
-
   async function toggleSponsor(id: string, isActive: boolean) {
     await supabase.from('sponsors').update({ is_active: !isActive }).eq('id', id)
     setSponsors(prev => prev.map(s => s.id === id ? { ...s, is_active: !isActive } : s))
@@ -246,7 +229,6 @@ export default function AdminPage() {
                     {(listing.status === 'hidden' || listing.status === 'archived' || listing.status === 'rejected') && (
                       <button onClick={() => updateStatus(listing.id, 'pending')} style={{ background: '#EDE7D9', color: '#1B3A1D', border: '1.5px solid #1B3A1D', borderRadius: 5, padding: '6px 10px', fontSize: 10, fontFamily: '-apple-system, sans-serif', fontWeight: 700, cursor: 'pointer' }}>Restore to pending</button>
                     )}
-                    <button onClick={() => deleteVendorListing(listing.id)} style={{ background: 'transparent', color: '#A84B2A', border: '1px solid #A84B2A', borderRadius: 5, padding: '6px 10px', fontSize: 10, fontFamily: '-apple-system, sans-serif', cursor: 'pointer' }}>Delete</button>
                     <Link href={'/listing/' + listing.id} style={{ background: '#EDE7D9', color: '#5A5A50', border: '1px solid #D8D0BC', borderRadius: 5, padding: '6px 10px', fontSize: 10, fontFamily: '-apple-system, sans-serif', textDecoration: 'none' }}>View</Link>
                   </div>
                 </div>
@@ -356,7 +338,7 @@ export default function AdminPage() {
         <div className="scroll-area">
           <div style={{ padding: '9px 13px 3px' }}>
             <p style={{ fontSize: 10, fontFamily: '-apple-system, sans-serif', color: '#5A5A50' }}>
-              Delete removes the user account and all their listings permanently.
+              To remove a user permanently, go to Supabase → Authentication → Users.
             </p>
           </div>
           {users.length === 0 ? (
@@ -368,14 +350,9 @@ export default function AdminPage() {
                   <p style={{ fontSize: 12, fontFamily: '-apple-system, sans-serif', fontWeight: 700, color: '#18180F' }}>{u.full_name || 'Unnamed user'}</p>
                   {u.is_admin && <span className="chip chip-featured">Admin</span>}
                 </div>
-                <p style={{ fontSize: 10, fontFamily: '-apple-system, sans-serif', color: '#5A5A50', marginBottom: 7 }}>
+                <p style={{ fontSize: 10, fontFamily: '-apple-system, sans-serif', color: '#5A5A50' }}>
                   {u.parish || 'No parish'} · {u.whatsapp || 'No WhatsApp'} · Joined {new Date(u.created_at).toLocaleDateString('en-JM')}
                 </p>
-                {!u.is_admin && (
-                  <button onClick={() => deleteUser(u.id)} style={{ background: 'transparent', color: '#A84B2A', border: '1px solid #A84B2A', borderRadius: 5, padding: '5px 9px', fontSize: 10, fontFamily: '-apple-system, sans-serif', cursor: 'pointer' }}>
-                    Delete user
-                  </button>
-                )}
               </div>
             ))
           )}
