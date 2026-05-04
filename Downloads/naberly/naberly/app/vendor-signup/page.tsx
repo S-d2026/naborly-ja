@@ -1,6 +1,7 @@
 'use client'
-import { useState } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import Link from 'next/link'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 
 const PARISHES = [
@@ -17,117 +18,85 @@ const WHAT_YOU_SELL = [
 
 const DAYS = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday','Daily']
 
-export default function VendorSignupPage() {
+function VendorSignupContent() {
+  const router = useRouter()
+  const searchParams = useSearchParams()
+
   const [form, setForm] = useState({
-    name: '',
-    parish: '',
-    district: '',
-    whatsapp: '',
-    phone: '',
-    description: '',
-    sells: [] as string[],
-    days: [] as string[],
+    name: '', parish: '', district: '', whatsapp: '', phone: '',
+    description: '', sells: [] as string[], days: [] as string[],
   })
   const [status, setStatus] = useState<'idle'|'loading'|'success'|'error'>('idle')
-  const [savedId, setSavedId] = useState<string | null>(null)
   const [errorMsg, setErrorMsg] = useState('')
+  const fromSignup = !!(searchParams.get('name') || searchParams.get('whatsapp'))
+
+  useEffect(() => {
+    const nameParam   = searchParams.get('name')
+    const waParam     = searchParams.get('whatsapp')
+    const parishParam = searchParams.get('parish')
+    if (nameParam || waParam || parishParam) {
+      setForm(f => ({ ...f, name: nameParam || f.name, whatsapp: waParam || f.whatsapp, parish: parishParam || f.parish }))
+      return
+    }
+    supabase.auth.getUser().then(async ({ data: { user } }) => {
+      if (!user) return
+      const { data: profile } = await supabase.from('profiles').select('full_name, whatsapp, parish').eq('id', user.id).single()
+      if (profile) setForm(f => ({ ...f, name: profile.full_name || f.name, whatsapp: profile.whatsapp || f.whatsapp, parish: profile.parish || f.parish }))
+    })
+  }, [searchParams])
 
   const toggle = (field: 'sells'|'days', value: string) => {
-    setForm(f => ({
-      ...f,
-      [field]: f[field].includes(value)
-        ? f[field].filter(v => v !== value)
-        : [...f[field], value]
-    }))
+    setForm(f => ({ ...f, [field]: f[field].includes(value) ? f[field].filter(v => v !== value) : [...f[field], value] }))
   }
 
   const handleSubmit = async () => {
-    if (!form.name || !form.parish || !form.whatsapp) {
-      setErrorMsg('Please fill in Business Name, Parish, and WhatsApp number.')
-      return
-    }
+    if (!form.name || !form.parish || !form.whatsapp) { setErrorMsg('Please fill in Business Name, Parish, and WhatsApp number.'); return }
     setErrorMsg('')
     setStatus('loading')
-
-    // Build a rich description from what they sell + trading days
     const sellsStr = form.sells.length ? 'Sells: ' + form.sells.join(', ') + '.' : ''
-    const daysStr = form.days.length ? ' Trading days: ' + form.days.join(', ') + '.' : ''
+    const daysStr  = form.days.length  ? ' Trading days: ' + form.days.join(', ') + '.' : ''
     const fullDescription = [form.description, sellsStr, daysStr].filter(Boolean).join('\n')
-
-    // Insert directly into your existing listings table
-    const { data, error } = await supabase
-      .from('listings')
-      .insert([{
-        title: form.name,
-        description: fullDescription,
-        category: 'vendor',
-        listing_type: 'offer',
-        parish: form.parish,
-        district: form.district || null,
-        whatsapp: form.whatsapp,
-        is_free: false,
-        is_anonymous: false,
-        status: 'approved',
-        is_featured: false,
-        user_id: null,
-      }])
-      .select()
-      .single()
-
-    if (error) {
-      setErrorMsg('Something went wrong. Please try again.')
-      setStatus('error')
-      return
-    }
-
-    setSavedId(data.id)
+    const { error } = await supabase.from('listings').insert([{
+      title: form.name, description: fullDescription, category: 'vendor' as any,
+      listing_type: 'offer', parish: form.parish, district: form.district || null,
+      whatsapp: form.whatsapp, is_free: false, is_anonymous: false,
+      status: 'approved', is_featured: false, user_id: null,
+    }])
+    if (error) { setErrorMsg('Something went wrong. Please try again.'); setStatus('error'); return }
     setStatus('success')
   }
 
   if (status === 'success') {
     const firstName = form.name.split(' ')[0]
-    const waText = encodeURIComponent(
-      `Hi ${firstName}! 🎉\n\nYou are now LIVE on NaberlyJA!\n\nCustomers near you can find your listing right now in the Browse section.\n\nShare with friends, family & neighbours so they can find you too! 💛💚\n\nWelcome to the NaberlyJA family! 🇯🇲`
-    )
+    const waText = encodeURIComponent(`Hi ${firstName}! 🎉\n\nYou are now LIVE on NaberlyJA!\n\nCustomers near you can find your listing in the Browse section right now.\n\nShare with friends, family & neighbours so they can find you too! 💛💚\n\nWelcome to the NaberlyJA family! 🇯🇲`)
     return (
       <div className="app-shell">
         <div style={{ background: '#1B3A1D', padding: '12px 15px', display: 'flex', alignItems: 'center', gap: 10 }}>
-          <Link href="/browse" className="back-btn" style={{ background: 'rgba(255,255,255,0.1)' }}>←</Link>
           <span style={{ color: '#fff', fontSize: 14 }}>You're live!</span>
         </div>
         <div style={{ padding: '2rem 1rem', textAlign: 'center' }}>
           <div style={{ fontSize: 52, marginBottom: '1rem' }}>🎉</div>
           <h1 style={{ fontSize: 20, color: '#18180F', marginBottom: 8 }}>{form.name} is LIVE on NaberlyJA!</h1>
-          <p style={{ fontSize: 13, color: '#5A5A50', marginBottom: '1.5rem', lineHeight: 1.6 }}>
+          <p style={{ fontSize: 13, color: '#5A5A50', marginBottom: '1.5rem', lineHeight: 1.6, fontFamily: '-apple-system, sans-serif' }}>
             Customers in <strong>{form.parish}</strong> can find your listing in Browse right now.
           </p>
-
           <div style={{ background: '#D0E8BC', border: '1px solid #2D5A2E', borderRadius: 12, padding: '1rem', marginBottom: '1.5rem', textAlign: 'left' }}>
-            <p style={{ fontSize: 11, color: '#2D5A2E', fontWeight: 700, marginBottom: 6, textTransform: 'uppercase', letterSpacing: 1 }}>Send this to {firstName} on WhatsApp</p>
-            <p style={{ fontSize: 12, color: '#1B3A1D', lineHeight: 1.7, whiteSpace: 'pre-line' }}>
-              {`Hi ${firstName}! 🎉\n\nYou are now LIVE on NaberlyJA!\n\nCustomers near you can find your listing in the Browse section right now.\n\nShare with friends, family & neighbours! 💛💚\n\nWelcome to the NaberlyJA family! 🇯🇲`}
-            </p>
+            <p style={{ fontSize: 11, color: '#2D5A2E', fontWeight: 700, marginBottom: 6, textTransform: 'uppercase', letterSpacing: 1, fontFamily: '-apple-system, sans-serif' }}>Send this to {firstName} on WhatsApp</p>
+            <p style={{ fontSize: 12, color: '#1B3A1D', lineHeight: 1.7, whiteSpace: 'pre-line', fontFamily: '-apple-system, sans-serif' }}>{`Hi ${firstName}! 🎉\n\nYou are now LIVE on NaberlyJA!\n\nCustomers near you can find your listing in Browse right now.\n\nShare with friends, family & neighbours! 💛💚\n\nWelcome to the NaberlyJA family! 🇯🇲`}</p>
           </div>
-
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            <a
-              href={`https://wa.me/${form.whatsapp.replace(/[^0-9]/g, '')}?text=${waText}`}
-              target="_blank" rel="noreferrer"
-              style={{ background: '#25d366', color: '#fff', padding: '12px', borderRadius: 8, textDecoration: 'none', fontWeight: 700, fontSize: 14, textAlign: 'center' }}
-            >
+            <a href={`https://wa.me/${form.whatsapp.replace(/[^0-9]/g, '')}?text=${waText}`} target="_blank" rel="noreferrer"
+              style={{ background: '#25d366', color: '#fff', padding: '12px', borderRadius: 8, textDecoration: 'none', fontWeight: 700, fontSize: 14, textAlign: 'center', fontFamily: '-apple-system, sans-serif' }}>
               Send WhatsApp Confirmation
             </a>
             <Link href="/browse?category=vendor"
-              style={{ background: '#1B3A1D', color: '#F5F0E6', padding: '12px', borderRadius: 8, textDecoration: 'none', fontWeight: 700, fontSize: 14, textAlign: 'center' }}
-            >
+              style={{ background: '#1B3A1D', color: '#F5F0E6', padding: '12px', borderRadius: 8, textDecoration: 'none', fontWeight: 700, fontSize: 14, textAlign: 'center', fontFamily: '-apple-system, sans-serif' }}>
               View Vendor Listings
             </Link>
-            <button
-              onClick={() => { setStatus('idle'); setForm({ name:'', parish:'', district:'', whatsapp:'', phone:'', description:'', sells:[], days:[] }); setSavedId(null) }}
-              style={{ background: 'none', border: 'none', color: '#5A5A50', fontSize: 13, cursor: 'pointer', padding: '8px' }}
-            >
-              + Add another vendor
-            </button>
+            <Link href="/"
+              style={{ color: '#5A5A50', fontSize: 13, padding: '8px', textAlign: 'center', textDecoration: 'none', fontFamily: '-apple-system, sans-serif' }}>
+              Go to home
+            </Link>
           </div>
         </div>
       </div>
@@ -137,91 +106,58 @@ export default function VendorSignupPage() {
   return (
     <div className="app-shell">
       <div style={{ background: '#1B3A1D', padding: '12px 15px', display: 'flex', alignItems: 'center', gap: 10, position: 'sticky', top: 0, zIndex: 100 }}>
-        <Link href="/browse" className="back-btn" style={{ background: 'rgba(255,255,255,0.1)' }}>←</Link>
+        <Link href="/" className="back-btn" style={{ background: 'rgba(255,255,255,0.1)' }}>←</Link>
         <span style={{ color: '#fff', fontSize: 14, flex: 1 }}>List Your Business Free</span>
       </div>
-
       <div style={{ padding: '1rem 1rem 4rem' }}>
-        {errorMsg && (
-          <div style={{ background: '#F0CABA', border: '1px solid #A84B2A', borderRadius: 8, padding: '10px 12px', marginBottom: 12, fontSize: 13, color: '#A84B2A' }}>
-            {errorMsg}
+        {fromSignup && (
+          <div style={{ background: '#D0E8BC', border: '1px solid #2D5A2E', borderRadius: 8, padding: '9px 12px', marginBottom: 14 }}>
+            <p style={{ fontSize: 12, fontFamily: '-apple-system, sans-serif', color: '#1B3A1D' }}>✓ Your name, parish and WhatsApp are filled in from your account. Just complete the selling details below.</p>
           </div>
         )}
-
-        {/* Business Info */}
-        <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 1.5, textTransform: 'uppercase', color: '#5A5A50', marginBottom: 8 }}>Your Business</p>
-        <input
-          placeholder="Business / Vendor Name *"
-          value={form.name}
-          onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
-          style={{ width: '100%', padding: '10px 12px', border: '1.5px solid #D8D0BC', borderRadius: 8, fontSize: 14, marginBottom: 10, background: '#FAFAF8', fontFamily: '-apple-system, sans-serif' }}
-        />
-        <select
-          value={form.parish}
-          onChange={e => setForm(f => ({ ...f, parish: e.target.value }))}
-          style={{ width: '100%', padding: '10px 12px', border: '1.5px solid #D8D0BC', borderRadius: 8, fontSize: 14, marginBottom: 10, background: '#FAFAF8', fontFamily: '-apple-system, sans-serif' }}
-        >
+        {errorMsg && (
+          <div style={{ background: '#F0CABA', border: '1px solid #A84B2A', borderRadius: 8, padding: '10px 12px', marginBottom: 12, fontSize: 13, color: '#A84B2A', fontFamily: '-apple-system, sans-serif' }}>{errorMsg}</div>
+        )}
+        <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 1.5, textTransform: 'uppercase', color: '#5A5A50', marginBottom: 8, fontFamily: '-apple-system, sans-serif' }}>Your Business</p>
+        <input placeholder="Business / Vendor Name *" value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))} style={{ width: '100%', padding: '10px 12px', border: '1.5px solid #D8D0BC', borderRadius: 8, fontSize: 14, marginBottom: 10, background: '#FAFAF8', fontFamily: '-apple-system, sans-serif' }} />
+        <select value={form.parish} onChange={e => setForm(f => ({ ...f, parish: e.target.value }))} style={{ width: '100%', padding: '10px 12px', border: '1.5px solid #D8D0BC', borderRadius: 8, fontSize: 14, marginBottom: 10, background: '#FAFAF8', fontFamily: '-apple-system, sans-serif' }}>
           <option value="">Select Parish *</option>
           {PARISHES.map(p => <option key={p}>{p}</option>)}
         </select>
-        <input
-          placeholder="Market / Area (e.g. Coronation Market)"
-          value={form.district}
-          onChange={e => setForm(f => ({ ...f, district: e.target.value }))}
-          style={{ width: '100%', padding: '10px 12px', border: '1.5px solid #D8D0BC', borderRadius: 8, fontSize: 14, marginBottom: 16, background: '#FAFAF8', fontFamily: '-apple-system, sans-serif' }}
-        />
-
-        {/* Contact */}
-        <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 1.5, textTransform: 'uppercase', color: '#5A5A50', marginBottom: 8 }}>Contact</p>
-        <input
-          placeholder="WhatsApp Number * e.g. +1 876 XXX XXXX"
-          value={form.whatsapp}
-          onChange={e => setForm(f => ({ ...f, whatsapp: e.target.value }))}
-          style={{ width: '100%', padding: '10px 12px', border: '1.5px solid #D8D0BC', borderRadius: 8, fontSize: 14, marginBottom: 10, background: '#FAFAF8', fontFamily: '-apple-system, sans-serif' }}
-        />
-        <input
-          placeholder="Phone Number (optional)"
-          value={form.phone}
-          onChange={e => setForm(f => ({ ...f, phone: e.target.value }))}
-          style={{ width: '100%', padding: '10px 12px', border: '1.5px solid #D8D0BC', borderRadius: 8, fontSize: 14, marginBottom: 16, background: '#FAFAF8', fontFamily: '-apple-system, sans-serif' }}
-        />
-
-        {/* What you sell */}
-        <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 1.5, textTransform: 'uppercase', color: '#5A5A50', marginBottom: 8 }}>What Do You Sell?</p>
+        <input placeholder="Market / Area (e.g. Coronation Market)" value={form.district} onChange={e => setForm(f => ({ ...f, district: e.target.value }))} style={{ width: '100%', padding: '10px 12px', border: '1.5px solid #D8D0BC', borderRadius: 8, fontSize: 14, marginBottom: 16, background: '#FAFAF8', fontFamily: '-apple-system, sans-serif' }} />
+        <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 1.5, textTransform: 'uppercase', color: '#5A5A50', marginBottom: 8, fontFamily: '-apple-system, sans-serif' }}>Contact</p>
+        <input placeholder="WhatsApp Number * e.g. +1 876 XXX XXXX" value={form.whatsapp} onChange={e => setForm(f => ({ ...f, whatsapp: e.target.value }))} style={{ width: '100%', padding: '10px 12px', border: '1.5px solid #D8D0BC', borderRadius: 8, fontSize: 14, marginBottom: 10, background: '#FAFAF8', fontFamily: '-apple-system, sans-serif' }} />
+        <input placeholder="Phone Number (optional)" value={form.phone} onChange={e => setForm(f => ({ ...f, phone: e.target.value }))} style={{ width: '100%', padding: '10px 12px', border: '1.5px solid #D8D0BC', borderRadius: 8, fontSize: 14, marginBottom: 16, background: '#FAFAF8', fontFamily: '-apple-system, sans-serif' }} />
+        <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 1.5, textTransform: 'uppercase', color: '#5A5A50', marginBottom: 8, fontFamily: '-apple-system, sans-serif' }}>What Do You Sell?</p>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, marginBottom: 10 }}>
           {WHAT_YOU_SELL.map(c => (
             <label key={c} style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '7px 10px', border: `1.5px solid ${form.sells.includes(c) ? '#1B3A1D' : '#D8D0BC'}`, borderRadius: 8, cursor: 'pointer', fontSize: 12, background: form.sells.includes(c) ? '#D0E8BC' : '#FAFAF8', fontFamily: '-apple-system, sans-serif' }}>
-              <input type="checkbox" checked={form.sells.includes(c)} onChange={() => toggle('sells', c)} style={{ accentColor: '#1B3A1D' }} />
-              {c}
+              <input type="checkbox" checked={form.sells.includes(c)} onChange={() => toggle('sells', c)} style={{ accentColor: '#1B3A1D' }} />{c}
             </label>
           ))}
         </div>
-        <textarea
-          placeholder="Describe your goods — what makes them special..."
-          value={form.description}
-          onChange={e => setForm(f => ({ ...f, description: e.target.value }))}
-          style={{ width: '100%', padding: '10px 12px', border: '1.5px solid #D8D0BC', borderRadius: 8, fontSize: 14, minHeight: 80, marginBottom: 16, resize: 'vertical', background: '#FAFAF8', fontFamily: '-apple-system, sans-serif' }}
-        />
-
-        {/* Trading days */}
-        <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 1.5, textTransform: 'uppercase', color: '#5A5A50', marginBottom: 8 }}>Trading Days</p>
+        <textarea placeholder="Describe your goods — what makes them special..." value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} style={{ width: '100%', padding: '10px 12px', border: '1.5px solid #D8D0BC', borderRadius: 8, fontSize: 14, minHeight: 80, marginBottom: 16, resize: 'vertical', background: '#FAFAF8', fontFamily: '-apple-system, sans-serif' }} />
+        <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 1.5, textTransform: 'uppercase', color: '#5A5A50', marginBottom: 8, fontFamily: '-apple-system, sans-serif' }}>Trading Days</p>
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, marginBottom: 24 }}>
           {DAYS.map(d => (
             <label key={d} style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '7px 10px', border: `1.5px solid ${form.days.includes(d) ? '#1B3A1D' : '#D8D0BC'}`, borderRadius: 8, cursor: 'pointer', fontSize: 12, background: form.days.includes(d) ? '#D0E8BC' : '#FAFAF8', fontFamily: '-apple-system, sans-serif' }}>
-              <input type="checkbox" checked={form.days.includes(d)} onChange={() => toggle('days', d)} style={{ accentColor: '#1B3A1D' }} />
-              {d}
+              <input type="checkbox" checked={form.days.includes(d)} onChange={() => toggle('days', d)} style={{ accentColor: '#1B3A1D' }} />{d}
             </label>
           ))}
         </div>
-
-        <button
-          onClick={handleSubmit}
-          disabled={status === 'loading'}
-          style={{ width: '100%', padding: '14px', background: '#1B3A1D', color: '#F5F0E6', border: 'none', borderRadius: 10, fontSize: 15, fontWeight: 700, cursor: 'pointer', fontFamily: '-apple-system, sans-serif', opacity: status === 'loading' ? 0.7 : 1 }}
-        >
+        <button onClick={handleSubmit} disabled={status === 'loading'}
+          style={{ width: '100%', padding: '14px', background: '#1B3A1D', color: '#F5F0E6', border: 'none', borderRadius: 10, fontSize: 15, fontWeight: 700, cursor: 'pointer', fontFamily: '-apple-system, sans-serif', opacity: status === 'loading' ? 0.7 : 1 }}>
           {status === 'loading' ? 'Listing your business...' : 'List My Business on NaberlyJA →'}
         </button>
       </div>
     </div>
+  )
+}
+
+export default function VendorSignupPage() {
+  return (
+    <Suspense fallback={<div className="loading">Loading...</div>}>
+      <VendorSignupContent />
+    </Suspense>
   )
 }
