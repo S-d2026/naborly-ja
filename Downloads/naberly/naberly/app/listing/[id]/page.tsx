@@ -312,7 +312,7 @@ export default function ListingPage() {
             </div>
             <div style={{ flex: 1 }}>
               <p style={{ fontSize: 12, fontFamily: '-apple-system, sans-serif', fontWeight: 700, color: '#18180F' }}>
-                {listing.is_anonymous ? 'Anonymous neighbor' : (listing.profiles as any)?.full_name || 'Community member'}
+                {listing.is_anonymous ? 'Anonymous neighbor' : 'Community member'}
               </p>
               <p style={{ fontSize: 10, fontFamily: '-apple-system, sans-serif', color: '#5A5A50' }}>{listing.district || listing.parish}</p>
             </div>
