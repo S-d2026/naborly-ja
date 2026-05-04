@@ -5,21 +5,21 @@ import { useRouter } from 'next/navigation'
 import { supabase, getAllListingsAdmin, adminUpdateListing, type Listing } from '@/lib/supabase'
 
 type AdminFilter = 'all' | 'pending' | 'approved' | 'hidden' | 'archived' | 'rejected'
-type AdminTab = 'listings' | 'vendors' | 'boosts' | 'sponsors'
+type AdminTab = 'listings' | 'boosts' | 'sponsors' | 'users'
 
 export default function AdminPage() {
   const router = useRouter()
   const [listings, setListings] = useState<Listing[]>([])
   const [filter, setFilter] = useState<AdminFilter>('pending')
   const [loading, setLoading] = useState(true)
-  const [stats, setStats] = useState({ total: 0, pending: 0, urgent: 0, vendors: 0 })
+  const [stats, setStats] = useState({ total: 0, pending: 0, urgent: 0 })
   const [sponsors, setSponsors] = useState<any[]>([])
   const [boosts, setBoosts] = useState<any[]>([])
+  const [users, setUsers] = useState<any[]>([])
   const [newSponsor, setNewSponsor] = useState({ business_name: '', tagline: '', parish: '', whatsapp: '' })
   const [showSponsorForm, setShowSponsorForm] = useState(false)
   const [activeTab, setActiveTab] = useState<AdminTab>('listings')
   const [activatingBoost, setActivatingBoost] = useState<string | null>(null)
-  const [expandedVendor, setExpandedVendor] = useState<string | null>(null)
 
   useEffect(() => {
     supabase.auth.getUser().then(async ({ data: { user } }) => {
@@ -29,6 +29,7 @@ export default function AdminPage() {
       loadAll()
       loadSponsors()
       loadBoosts()
+      loadUsers()
     })
   }, [router])
 
@@ -41,7 +42,6 @@ export default function AdminPage() {
         total: data.length,
         pending: data.filter((l: any) => l.status === 'pending').length,
         urgent: data.filter((l: any) => l.category === 'urgent' && l.status === 'approved').length,
-        vendors: data.filter((l: any) => l.category === 'vendor').length,
       })
     }
     setLoading(false)
@@ -60,6 +60,14 @@ export default function AdminPage() {
     if (data) setBoosts(data)
   }
 
+  async function loadUsers() {
+    const { data } = await supabase
+      .from('profiles')
+      .select('*')
+      .order('created_at', { ascending: false })
+    if (data) setUsers(data)
+  }
+
   async function updateStatus(listingId: string, status: string) {
     await adminUpdateListing(listingId, { status: status as any })
     setListings(prev => prev.map(l => l.id === listingId ? { ...l, status: status as any } : l))
@@ -74,15 +82,43 @@ export default function AdminPage() {
     setActivatingBoost(boost.id)
     const now = new Date()
     const expiresAt = new Date(now.getTime() + boost.duration_days * 24 * 60 * 60 * 1000)
-    await supabase.from('boosts').update({ payment_status: 'paid', activated_at: now.toISOString(), expires_at: expiresAt.toISOString() }).eq('id', boost.id)
-    await supabase.from('listings').update({ is_featured: true, featured_until: expiresAt.toISOString() }).eq('id', boost.listing_id)
-    setBoosts(prev => prev.map(b => b.id === boost.id ? { ...b, payment_status: 'paid', activated_at: now.toISOString(), expires_at: expiresAt.toISOString() } : b))
+    await supabase.from('boosts').update({
+      payment_status: 'paid',
+      activated_at: now.toISOString(),
+      expires_at: expiresAt.toISOString(),
+    }).eq('id', boost.id)
+    await supabase.from('listings').update({
+      is_featured: true,
+      featured_until: expiresAt.toISOString(),
+    }).eq('id', boost.listing_id)
+    setBoosts(prev => prev.map(b => b.id === boost.id ? {
+      ...b, payment_status: 'paid',
+      activated_at: now.toISOString(),
+      expires_at: expiresAt.toISOString(),
+    } : b))
     setActivatingBoost(null)
   }
 
   async function rejectBoost(boostId: string) {
     await supabase.from('boosts').update({ payment_status: 'rejected' }).eq('id', boostId)
     setBoosts(prev => prev.map(b => b.id === boostId ? { ...b, payment_status: 'rejected' } : b))
+  }
+
+  async function deleteUser(userId: string) {
+    if (!confirm('Delete this user and all their listings? This cannot be undone.')) return
+    // Delete all their listings first
+    await supabase.from('listings').delete().eq('user_id', userId)
+    // Delete profile
+    await supabase.from('profiles').delete().eq('id', userId)
+    // Delete auth user via service role
+    await supabase.auth.admin.deleteUser(userId)
+    setUsers(prev => prev.filter(u => u.id !== userId))
+  }
+
+  async function deleteVendorListing(listingId: string) {
+    if (!confirm('Remove this vendor listing? This cannot be undone.')) return
+    await supabase.from('listings').delete().eq('id', listingId)
+    setListings(prev => prev.filter(l => l.id !== listingId))
   }
 
   async function toggleSponsor(id: string, isActive: boolean) {
@@ -105,26 +141,7 @@ export default function AdminPage() {
     }
   }
 
-  // Parse vendor description back into parts
-  function parseVendorDescription(description: string | null) {
-    if (!description) return { about: '', sells: '', days: '' }
-    const sellsMatch = description.match(/Sells: ([^.]+)\./)
-    const daysMatch = description.match(/Trading days: ([^.]+)\./)
-    const about = description
-      .replace(/Sells: [^.]+\./g, '')
-      .replace(/Trading days: [^.]+\./g, '')
-      .trim()
-    return {
-      about,
-      sells: sellsMatch ? sellsMatch[1] : '',
-      days: daysMatch ? daysMatch[1] : '',
-    }
-  }
-
-  const filtered = listings.filter(l =>
-    l.category !== 'vendor' && (filter === 'all' || l.status === filter)
-  )
-  const vendors = listings.filter(l => l.category === 'vendor')
+  const filtered = listings.filter(l => filter === 'all' || l.status === filter)
   const pendingBoosts = boosts.filter(b => b.payment_status === 'pending')
 
   const STATUS_CHIPS: Record<string, string> = {
@@ -146,7 +163,7 @@ export default function AdminPage() {
           { label: 'Total listings', value: stats.total, color: '#1B3A1D' },
           { label: 'Awaiting approval', value: stats.pending, color: '#C8821A' },
           { label: 'Urgent active', value: stats.urgent, color: '#A84B2A' },
-          { label: 'Vendors listed', value: stats.vendors, color: '#1B3A1D' },
+          { label: 'Boost requests', value: pendingBoosts.length, color: pendingBoosts.length > 0 ? '#C8821A' : '#5A5A50' },
         ].map(stat => (
           <div key={stat.label} style={{ background: '#F5F0E6', padding: '11px 13px' }}>
             <p style={{ fontSize: 18, color: stat.color }}>{stat.value}</p>
@@ -155,9 +172,9 @@ export default function AdminPage() {
         ))}
       </div>
 
-      {/* Tab switcher */}
+      {/* Tabs */}
       <div style={{ display: 'flex', background: '#EDE7D9', borderBottom: '1px solid #D8D0BC', flexShrink: 0 }}>
-        {(['listings', 'vendors', 'boosts', 'sponsors'] as AdminTab[]).map(tab => (
+        {(['listings', 'boosts', 'sponsors', 'users'] as AdminTab[]).map(tab => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
@@ -167,11 +184,6 @@ export default function AdminPage() {
             {tab === 'boosts' && pendingBoosts.length > 0 && (
               <span style={{ position: 'absolute', top: 6, right: 6, background: '#C8821A', color: '#fff', fontSize: 8, borderRadius: '50%', width: 14, height: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700 }}>
                 {pendingBoosts.length}
-              </span>
-            )}
-            {tab === 'vendors' && stats.vendors > 0 && (
-              <span style={{ position: 'absolute', top: 6, right: 6, background: '#1B3A1D', color: '#D0E8BC', fontSize: 8, borderRadius: '50%', width: 14, height: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 700 }}>
-                {stats.vendors}
               </span>
             )}
           </button>
@@ -190,7 +202,7 @@ export default function AdminPage() {
           </div>
           <div style={{ padding: '6px 13px 2px', flexShrink: 0 }}>
             <p style={{ fontSize: 10, fontFamily: '-apple-system, sans-serif', color: '#5A5A50' }}>
-              Community listings only. Vendor listings are in the Vendors tab.
+              Archive = resolved. Auto-creates community impact story. All actions reversible.
             </p>
           </div>
           <div className="scroll-area">
@@ -211,7 +223,7 @@ export default function AdminPage() {
                     </div>
                   </div>
                   <p style={{ fontSize: 10, fontFamily: '-apple-system, sans-serif', color: '#5A5A50', marginBottom: 7 }}>
-                    {listing.is_anonymous ? 'Anonymous' : (listing.profiles as any)?.full_name || 'Unknown'} · {listing.parish}{listing.district ? ' · ' + listing.district : ''} · {listing.category} · {new Date(listing.created_at).toLocaleDateString('en-JM')}
+                    {listing.is_anonymous ? 'Anonymous' : 'Community member'} · {listing.parish}{listing.district ? ' · ' + listing.district : ''} · {listing.category} · {new Date(listing.created_at).toLocaleDateString('en-JM')}
                     {listing.featured_until ? ' · Featured until ' + new Date(listing.featured_until).toLocaleDateString('en-JM') : ''}
                   </p>
                   <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
@@ -234,126 +246,11 @@ export default function AdminPage() {
                     {(listing.status === 'hidden' || listing.status === 'archived' || listing.status === 'rejected') && (
                       <button onClick={() => updateStatus(listing.id, 'pending')} style={{ background: '#EDE7D9', color: '#1B3A1D', border: '1.5px solid #1B3A1D', borderRadius: 5, padding: '6px 10px', fontSize: 10, fontFamily: '-apple-system, sans-serif', fontWeight: 700, cursor: 'pointer' }}>Restore to pending</button>
                     )}
+                    <button onClick={() => deleteVendorListing(listing.id)} style={{ background: 'transparent', color: '#A84B2A', border: '1px solid #A84B2A', borderRadius: 5, padding: '6px 10px', fontSize: 10, fontFamily: '-apple-system, sans-serif', cursor: 'pointer' }}>Delete</button>
                     <Link href={'/listing/' + listing.id} style={{ background: '#EDE7D9', color: '#5A5A50', border: '1px solid #D8D0BC', borderRadius: 5, padding: '6px 10px', fontSize: 10, fontFamily: '-apple-system, sans-serif', textDecoration: 'none' }}>View</Link>
                   </div>
                 </div>
               ))
-            )}
-          </div>
-        </>
-      )}
-
-      {/* VENDORS TAB */}
-      {activeTab === 'vendors' && (
-        <>
-          <div style={{ padding: '8px 13px', borderBottom: '1px solid #D8D0BC', background: '#EDE7D9', flexShrink: 0, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-            <p style={{ fontSize: 10, fontFamily: '-apple-system, sans-serif', color: '#5A5A50' }}>
-              {vendors.length} vendor{vendors.length !== 1 ? 's' : ''} signed up · tap a card to see full details
-            </p>
-            <Link href="/vendor-signup" style={{ background: '#1B3A1D', color: '#fff', fontSize: 10, fontFamily: '-apple-system, sans-serif', fontWeight: 700, padding: '5px 10px', borderRadius: 5, textDecoration: 'none' }}>
-              + Add vendor
-            </Link>
-          </div>
-          <div className="scroll-area">
-            {vendors.length === 0 ? (
-              <div className="empty-state">
-                <p style={{ fontSize: 13, fontFamily: '-apple-system, sans-serif', color: '#5A5A50', marginBottom: 8 }}>No vendors yet.</p>
-                <Link href="/vendor-signup" style={{ background: '#1B3A1D', color: '#fff', padding: '9px 16px', borderRadius: 8, textDecoration: 'none', fontSize: 13, fontFamily: '-apple-system, sans-serif', fontWeight: 700 }}>
-                  Add first vendor →
-                </Link>
-              </div>
-            ) : (
-              vendors.map(vendor => {
-                const parsed = parseVendorDescription(vendor.description)
-                const isExpanded = expandedVendor === vendor.id
-                return (
-                  <div key={vendor.id} style={{ borderBottom: '1px solid #D8D0BC' }}>
-                    {/* Vendor row */}
-                    <div
-                      onClick={() => setExpandedVendor(isExpanded ? null : vendor.id)}
-                      style={{ padding: '11px 13px', cursor: 'pointer', background: isExpanded ? '#F5F0E6' : 'transparent' }}
-                    >
-                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: 3 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1, marginRight: 7 }}>
-                          <div style={{ width: 32, height: 32, minWidth: 32, borderRadius: 8, background: '#1B3A1D', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#D0E8BC', fontWeight: 700, fontSize: 11, fontFamily: '-apple-system, sans-serif' }}>
-                            {vendor.title.split(' ').map((w: string) => w[0]).slice(0, 2).join('').toUpperCase()}
-                          </div>
-                          <div>
-                            <p style={{ fontSize: 12, fontFamily: '-apple-system, sans-serif', fontWeight: 700, color: '#18180F' }}>{vendor.title}</p>
-                            <p style={{ fontSize: 10, fontFamily: '-apple-system, sans-serif', color: '#5A5A50' }}>
-                              {vendor.parish}{vendor.district ? ' · ' + vendor.district : ''} · {new Date(vendor.created_at).toLocaleDateString('en-JM')}
-                            </p>
-                          </div>
-                        </div>
-                        <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
-                          <span className={'chip ' + (STATUS_CHIPS[vendor.status] || 'chip-neutral')}>{vendor.status}</span>
-                          <span style={{ fontSize: 10, color: '#5A5A50' }}>{isExpanded ? '▲' : '▼'}</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Expanded vendor details */}
-                    {isExpanded && (
-                      <div style={{ padding: '0 13px 13px', background: '#F5F0E6' }}>
-
-                        {/* Contact info */}
-                        <div style={{ background: '#D0E8BC', border: '1px solid #2D5A2E', borderRadius: 8, padding: '10px 12px', marginBottom: 10 }}>
-                          <p style={{ fontSize: 10, fontFamily: '-apple-system, sans-serif', fontWeight: 700, color: '#1B3A1D', marginBottom: 6, textTransform: 'uppercase', letterSpacing: 1 }}>Contact</p>
-                          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                            {vendor.whatsapp && (
-                              <a href={`https://wa.me/${vendor.whatsapp.replace(/[^0-9]/g, '')}`} target="_blank" rel="noreferrer"
-                                style={{ background: '#25d366', color: '#fff', padding: '6px 12px', borderRadius: 6, fontSize: 11, fontFamily: '-apple-system, sans-serif', fontWeight: 700, textDecoration: 'none' }}>
-                                WhatsApp {vendor.whatsapp}
-                              </a>
-                            )}
-                          </div>
-                        </div>
-
-                        {/* What they sell */}
-                        {parsed.sells && (
-                          <div style={{ marginBottom: 8 }}>
-                            <p style={{ fontSize: 10, fontFamily: '-apple-system, sans-serif', fontWeight: 700, color: '#5A5A50', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 }}>Sells</p>
-                            <p style={{ fontSize: 12, fontFamily: '-apple-system, sans-serif', color: '#18180F', lineHeight: 1.5 }}>{parsed.sells}</p>
-                          </div>
-                        )}
-
-                        {/* Trading days */}
-                        {parsed.days && (
-                          <div style={{ marginBottom: 8 }}>
-                            <p style={{ fontSize: 10, fontFamily: '-apple-system, sans-serif', fontWeight: 700, color: '#5A5A50', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 }}>Trading days</p>
-                            <p style={{ fontSize: 12, fontFamily: '-apple-system, sans-serif', color: '#18180F' }}>{parsed.days}</p>
-                          </div>
-                        )}
-
-                        {/* About */}
-                        {parsed.about && (
-                          <div style={{ marginBottom: 10 }}>
-                            <p style={{ fontSize: 10, fontFamily: '-apple-system, sans-serif', fontWeight: 700, color: '#5A5A50', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 }}>About</p>
-                            <p style={{ fontSize: 12, fontFamily: '-apple-system, sans-serif', color: '#18180F', lineHeight: 1.6 }}>{parsed.about}</p>
-                          </div>
-                        )}
-
-                        {/* Admin actions */}
-                        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', paddingTop: 8, borderTop: '1px solid #D8D0BC' }}>
-                          {vendor.status === 'approved' && (
-                            <button onClick={() => updateStatus(vendor.id, 'hidden')} style={{ background: '#EDE7D9', color: '#5A5A50', border: '1px solid #D8D0BC', borderRadius: 5, padding: '6px 10px', fontSize: 10, fontFamily: '-apple-system, sans-serif', cursor: 'pointer' }}>
-                              Hide listing
-                            </button>
-                          )}
-                          {(vendor.status === 'hidden' || vendor.status === 'archived') && (
-                            <button onClick={() => updateStatus(vendor.id, 'approved')} style={{ background: '#1B3A1D', color: '#fff', border: 'none', borderRadius: 5, padding: '6px 10px', fontSize: 10, fontFamily: '-apple-system, sans-serif', fontWeight: 700, cursor: 'pointer' }}>
-                              Restore listing
-                            </button>
-                          )}
-                          <Link href={'/listing/' + vendor.id} style={{ background: '#EDE7D9', color: '#5A5A50', border: '1px solid #D8D0BC', borderRadius: 5, padding: '6px 10px', fontSize: 10, fontFamily: '-apple-system, sans-serif', textDecoration: 'none' }}>
-                            View listing
-                          </Link>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )
-              })
             )}
           </div>
         </>
@@ -364,7 +261,7 @@ export default function AdminPage() {
         <div className="scroll-area">
           <div style={{ padding: '9px 13px 3px' }}>
             <p style={{ fontSize: 10, fontFamily: '-apple-system, sans-serif', color: '#5A5A50' }}>
-              Activate a boost once payment is confirmed. The listing becomes featured automatically.
+              Activate a boost once payment is confirmed. Listing becomes featured automatically for the paid duration.
             </p>
           </div>
           {boosts.length === 0 ? (
@@ -387,7 +284,7 @@ export default function AdminPage() {
                 </p>
                 <p style={{ fontSize: 10, fontFamily: '-apple-system, sans-serif', color: '#5A5A50', marginBottom: boost.payment_status === 'paid' ? 0 : 8 }}>
                   {boost.listings?.parish}{boost.listings?.district ? ' · ' + boost.listings.district : ''} · {new Date(boost.created_at).toLocaleDateString('en-JM')}
-                  {boost.payment_note ? ' · Note: ' + boost.payment_note : ''}
+                  {boost.payment_note ? ' · ' + boost.payment_note : ''}
                 </p>
                 {boost.payment_status === 'paid' && (
                   <p style={{ fontSize: 10, fontFamily: '-apple-system, sans-serif', color: '#2D5A2E', marginTop: 3 }}>
@@ -396,12 +293,10 @@ export default function AdminPage() {
                 )}
                 {boost.payment_status === 'pending' && (
                   <div style={{ display: 'flex', gap: 6 }}>
-                    <button onClick={() => activateBoost(boost)} disabled={activatingBoost === boost.id}
-                      style={{ background: '#C8821A', color: '#fff', border: 'none', borderRadius: 6, padding: '7px 12px', fontSize: 11, fontFamily: '-apple-system, sans-serif', fontWeight: 700, cursor: 'pointer', opacity: activatingBoost === boost.id ? 0.7 : 1 }}>
+                    <button onClick={() => activateBoost(boost)} disabled={activatingBoost === boost.id} style={{ background: '#C8821A', color: '#fff', border: 'none', borderRadius: 6, padding: '7px 12px', fontSize: 11, fontFamily: '-apple-system, sans-serif', fontWeight: 700, cursor: 'pointer', opacity: activatingBoost === boost.id ? 0.7 : 1 }}>
                       {activatingBoost === boost.id ? 'Activating...' : 'Activate boost ⭐'}
                     </button>
-                    <button onClick={() => rejectBoost(boost.id)}
-                      style={{ background: 'transparent', color: '#A84B2A', border: '1px solid #A84B2A', borderRadius: 6, padding: '7px 10px', fontSize: 11, fontFamily: '-apple-system, sans-serif', cursor: 'pointer' }}>
+                    <button onClick={() => rejectBoost(boost.id)} style={{ background: 'transparent', color: '#A84B2A', border: '1px solid #A84B2A', borderRadius: 6, padding: '7px 10px', fontSize: 11, fontFamily: '-apple-system, sans-serif', cursor: 'pointer' }}>
                       Reject
                     </button>
                   </div>
@@ -443,15 +338,44 @@ export default function AdminPage() {
                   <p style={{ fontSize: 12, fontFamily: '-apple-system, sans-serif', fontWeight: 700, color: '#18180F' }}>{sponsor.business_name}</p>
                   <span className={'chip ' + (sponsor.is_active ? 'chip-approved' : 'chip-neutral')}>{sponsor.is_active ? 'Active' : 'Paused'}</span>
                 </div>
-                <p style={{ fontSize: 10, fontFamily: '-apple-system, sans-serif', color: '#5A5A50', marginBottom: 7 }}>
-                  {sponsor.tagline}{sponsor.parish ? ' · ' + sponsor.parish : ''}
-                </p>
+                <p style={{ fontSize: 10, fontFamily: '-apple-system, sans-serif', color: '#5A5A50', marginBottom: 7 }}>{sponsor.tagline}{sponsor.parish ? ' · ' + sponsor.parish : ''}</p>
                 <div style={{ display: 'flex', gap: 5 }}>
                   <button onClick={() => toggleSponsor(sponsor.id, sponsor.is_active)} style={{ background: sponsor.is_active ? '#EDE7D9' : '#1B3A1D', color: sponsor.is_active ? '#5A5A50' : '#fff', border: '1px solid #D8D0BC', borderRadius: 5, padding: '5px 9px', fontSize: 10, fontFamily: '-apple-system, sans-serif', cursor: 'pointer' }}>
                     {sponsor.is_active ? 'Pause' : 'Activate'}
                   </button>
                   <button onClick={() => deleteSponsor(sponsor.id)} style={{ background: 'transparent', color: '#A84B2A', border: '1px solid #A84B2A', borderRadius: 5, padding: '5px 9px', fontSize: 10, fontFamily: '-apple-system, sans-serif', cursor: 'pointer' }}>Delete</button>
                 </div>
+              </div>
+            ))
+          )}
+        </div>
+      )}
+
+      {/* USERS TAB */}
+      {activeTab === 'users' && (
+        <div className="scroll-area">
+          <div style={{ padding: '9px 13px 3px' }}>
+            <p style={{ fontSize: 10, fontFamily: '-apple-system, sans-serif', color: '#5A5A50' }}>
+              Delete removes the user account and all their listings permanently.
+            </p>
+          </div>
+          {users.length === 0 ? (
+            <div className="empty-state"><p style={{ fontSize: 13, fontFamily: '-apple-system, sans-serif', color: '#5A5A50' }}>No users yet.</p></div>
+          ) : (
+            users.map(u => (
+              <div key={u.id} style={{ padding: '11px 13px', borderBottom: '1px solid #D8D0BC' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: 3 }}>
+                  <p style={{ fontSize: 12, fontFamily: '-apple-system, sans-serif', fontWeight: 700, color: '#18180F' }}>{u.full_name || 'Unnamed user'}</p>
+                  {u.is_admin && <span className="chip chip-featured">Admin</span>}
+                </div>
+                <p style={{ fontSize: 10, fontFamily: '-apple-system, sans-serif', color: '#5A5A50', marginBottom: 7 }}>
+                  {u.parish || 'No parish'} · {u.whatsapp || 'No WhatsApp'} · Joined {new Date(u.created_at).toLocaleDateString('en-JM')}
+                </p>
+                {!u.is_admin && (
+                  <button onClick={() => deleteUser(u.id)} style={{ background: 'transparent', color: '#A84B2A', border: '1px solid #A84B2A', borderRadius: 5, padding: '5px 9px', fontSize: 10, fontFamily: '-apple-system, sans-serif', cursor: 'pointer' }}>
+                    Delete user
+                  </button>
+                )}
               </div>
             ))
           )}
