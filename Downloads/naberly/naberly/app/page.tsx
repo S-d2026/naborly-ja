@@ -123,8 +123,13 @@ export default function HomePage() {
       if (data) setStories(data as ImpactStory[])
     })
 
-    supabase.from('sponsors').select('*').eq('is_active', true).limit(1).single()
-      .then(({ data }) => { if (data) setSponsor(data) })
+    supabase.from('sponsors').select('*').eq('is_active', true)
+  .then(({ data }) => {
+    if (data && data.length > 0) {
+      const pick = data[Math.floor(Math.random() * data.length)]
+      setSponsor(pick)
+    }
+  })
   }, [])
 
   useEffect(() => {
