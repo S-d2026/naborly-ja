@@ -435,9 +435,24 @@ export default function ListingPage() {
             </div>
           )}
 
-          <Link href="/boost" className="btn-ghost" style={{ fontSize: 12, marginBottom: 14 }}>
-            Boost this listing
-          </Link>
+          <button
+  onClick={() => {
+    const url = 'https://naberlyja.com/listing/' + listing.id
+    const text = encodeURIComponent(listing.title + ' — ' + (listing.district || listing.parish) + '\n\n' + url)
+    if (navigator.share) {
+      navigator.share({ title: listing.title, url })
+    } else {
+      window.open('https://wa.me/?text=' + text, '_blank')
+    }
+  }}
+  style={{ width: '100%', background: '#EDE7D9', border: '1.5px solid #1B3A1D', borderRadius: 10, padding: '10px 14px', fontSize: 12, fontFamily: '-apple-system, sans-serif', fontWeight: 700, color: '#1B3A1D', cursor: 'pointer', marginBottom: 8 }}
+>
+  Share this listing
+</button>
+
+<Link href="/boost" className="btn-ghost" style={{ fontSize: 12, marginBottom: 14 }}>
+  Boost this listing
+</Link>
         </div>
       </div>
     </div>
