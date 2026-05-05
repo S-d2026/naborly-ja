@@ -149,6 +149,7 @@ export default function AdminPage() {
     package: 'monthly',
     payment_method: 'cash',
     payment_status: 'paid',
+    featured_listing_id: '',
   })
 
   useEffect(() => {
@@ -257,10 +258,17 @@ export default function AdminPage() {
       starts_at: newSponsor.payment_status === 'paid' ? now.toISOString() : null,
       expires_at: newSponsor.payment_status === 'paid' ? expiresAt.toISOString() : null,
       is_active: newSponsor.payment_status === 'paid',
+      featured_listing_id: newSponsor.package === 'featured' && newSponsor.featured_listing_id ? newSponsor.featured_listing_id : null,
     }]).select().single()
     if (data) {
+      if (newSponsor.package === 'featured' && newSponsor.featured_listing_id && newSponsor.payment_status === 'paid') {
+        await supabase.from('listings').update({
+          is_featured: true,
+          featured_until: expiresAt.toISOString(),
+        }).eq('id', newSponsor.featured_listing_id)
+      }
       setSponsors(prev => [data, ...prev])
-      setNewSponsor({ business_name: '', tagline: '', parish: '', whatsapp: '', package: 'monthly', payment_method: 'cash', payment_status: 'paid' })
+      setNewSponsor({ business_name: '', tagline: '', parish: '', whatsapp: '', package: 'monthly', payment_method: 'cash', payment_status: 'paid', featured_listing_id: '' })
       setShowSponsorForm(false)
     }
   }
@@ -281,7 +289,6 @@ export default function AdminPage() {
         <span style={{ background: 'rgba(255,255,255,0.1)', color: '#fff', fontSize: 9, fontFamily: '-apple-system, sans-serif', padding: '3px 8px', borderRadius: 20 }}>Admin only</span>
       </div>
 
-      {/* Stats */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1, background: '#D8D0BC', borderBottom: '1px solid #D8D0BC', flexShrink: 0 }}>
         {[
           { label: 'Total listings', value: stats.total, color: '#1B3A1D' },
@@ -296,7 +303,6 @@ export default function AdminPage() {
         ))}
       </div>
 
-      {/* Tabs */}
       <div style={{ display: 'flex', background: '#EDE7D9', borderBottom: '1px solid #D8D0BC', flexShrink: 0 }}>
         {(['listings', 'boosts', 'sponsors', 'users'] as AdminTab[]).map(tab => (
           <button
@@ -448,7 +454,7 @@ export default function AdminPage() {
         <div className="scroll-area">
           <div style={{ padding: '11px 13px', borderBottom: '1px solid #D8D0BC' }}>
             <p style={{ fontSize: 10, fontFamily: '-apple-system, sans-serif', color: '#5A5A50', marginBottom: 9 }}>
-              Active sponsors appear as a community sponsor card after listing 3 in home and browse feeds.
+              Active sponsors rotate in the feed. Featured + Sponsor also pins their listing to the top.
             </p>
             <button onClick={() => setShowSponsorForm(!showSponsorForm)} style={{ background: '#1B3A1D', color: '#fff', border: 'none', borderRadius: 7, padding: '8px 14px', fontSize: 12, fontFamily: '-apple-system, sans-serif', fontWeight: 700, cursor: 'pointer' }}>
               {showSponsorForm ? 'Cancel' : '+ Add sponsor'}
@@ -466,7 +472,7 @@ export default function AdminPage() {
                   <label className="field-label">Package</label>
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
                     {SPONSOR_PACKAGES.map(pkg => (
-                      <button key={pkg.key} onClick={() => setNewSponsor(p => ({ ...p, package: pkg.key }))}
+                      <button key={pkg.key} onClick={() => setNewSponsor(p => ({ ...p, package: pkg.key, featured_listing_id: '' }))}
                         style={{ background: newSponsor.package === pkg.key ? '#1B3A1D' : '#EDE7D9', color: newSponsor.package === pkg.key ? '#fff' : '#18180F', border: '1.5px solid ' + (newSponsor.package === pkg.key ? '#1B3A1D' : '#D8D0BC'), borderRadius: 8, padding: '9px 12px', fontSize: 12, fontFamily: '-apple-system, sans-serif', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                         <span>{pkg.label}</span>
                         <span style={{ fontSize: 11, color: newSponsor.package === pkg.key ? '#C8821A' : '#5A5A50' }}>${pkg.price.toLocaleString()} JMD · {pkg.days} days</span>
@@ -474,6 +480,17 @@ export default function AdminPage() {
                     ))}
                   </div>
                 </div>
+                {newSponsor.package === 'featured' && (
+                  <div>
+                    <label className="field-label">Which listing to feature? *</label>
+                    <select className="form-field" style={{ appearance: 'none' }} value={newSponsor.featured_listing_id} onChange={e => setNewSponsor(p => ({ ...p, featured_listing_id: e.target.value }))}>
+                      <option value="">Select a listing...</option>
+                      {listings.filter(l => l.status === 'approved').map(l => (
+                        <option key={l.id} value={l.id}>{l.title} — {l.parish}</option>
+                      ))}
+                    </select>
+                  </div>
+                )}
                 <div>
                   <label className="field-label">Payment method</label>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
