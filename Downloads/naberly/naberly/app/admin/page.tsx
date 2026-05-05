@@ -7,6 +7,127 @@ import { supabase, getAllListingsAdmin, adminUpdateListing, type Listing } from 
 type AdminFilter = 'all' | 'pending' | 'approved' | 'hidden' | 'archived' | 'rejected'
 type AdminTab = 'listings' | 'boosts' | 'sponsors' | 'users'
 
+const SPONSOR_PACKAGES = [
+  { key: 'weekly', label: 'Weekly Spot', price: 2500, days: 7 },
+  { key: 'monthly', label: 'Monthly Spot', price: 8000, days: 30 },
+  { key: 'featured', label: 'Featured + Sponsor', price: 15000, days: 30 },
+]
+
+const PARISHES = ['Kingston','St. Andrew','St. Thomas','Portland','St. Mary','St. Ann','Trelawny','St. James','Hanover','Westmoreland','St. Elizabeth','Manchester','Clarendon','St. Catherine']
+
+function AddListingForUser({ users, onClose, onSaved }: { users: any[], onClose: () => void, onSaved: () => void }) {
+  const [selectedUser, setSelectedUser] = useState('')
+  const [title, setTitle] = useState('')
+  const [category, setCategory] = useState('food')
+  const [listingType, setListingType] = useState('offer')
+  const [parish, setParish] = useState('Kingston')
+  const [district, setDistrict] = useState('')
+  const [price, setPrice] = useState('')
+  const [description, setDescription] = useState('')
+  const [whatsapp, setWhatsapp] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [error, setError] = useState('')
+
+  async function handleSave() {
+    if (!selectedUser) { setError('Please select a user.'); return }
+    if (!title.trim()) { setError('Please add a title.'); return }
+    setSaving(true)
+    const user = users.find(u => u.id === selectedUser)
+    const { error: err } = await supabase.from('listings').insert([{
+      user_id: selectedUser,
+      title: title.trim(),
+      description: description.trim() || null,
+      category,
+      listing_type: listingType,
+      price_jmd: price.trim() || null,
+      is_free: !price.trim(),
+      parish,
+      district: district.trim() || null,
+      whatsapp: whatsapp.trim() || user?.whatsapp || null,
+      is_anonymous: false,
+      status: 'approved',
+      is_featured: false,
+    }])
+    setSaving(false)
+    if (err) { setError('Something went wrong: ' + err.message); return }
+    onSaved()
+  }
+
+  return (
+    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 500, display: 'flex', alignItems: 'flex-end' }} onClick={onClose}>
+      <div style={{ background: '#F5F0E6', borderRadius: '16px 16px 0 0', padding: 16, width: '100%', maxWidth: 480, margin: '0 auto', maxHeight: '85vh', overflowY: 'auto' }} onClick={e => e.stopPropagation()}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+          <p style={{ fontSize: 14, fontFamily: '-apple-system, sans-serif', fontWeight: 700, color: '#18180F' }}>Post listing for a user</p>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', fontSize: 18, cursor: 'pointer', color: '#5A5A50' }}>×</button>
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 11 }}>
+          <div>
+            <label className="field-label">Select user *</label>
+            <select className="form-field" style={{ appearance: 'none' }} value={selectedUser} onChange={e => {
+              setSelectedUser(e.target.value)
+              const u = users.find(u => u.id === e.target.value)
+              if (u?.parish) setParish(u.parish)
+              if (u?.whatsapp) setWhatsapp(u.whatsapp)
+            }}>
+              <option value="">Choose a user...</option>
+              {users.filter(u => !u.is_admin).map(u => (
+                <option key={u.id} value={u.id}>{u.full_name || 'Unnamed'} — {u.parish || 'No parish'}</option>
+              ))}
+            </select>
+          </div>
+          <div>
+            <label className="field-label">Title *</label>
+            <input className="form-field" placeholder="Listing title" value={title} onChange={e => setTitle(e.target.value)} />
+          </div>
+          <div>
+            <label className="field-label">Description</label>
+            <textarea className="form-field-box" rows={2} placeholder="Details..." value={description} onChange={e => setDescription(e.target.value)} />
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+            <div>
+              <label className="field-label">Category</label>
+              <select className="form-field" style={{ appearance: 'none' }} value={category} onChange={e => setCategory(e.target.value)}>
+                {['food','work','ride','service','buy-sell','urgent'].map(c => <option key={c} value={c}>{c}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="field-label">Type</label>
+              <select className="form-field" style={{ appearance: 'none' }} value={listingType} onChange={e => setListingType(e.target.value)}>
+                <option value="offer">I Can Offer</option>
+                <option value="need">I Need Help</option>
+              </select>
+            </div>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+            <div>
+              <label className="field-label">Price (JMD)</label>
+              <input className="form-field" placeholder="Free if blank" value={price} onChange={e => setPrice(e.target.value)} />
+            </div>
+            <div>
+              <label className="field-label">Parish</label>
+              <select className="form-field" style={{ appearance: 'none' }} value={parish} onChange={e => setParish(e.target.value)}>
+                {PARISHES.map(p => <option key={p} value={p}>{p}</option>)}
+              </select>
+            </div>
+          </div>
+          <div>
+            <label className="field-label">District</label>
+            <input className="form-field" placeholder="e.g. Cross Roads" value={district} onChange={e => setDistrict(e.target.value)} />
+          </div>
+          <div>
+            <label className="field-label">WhatsApp (auto-fills from user profile)</label>
+            <input className="form-field" placeholder="+1 876 XXX XXXX" value={whatsapp} onChange={e => setWhatsapp(e.target.value)} />
+          </div>
+          {error && <p style={{ fontSize: 11, color: '#A84B2A', fontFamily: '-apple-system, sans-serif' }}>{error}</p>}
+          <button onClick={handleSave} disabled={saving} style={{ background: '#1B3A1D', color: '#fff', border: 'none', borderRadius: 8, padding: 11, fontSize: 13, fontFamily: '-apple-system, sans-serif', fontWeight: 700, cursor: 'pointer', opacity: saving ? 0.7 : 1 }}>
+            {saving ? 'Saving...' : 'Post listing for this user'}
+          </button>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function AdminPage() {
   const router = useRouter()
   const [listings, setListings] = useState<Listing[]>([])
@@ -16,10 +137,19 @@ export default function AdminPage() {
   const [sponsors, setSponsors] = useState<any[]>([])
   const [boosts, setBoosts] = useState<any[]>([])
   const [users, setUsers] = useState<any[]>([])
-  const [newSponsor, setNewSponsor] = useState({ business_name: '', tagline: '', parish: '', whatsapp: '' })
   const [showSponsorForm, setShowSponsorForm] = useState(false)
+  const [showAddListing, setShowAddListing] = useState(false)
   const [activeTab, setActiveTab] = useState<AdminTab>('listings')
   const [activatingBoost, setActivatingBoost] = useState<string | null>(null)
+  const [newSponsor, setNewSponsor] = useState({
+    business_name: '',
+    tagline: '',
+    parish: '',
+    whatsapp: '',
+    package: 'monthly',
+    payment_method: 'cash',
+    payment_status: 'paid',
+  })
 
   useEffect(() => {
     supabase.auth.getUser().then(async ({ data: { user } }) => {
@@ -61,10 +191,7 @@ export default function AdminPage() {
   }
 
   async function loadUsers() {
-    const { data } = await supabase
-      .from('profiles')
-      .select('*')
-      .order('created_at', { ascending: false })
+    const { data } = await supabase.from('profiles').select('*').order('created_at', { ascending: false })
     if (data) setUsers(data)
   }
 
@@ -116,10 +243,24 @@ export default function AdminPage() {
 
   async function addSponsor() {
     if (!newSponsor.business_name || !newSponsor.tagline) return
-    const { data } = await supabase.from('sponsors').insert([{ ...newSponsor, is_active: true }]).select().single()
+    const pkg = SPONSOR_PACKAGES.find(p => p.key === newSponsor.package)!
+    const now = new Date()
+    const expiresAt = new Date(now.getTime() + pkg.days * 24 * 60 * 60 * 1000)
+    const { data } = await supabase.from('sponsors').insert([{
+      business_name: newSponsor.business_name,
+      tagline: newSponsor.tagline,
+      parish: newSponsor.parish || null,
+      whatsapp: newSponsor.whatsapp || null,
+      package: pkg.label,
+      payment_method: newSponsor.payment_method,
+      payment_status: newSponsor.payment_status,
+      starts_at: newSponsor.payment_status === 'paid' ? now.toISOString() : null,
+      expires_at: newSponsor.payment_status === 'paid' ? expiresAt.toISOString() : null,
+      is_active: newSponsor.payment_status === 'paid',
+    }]).select().single()
     if (data) {
       setSponsors(prev => [data, ...prev])
-      setNewSponsor({ business_name: '', tagline: '', parish: '', whatsapp: '' })
+      setNewSponsor({ business_name: '', tagline: '', parish: '', whatsapp: '', package: 'monthly', payment_method: 'cash', payment_status: 'paid' })
       setShowSponsorForm(false)
     }
   }
@@ -183,10 +324,16 @@ export default function AdminPage() {
               </button>
             ))}
           </div>
-          <div style={{ padding: '6px 13px 2px', flexShrink: 0 }}>
+          <div style={{ padding: '6px 13px 6px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexShrink: 0 }}>
             <p style={{ fontSize: 10, fontFamily: '-apple-system, sans-serif', color: '#5A5A50' }}>
-              Archive = resolved. Auto-creates community impact story. All actions reversible.
+              Archive = resolved. Auto-creates impact story. All reversible.
             </p>
+            <button
+              onClick={() => setShowAddListing(true)}
+              style={{ background: '#1B3A1D', color: '#fff', border: 'none', borderRadius: 6, padding: '5px 10px', fontSize: 10, fontFamily: '-apple-system, sans-serif', fontWeight: 700, cursor: 'pointer', whiteSpace: 'nowrap', marginLeft: 8 }}
+            >
+              + Post for user
+            </button>
           </div>
           <div className="scroll-area">
             {loading ? (
@@ -235,6 +382,13 @@ export default function AdminPage() {
               ))
             )}
           </div>
+          {showAddListing && (
+            <AddListingForUser
+              users={users}
+              onClose={() => setShowAddListing(false)}
+              onSaved={() => { setShowAddListing(false); loadAll() }}
+            />
+          )}
         </>
       )}
 
@@ -300,6 +454,7 @@ export default function AdminPage() {
               {showSponsorForm ? 'Cancel' : '+ Add sponsor'}
             </button>
           </div>
+
           {showSponsorForm && (
             <div style={{ padding: 13, borderBottom: '1px solid #D8D0BC', background: '#F5F0E6' }}>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
@@ -307,10 +462,47 @@ export default function AdminPage() {
                 <div><label className="field-label">Tagline *</label><input className="form-field" placeholder="e.g. Serving Montego Bay — delivery available" value={newSponsor.tagline} onChange={e => setNewSponsor(p => ({ ...p, tagline: e.target.value }))} /></div>
                 <div><label className="field-label">Parish</label><input className="form-field" placeholder="e.g. St. James" value={newSponsor.parish} onChange={e => setNewSponsor(p => ({ ...p, parish: e.target.value }))} /></div>
                 <div><label className="field-label">WhatsApp</label><input className="form-field" placeholder="+1 876 XXX XXXX" value={newSponsor.whatsapp} onChange={e => setNewSponsor(p => ({ ...p, whatsapp: e.target.value }))} /></div>
-                <button onClick={addSponsor} style={{ background: '#C8821A', color: '#fff', border: 'none', borderRadius: 7, padding: '9px 0', fontSize: 12, fontFamily: '-apple-system, sans-serif', fontWeight: 700, cursor: 'pointer' }}>Save sponsor</button>
+                <div>
+                  <label className="field-label">Package</label>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                    {SPONSOR_PACKAGES.map(pkg => (
+                      <button key={pkg.key} onClick={() => setNewSponsor(p => ({ ...p, package: pkg.key }))}
+                        style={{ background: newSponsor.package === pkg.key ? '#1B3A1D' : '#EDE7D9', color: newSponsor.package === pkg.key ? '#fff' : '#18180F', border: '1.5px solid ' + (newSponsor.package === pkg.key ? '#1B3A1D' : '#D8D0BC'), borderRadius: 8, padding: '9px 12px', fontSize: 12, fontFamily: '-apple-system, sans-serif', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span>{pkg.label}</span>
+                        <span style={{ fontSize: 11, color: newSponsor.package === pkg.key ? '#C8821A' : '#5A5A50' }}>${pkg.price.toLocaleString()} JMD · {pkg.days} days</span>
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <label className="field-label">Payment method</label>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+                    {['Cash', 'Bank transfer'].map(m => (
+                      <button key={m} onClick={() => setNewSponsor(p => ({ ...p, payment_method: m.toLowerCase() }))}
+                        style={{ background: newSponsor.payment_method === m.toLowerCase() ? '#1B3A1D' : '#EDE7D9', color: newSponsor.payment_method === m.toLowerCase() ? '#fff' : '#18180F', border: '1.5px solid ' + (newSponsor.payment_method === m.toLowerCase() ? '#1B3A1D' : '#D8D0BC'), borderRadius: 8, padding: '9px 0', fontSize: 12, fontFamily: '-apple-system, sans-serif', fontWeight: 700, cursor: 'pointer' }}>
+                        {m}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div>
+                  <label className="field-label">Payment status</label>
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
+                    {['paid', 'pending'].map(s => (
+                      <button key={s} onClick={() => setNewSponsor(p => ({ ...p, payment_status: s }))}
+                        style={{ background: newSponsor.payment_status === s ? (s === 'paid' ? '#2D5A2E' : '#C8821A') : '#EDE7D9', color: newSponsor.payment_status === s ? '#fff' : '#18180F', border: '1.5px solid ' + (newSponsor.payment_status === s ? 'transparent' : '#D8D0BC'), borderRadius: 8, padding: '9px 0', fontSize: 12, fontFamily: '-apple-system, sans-serif', fontWeight: 700, cursor: 'pointer', textTransform: 'capitalize' as const }}>
+                        {s}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <button onClick={addSponsor} style={{ background: '#C8821A', color: '#fff', border: 'none', borderRadius: 7, padding: '11px 0', fontSize: 12, fontFamily: '-apple-system, sans-serif', fontWeight: 700, cursor: 'pointer' }}>
+                  Save sponsor
+                </button>
               </div>
             </div>
           )}
+
           {sponsors.length === 0 ? (
             <div className="empty-state"><p style={{ fontSize: 13, fontFamily: '-apple-system, sans-serif', color: '#5A5A50' }}>No sponsors yet.</p></div>
           ) : (
@@ -320,7 +512,19 @@ export default function AdminPage() {
                   <p style={{ fontSize: 12, fontFamily: '-apple-system, sans-serif', fontWeight: 700, color: '#18180F' }}>{sponsor.business_name}</p>
                   <span className={'chip ' + (sponsor.is_active ? 'chip-approved' : 'chip-neutral')}>{sponsor.is_active ? 'Active' : 'Paused'}</span>
                 </div>
-                <p style={{ fontSize: 10, fontFamily: '-apple-system, sans-serif', color: '#5A5A50', marginBottom: 7 }}>{sponsor.tagline}{sponsor.parish ? ' · ' + sponsor.parish : ''}</p>
+                <p style={{ fontSize: 10, fontFamily: '-apple-system, sans-serif', color: '#5A5A50', marginBottom: 3 }}>
+                  {sponsor.tagline}{sponsor.parish ? ' · ' + sponsor.parish : ''}
+                </p>
+                {sponsor.package && (
+                  <p style={{ fontSize: 10, fontFamily: '-apple-system, sans-serif', color: '#C8821A', marginBottom: 3 }}>
+                    {sponsor.package} · {sponsor.payment_method} · {sponsor.payment_status}
+                  </p>
+                )}
+                {sponsor.expires_at && (
+                  <p style={{ fontSize: 10, fontFamily: '-apple-system, sans-serif', color: new Date(sponsor.expires_at) < new Date() ? '#A84B2A' : '#2D5A2E', marginBottom: 7 }}>
+                    {new Date(sponsor.expires_at) < new Date() ? 'Expired ' : 'Expires '}{new Date(sponsor.expires_at).toLocaleDateString('en-JM')}
+                  </p>
+                )}
                 <div style={{ display: 'flex', gap: 5 }}>
                   <button onClick={() => toggleSponsor(sponsor.id, sponsor.is_active)} style={{ background: sponsor.is_active ? '#EDE7D9' : '#1B3A1D', color: sponsor.is_active ? '#5A5A50' : '#fff', border: '1px solid #D8D0BC', borderRadius: 5, padding: '5px 9px', fontSize: 10, fontFamily: '-apple-system, sans-serif', cursor: 'pointer' }}>
                     {sponsor.is_active ? 'Pause' : 'Activate'}
