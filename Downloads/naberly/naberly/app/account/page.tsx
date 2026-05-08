@@ -60,7 +60,7 @@ export default function AccountPage() {
           <div style={{ width: 56, height: 56, borderRadius: '50%', background: '#EDE7D9', border: '1.5px solid #D8D0BC', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, fontFamily: '-apple-system, sans-serif', fontWeight: 700, color: '#1B3A1D', marginBottom: 8 }}>
             {initials}
           </div>
-          <p style={{ fontSize: 15 }}>{displayName}</p>
+          <p style={{ fontSize: 15 }}>{profile?.full_name || 'Naberly member'}</p>
           <p style={{ fontSize: 10, fontFamily: '-apple-system, sans-serif', color: '#5A5A50', marginTop: 2 }}>
             {profile?.parish || 'Jamaica'}
           </p>
