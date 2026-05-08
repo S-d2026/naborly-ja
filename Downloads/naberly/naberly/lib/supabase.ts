@@ -50,6 +50,7 @@ export interface Profile {
   is_verified: boolean
   helper_count: number
   response_count: number
+  services: string | null
   created_at: string
 }
 
@@ -258,6 +259,14 @@ export async function getLiveLocation(listingId: string) {
     .select('*')
     .eq('listing_id', listingId)
     .eq('is_live', true)
+    .single()
+  return { data, error }
+}
+export async function getProfileById(profileId: string) {
+  const { data, error } = await supabase
+    .from('profiles')
+    .select('*')
+    .eq('id', profileId)
     .single()
   return { data, error }
 }
