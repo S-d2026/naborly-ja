@@ -138,7 +138,8 @@ function BrowseContent() {
       .from('profiles')
       .select('id, full_name, parish, services, is_verified, helper_count')
       .not('services', 'is', null)
-      .neq('services', '')
+.neq('services', '')
+.eq('show_in_directory', true)
       .order('helper_count', { ascending: false })
     if (peopleParish !== 'All Parishes') {
       query = query.eq('parish', peopleParish)
@@ -328,7 +329,9 @@ function BrowseContent() {
                       </div>
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 2 }}>
-                          <p style={{ fontSize: 13, fontFamily: '-apple-system, sans-serif', fontWeight: 700, color: '#18180F', margin: 0 }}>{person.full_name}</p>
+                          <p style={{ fontSize: 13, fontFamily: '-apple-system, sans-serif', fontWeight: 700, color: '#18180F', margin: 0 }}>
+  {(() => { const p = (person.full_name || '').trim().split(' '); return p.length > 1 ? p[0] + ' ' + p[p.length-1][0] + '.' : person.full_name })()}
+</p>
                           {person.is_verified && <span style={{ fontSize: 9, background: '#D0E8BC', color: '#1B3A1D', borderRadius: 3, padding: '1px 5px', fontFamily: '-apple-system, sans-serif', fontWeight: 700 }}>✓</span>}
                         </div>
                         <p style={{ fontSize: 10, fontFamily: '-apple-system, sans-serif', color: '#5A5A50', margin: '0 0 5px' }}>{person.parish}</p>
