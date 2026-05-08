@@ -51,6 +51,7 @@ export interface Profile {
   helper_count: number
   response_count: number
   services: string | null
+  show_in_directory: boolean
   created_at: string
 }
 
