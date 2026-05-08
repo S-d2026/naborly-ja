@@ -15,6 +15,7 @@ export default function SignupPage() {
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [isVendor, setIsVendor] = useState(false)
+  const [services, setServices] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
@@ -27,7 +28,7 @@ export default function SignupPage() {
       email,
       password,
       options: {
-        data: { full_name: fullName, whatsapp, parish, is_vendor: isVendor }
+        data: { full_name: fullName, whatsapp, parish, is_vendor: isVendor, services }
       }
     })
     setLoading(false)
@@ -73,6 +74,18 @@ export default function SignupPage() {
               {PARISHES.map(p => <option key={p} value={p}>{p}</option>)}
             </select>
           </div>
+          <div>
+  <label className="field-label">What work do you do or can do?</label>
+  <input
+    className="form-field"
+    placeholder="e.g. Cook, carpenter, seamstress"
+    value={services}
+    onChange={e => setServices(e.target.value)}
+  />
+  <p style={{ fontSize: 9, fontFamily: '-apple-system, sans-serif', color: '#5A5A50', marginTop: 2 }}>
+    Optional — helps your neighbors find you
+  </p>
+</div>
           <div>
             <label className="field-label">Password</label>
             <div style={{ position: 'relative' }}>
