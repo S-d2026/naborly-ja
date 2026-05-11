@@ -115,6 +115,11 @@ export default function AccountPage() {
 
         {/* Menu rows */}
         <div>
+          <a href="mailto:naberlyja@gmail.com" className="account-row">
+  <span style={{ fontSize: 14 }}>✉️</span>
+  <span style={{ fontSize: 12, fontFamily: '-apple-system, sans-serif', color: '#18180F' }}>Contact support</span>
+  <span style={{ marginLeft: 'auto', color: '#5A5A50' }}>›</span>
+</a>
           <Link href="/my-listings" className="account-row"><span style={{ fontSize: 14 }}>📋</span><span style={{ fontSize: 12, fontFamily: '-apple-system, sans-serif', color: '#18180F' }}>My listings</span><span style={{ marginLeft: 'auto', color: '#5A5A50' }}>›</span></Link>
           <Link href="/boost" className="account-row"><span style={{ fontSize: 14 }}>⭐</span><span style={{ fontSize: 12, fontFamily: '-apple-system, sans-serif', color: '#18180F' }}>Boost a listing</span><span style={{ marginLeft: 'auto', color: '#5A5A50' }}>›</span></Link>
           <Link href="/post?anonymous=true" className="account-row"><span style={{ fontSize: 14 }}>🔒</span><span style={{ fontSize: 12, fontFamily: '-apple-system, sans-serif', color: '#18180F' }}>Post anonymously</span><span style={{ marginLeft: 'auto', color: '#5A5A50' }}>›</span></Link>
