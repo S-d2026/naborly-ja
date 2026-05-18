@@ -43,7 +43,7 @@ function getGreeting(name: string, parish: string, listingCount: number, urgentC
   const parishText = parish || 'your Naberhood'
   if (hour >= 5 && hour < 12) {
     if (urgentCount > 0) return { emoji: '🌅', text: 'Good morning' + (firstName ? ', ' + firstName : '') + '. ' + urgentCount + ' urgent need' + (urgentCount > 1 ? 's' : '') + ' in ' + parishText + ' need' + (urgentCount === 1 ? 's' : '') + ' a response today.' }
-    if (listingCount > 0) return { emoji: '🌅', text: 'Good morning' + (firstName ? ', ' + firstName : '') + '. ' + listingCount + ' neighbor' + (listingCount > 1 ? 's' : '') + ' posted in ' + parishText + ' this morning.' }
+    if (listingCount > 0) return { emoji: '🌅', text: 'Good morning' + (firstName ? ', ' + firstName : '') + '. ' + listingCount + ' neighbour' + (listingCount > 1 ? 's' : '') + ' posted in ' + parishText + ' this morning.' }
     return { emoji: '🌅', text: 'Good morning' + (firstName ? ', ' + firstName : '') + '. Be the first to post in ' + parishText + ' today.' }
   }
   if (hour >= 12 && hour < 17) {
@@ -53,7 +53,7 @@ function getGreeting(name: string, parish: string, listingCount: number, urgentC
   }
   if (hour >= 17 && hour < 21) {
     if (urgentCount > 0) return { emoji: '🌇', text: 'Good evening' + (firstName ? ', ' + firstName : '') + '. ' + urgentCount + ' urgent need' + (urgentCount > 1 ? 's' : '') + ' in ' + parishText + ' need' + (urgentCount === 1 ? 's' : '') + ' a response tonight.' }
-    if (listingCount > 0) return { emoji: '🌇', text: 'Good evening' + (firstName ? ', ' + firstName : '') + '. ' + listingCount + ' neighbor' + (listingCount > 1 ? 's' : '') + ' still active in ' + parishText + ' this evening.' }
+    if (listingCount > 0) return { emoji: '🌇', text: 'Good evening' + (firstName ? ', ' + firstName : '') + '. ' + listingCount + ' neighbour' + (listingCount > 1 ? 's' : '') + ' still active in ' + parishText + ' this evening.' }
     return { emoji: '🌇', text: 'Good evening' + (firstName ? ', ' + firstName : '') + '. A good time to check what your Naberhood needs.' }
   }
   if (urgentCount > 0) return { emoji: '🌙', text: 'Evening' + (firstName ? ', ' + firstName : '') + '. ' + urgentCount + ' urgent need' + (urgentCount > 1 ? 's' : '') + ' in ' + parishText + ' still open.' }
@@ -210,7 +210,7 @@ export default function HomePage() {
             <div style={{ width: 6, height: 6, borderRadius: '50%', background: '#A84B2A' }} />
             <div>
               <p style={{ color: '#fff', fontSize: 12, fontFamily: '-apple-system, sans-serif', fontWeight: 700 }}>Urgent needs nearby</p>
-              <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: 10, fontFamily: '-apple-system, sans-serif', marginTop: 1 }}>Neighbors who need help today</p>
+              <p style={{ color: 'rgba(255,255,255,0.4)', fontSize: 10, fontFamily: '-apple-system, sans-serif', marginTop: 1 }}>Neighbours who need help today</p>
             </div>
           </div>
           <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M4 3L9 6.5L4 10" stroke="rgba(255,255,255,0.4)" strokeWidth="1.3" strokeLinecap="round"/></svg>
@@ -279,7 +279,7 @@ export default function HomePage() {
             <p style={{ fontSize: 12, fontFamily: '-apple-system, sans-serif', fontWeight: 700, color: '#18180F', marginBottom: 11 }}>How Naberly works</p>
             {[
               'Post what you need or can offer — food, work, rides. Free to post, always.',
-              'Neighbors in your district see it and respond by WhatsApp or call — no extra apps needed.',
+              'Neighbours in your district see it and respond by WhatsApp or call — no extra apps needed.',
               'Real community, real help. Parish by parish — Jamaica first, worldwide next.',
             ].map((text, i) => (
               <div key={i} style={{ display: 'flex', alignItems: 'start', gap: 9, marginBottom: i < 2 ? 10 : 0 }}>
