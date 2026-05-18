@@ -62,7 +62,7 @@ export default function SignupPage() {
           <div>
             <label className="field-label">WhatsApp number</label>
             <input className="form-field" placeholder="+1 876 XXX XXXX" value={whatsapp} onChange={e => setWhatsapp(e.target.value)} type="tel" />
-            <p style={{ fontSize: 9, fontFamily: '-apple-system, sans-serif', color: '#5A5A50', marginTop: 2 }}>How neighbors reach you</p>
+            <p style={{ fontSize: 9, fontFamily: '-apple-system, sans-serif', color: '#5A5A50', marginTop: 2 }}>How neighbours reach you</p>
           </div>
           <div>
             <label className="field-label">Email</label>
