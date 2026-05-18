@@ -9,7 +9,7 @@ const PACKAGES = [
     price: '$2,500 JMD',
     usd: '~$16 USD',
     duration: '7 days',
-    features: ['Sponsor card in home feed', 'Sponsor card in browse feed', 'WhatsApp button to your business', 'Seen by your parish neighbors'],
+    features: ['Sponsor card in home feed', 'Sponsor card in browse feed', 'WhatsApp button to your business', 'Seen by your parish neighbours'],
     color: '#EDE7D9',
     border: '#D8D0BC',
     textColor: '#18180F',
