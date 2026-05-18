@@ -83,7 +83,7 @@ export default function SignupPage() {
     onChange={e => setServices(e.target.value)}
   />
   <p style={{ fontSize: 9, fontFamily: '-apple-system, sans-serif', color: '#5A5A50', marginTop: 2 }}>
-    Optional — helps your neighbors find you
+    Optional — helps your neighbours find you
   </p>
 </div>
           <div>
