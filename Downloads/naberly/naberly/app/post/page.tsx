@@ -267,7 +267,7 @@ function PostContent() {
             </div>
           </div>
           <div>
-            <label className="field-label">District / Community <span style={{ color: '#C8821A', fontWeight: 700 }}>— how neighbors find you</span></label>
+            <label className="field-label">District / Community <span style={{ color: '#C8821A', fontWeight: 700 }}>— how neighbours find you</span></label>
             <input className="form-field" placeholder="e.g. Cross Roads, Maxfield Ave, Dunrobin..." value={district} onChange={e => setDistrict(e.target.value)} />
           </div>
           <div>
