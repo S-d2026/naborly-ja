@@ -67,6 +67,8 @@ export default function ProfilePage() {
   )
 
   const initials = profile.full_name?.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase() || '?'
+  const nameParts = (profile?.full_name || '').trim().split(' ')
+  const displayName = nameParts.length > 1 ? nameParts[0] + ' ' + nameParts[nameParts.length - 1][0] + '.' : profile?.full_name || ''
   const serviceTags = profile.services ? profile.services.split(',').map((s: string) => s.trim()).filter(Boolean) : []
 
   return (
@@ -87,7 +89,7 @@ export default function ProfilePage() {
               {initials}
             </div>
             <div style={{ flex: 1 }}>
-              <p style={{ color: '#fff', fontSize: 18, fontFamily: '-apple-system, sans-serif', fontWeight: 600, margin: 0 }}>{profile.full_name}</p>
+              <p style={{ color: '#fff', fontSize: 18, fontFamily: '-apple-system, sans-serif', fontWeight: 600, margin: 0 }}>{displayName}</p>
               <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: 13, fontFamily: '-apple-system, sans-serif', margin: '3px 0 0' }}>
                 {profile.parish}{profile.district ? `, ${profile.district}` : ''}
                 {profile.is_verified ? ' · ✓ Verified' : ''}
