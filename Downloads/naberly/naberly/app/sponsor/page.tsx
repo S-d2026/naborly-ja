@@ -58,10 +58,10 @@ export default function SponsorPage() {
         <div style={{ background: '#1B3A1D', borderRadius: 12, padding: 14, marginBottom: 16 }}>
           <p className="eyebrow" style={{ color: 'rgba(255,255,255,0.42)', marginBottom: 6 }}>Why sponsor Naberly?</p>
           <p style={{ color: '#fff', fontSize: 14, lineHeight: 1.5, marginBottom: 10 }}>
-            Your business appears in front of real neighbors — people actively looking for food, services, rides and help in your parish.
+            Your business appears in front of real neighbours — people actively looking for food, services, rides and help in your parish.
           </p>
           {[
-            'Hyper-local — your parish, your neighbors',
+            'Hyper-local — your parish, your neighbours',
             'WhatsApp contact built in — they message you directly',
             'Cash payment — simple, no contracts',
             'Cancel anytime — weekly or monthly',
