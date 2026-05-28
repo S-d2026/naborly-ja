@@ -6,7 +6,7 @@ import { supabase } from '@/lib/supabase'
 import { PayPalScriptProvider, PayPalButtons } from '@paypal/react-paypal-js'
 
 const RELAY = '+19174432797'
-const PAYPAL_CLIENT_ID = process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID_SANDBOX || process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID_LIVE || ''
+const PAYPAL_CLIENT_ID = process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID_LIVE || ''
 
 const PACKAGES = [
   {
