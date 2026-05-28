@@ -6,7 +6,7 @@ import { supabase, toggleSaved, goLive, updateLiveLocation, stopLive, getLiveLoc
 import { PayPalScriptProvider, PayPalButtons } from '@paypal/react-paypal-js'
 
 const RELAY_NUMBER = '+19174432797'
-const PAYPAL_CLIENT_ID = process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID_SANDBOX || process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID_LIVE || ''
+const PAYPAL_CLIENT_ID = process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID_LIVE || ''
 
 const PARISH_COORDS: Record<string, { lat: number; lng: number }> = {
   'Kingston': { lat: 17.9971, lng: -76.7936 },
