@@ -3,6 +3,7 @@ import { useState, useEffect, Suspense } from 'react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { supabase, getUserListings, type Listing } from '@/lib/supabase'
+import { PayPalScriptProvider, PayPalButtons } from '@paypal/react-paypal-js'
 
 const PLANS = [
   {
@@ -10,7 +11,7 @@ const PLANS = [
     label: 'Weekly Boost',
     price: 500,
     days: 7,
-    usd: '~$3 USD',
+    usd: 3.25,
     perks: ['Top of browse results in your parish', 'Featured chip on your listing', '7 days visibility boost'],
     color: '#EDE7D9',
     border: '#D8D0BC',
@@ -20,7 +21,7 @@ const PLANS = [
     label: 'Monthly Boost',
     price: 1500,
     days: 30,
-    usd: '~$10 USD',
+    usd: 9.75,
     perks: ['Everything in Weekly', '30 days visibility', 'Featured row on home page', 'Best value'],
     color: '#1B3A1D',
     border: '#1B3A1D',
@@ -31,7 +32,7 @@ const PLANS = [
     label: 'Vendor Standard',
     price: 4000,
     days: 30,
-    usd: '~$26 USD',
+    usd: 26.00,
     perks: ['Everything in Monthly', 'Multiple listings boosted', 'Priority in all parish feeds', 'Vendor badge'],
     color: '#F5F0E6',
     border: '#C8821A',
@@ -41,12 +42,14 @@ const PLANS = [
     label: 'Vendor Premium',
     price: 8000,
     days: 30,
-    usd: '~$52 USD',
+    usd: 52.00,
     perks: ['Everything in Vendor Standard', 'Top placement across all parishes', 'Featured on home screen', 'WhatsApp notification push'],
     color: '#F5F0E6',
     border: '#1B3A1D',
   },
 ]
+
+const PAYPAL_CLIENT_ID = process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID_SANDBOX || process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID_LIVE || ''
 
 function BoostContent() {
   const router = useRouter()
@@ -56,16 +59,24 @@ function BoostContent() {
   const [listings, setListings] = useState<Listing[]>([])
   const [selectedListing, setSelectedListing] = useState<string>(preselectedId || '')
   const [selectedPlan, setSelectedPlan] = useState<string>('monthly')
-  const [paymentMethod, setPaymentMethod] = useState<string>('cash')
+  const [paymentMethod, setPaymentMethod] = useState<string>('paypal')
   const [paymentNote, setPaymentNote] = useState('')
   const [submitting, setSubmitting] = useState(false)
   const [success, setSuccess] = useState(false)
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(true)
+  const [isAdmin, setIsAdmin] = useState(false)
+  const [userId, setUserId] = useState<string>('')
+  const [showPayPal, setShowPayPal] = useState(false)
+
+  const plan = PLANS.find(p => p.key === selectedPlan)!
 
   useEffect(() => {
     supabase.auth.getUser().then(async ({ data }) => {
       if (!data.user) { router.push('/login'); return }
+      setUserId(data.user.id)
+      const { data: profile } = await supabase.from('profiles').select('is_admin').eq('id', data.user.id).single()
+      setIsAdmin(profile?.is_admin || false)
       const { data: lsts } = await getUserListings(data.user.id)
       const active = (lsts as Listing[] || []).filter(l => l.status === 'approved')
       setListings(active)
@@ -74,34 +85,63 @@ function BoostContent() {
     })
   }, [router, preselectedId])
 
-  async function handleSubmit() {
+  async function activateBoost(listingId: string, planData: typeof PLANS[0], payMethod: string, note?: string) {
+    const now = new Date()
+    const expiresAt = new Date(now.getTime() + planData.days * 24 * 60 * 60 * 1000)
+    await supabase.from('boosts').insert([{
+      listing_id: listingId,
+      user_id: userId,
+      plan: planData.label,
+      price_jmd: planData.price,
+      duration_days: planData.days,
+      payment_method: payMethod,
+      payment_note: note || null,
+      payment_status: 'paid',
+      activated_at: now.toISOString(),
+      expires_at: expiresAt.toISOString(),
+    }])
+    await supabase.from('listings').update({
+      is_featured: true,
+      featured_until: expiresAt.toISOString(),
+    }).eq('id', listingId)
+  }
+
+  async function handleCashSubmit() {
     if (!selectedListing) { setError('Please select a listing to boost.'); return }
     setSubmitting(true)
     setError('')
-    const { data: { user } } = await supabase.auth.getUser()
-    const plan = PLANS.find(p => p.key === selectedPlan)!
+    const listing = listings.find(l => l.id === selectedListing)
     const { error: err } = await supabase.from('boosts').insert([{
       listing_id: selectedListing,
-      user_id: user?.id,
+      user_id: userId,
       plan: plan.label,
       price_jmd: plan.price,
       duration_days: plan.days,
       payment_method: paymentMethod,
       payment_note: paymentNote.trim() || null,
-      payment_status: 'pending',
+      payment_status: paymentMethod === 'free' ? 'paid' : 'pending',
+      activated_at: paymentMethod === 'free' ? new Date().toISOString() : null,
+      expires_at: paymentMethod === 'free' ? new Date(Date.now() + plan.days * 86400000).toISOString() : null,
     }])
+    if (paymentMethod === 'free') {
+      await supabase.from('listings').update({
+        is_featured: true,
+        featured_until: new Date(Date.now() + plan.days * 86400000).toISOString(),
+      }).eq('id', selectedListing)
+    }
     setSubmitting(false)
     if (err) { setError('Something went wrong. Please try again.'); return }
-    const listing = listings.find(l => l.id === selectedListing)
-    const num = '19174432797'
-    const msg = encodeURIComponent(
-      'Hi Naberly, I submitted a boost request.\n\nListing: ' + (listing?.title || selectedListing) +
-      '\nPlan: ' + plan.label + ' — $' + plan.price.toLocaleString() + ' JMD' +
-      '\nPayment: ' + paymentMethod +
-      (paymentNote ? '\nNote: ' + paymentNote : '') +
-      '\n\nPlease activate when payment confirmed.'
-    )
-    window.open('https://wa.me/' + num + '?text=' + msg, '_blank')
+    if (paymentMethod !== 'free') {
+      const num = '19174432797'
+      const msg = encodeURIComponent(
+        'NaberlyJA — Boost request (cash/Zelle)\n\nListing: ' + (listing?.title || selectedListing) +
+        '\nPlan: ' + plan.label + ' — $' + plan.price.toLocaleString() + ' JMD / $' + plan.usd + ' USD' +
+        '\nPayment: ' + paymentMethod +
+        (paymentNote ? '\nNote: ' + paymentNote : '') +
+        '\n\nPlease activate when payment confirmed.'
+      )
+      window.open('https://wa.me/' + num + '?text=' + msg, '_blank')
+    }
     setSuccess(true)
   }
 
@@ -112,9 +152,15 @@ function BoostContent() {
       <div className="app-shell" style={{ justifyContent: 'center', alignItems: 'center', padding: 24 }}>
         <div style={{ textAlign: 'center' }}>
           <p style={{ fontSize: 48, marginBottom: 16 }}>⭐</p>
-          <p style={{ fontSize: 18, marginBottom: 8 }}>Boost request submitted</p>
+          <p style={{ fontSize: 18, marginBottom: 8 }}>
+            {paymentMethod === 'paypal' ? 'Boost activated!' : paymentMethod === 'free' ? 'Boost applied!' : 'Boost request submitted'}
+          </p>
           <p style={{ fontSize: 13, fontFamily: '-apple-system, sans-serif', color: '#5A5A50', lineHeight: 1.6, marginBottom: 20 }}>
-            We opened WhatsApp with your request. Once payment is confirmed, we activate your boost — usually within a few hours.
+            {paymentMethod === 'paypal'
+              ? 'Payment confirmed. Your listing is now featured — active for ' + plan.days + ' days.'
+              : paymentMethod === 'free'
+              ? 'Free boost applied. Your listing is now featured for ' + plan.days + ' days.'
+              : 'Your request has been submitted. Once payment is confirmed your listing will go live as featured.'}
           </p>
           <Link href="/" className="btn-primary" style={{ textDecoration: 'none', display: 'block', textAlign: 'center' }}>Back to home</Link>
         </div>
@@ -123,114 +169,180 @@ function BoostContent() {
   }
 
   return (
-    <div className="app-shell">
-      <div className="header-sm">
-        <Link href="/" className="back-btn">←</Link>
-        <div>
-          <p className="eyebrow" style={{ color: 'rgba(255,255,255,0.42)' }}>Get more visibility</p>
-          <p style={{ color: '#fff', fontSize: 14 }}>Boost a listing</p>
-        </div>
-      </div>
-
-      <div className="scroll-area" style={{ padding: 13 }}>
-
-        {/* Step 1 — Pick listing */}
-        <p className="eyebrow" style={{ marginBottom: 8 }}>1. Choose your listing</p>
-        {listings.length === 0 ? (
-          <div style={{ background: '#EDE7D9', borderRadius: 10, padding: 13, marginBottom: 16, border: '1px solid #D8D0BC' }}>
-            <p style={{ fontSize: 12, fontFamily: '-apple-system, sans-serif', color: '#5A5A50' }}>You have no active listings. Post something first.</p>
-            <Link href="/post" style={{ color: '#1B3A1D', fontFamily: '-apple-system, sans-serif', fontSize: 12, fontWeight: 700 }}>Post a listing</Link>
+    <PayPalScriptProvider options={{ clientId: PAYPAL_CLIENT_ID, currency: 'USD' }}>
+      <div className="app-shell">
+        <div className="header-sm">
+          <Link href="/" className="back-btn">←</Link>
+          <div>
+            <p className="eyebrow" style={{ color: 'rgba(255,255,255,0.42)' }}>Get more visibility</p>
+            <p style={{ color: '#fff', fontSize: 14 }}>Boost a listing</p>
           </div>
-        ) : (
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 16 }}>
-            {listings.map(l => (
-              <button
-                key={l.id}
-                onClick={() => setSelectedListing(l.id)}
-                style={{ background: selectedListing === l.id ? '#1B3A1D' : '#EDE7D9', border: '1.5px solid ' + (selectedListing === l.id ? '#1B3A1D' : '#D8D0BC'), borderRadius: 9, padding: '10px 12px', textAlign: 'left', cursor: 'pointer' }}
-              >
-                <p style={{ fontSize: 12, fontFamily: '-apple-system, sans-serif', fontWeight: 700, color: selectedListing === l.id ? '#fff' : '#18180F', marginBottom: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{l.title}</p>
-                <p style={{ fontSize: 10, fontFamily: '-apple-system, sans-serif', color: selectedListing === l.id ? 'rgba(255,255,255,0.6)' : '#5A5A50' }}>{l.district || l.parish} · {l.category}</p>
+        </div>
+
+        <div className="scroll-area" style={{ padding: 13 }}>
+
+          {/* Step 1 — Pick listing */}
+          <p className="eyebrow" style={{ marginBottom: 8 }}>1. Choose your listing</p>
+          {listings.length === 0 ? (
+            <div style={{ background: '#EDE7D9', borderRadius: 10, padding: 13, marginBottom: 16, border: '1px solid #D8D0BC' }}>
+              <p style={{ fontSize: 12, fontFamily: '-apple-system, sans-serif', color: '#5A5A50' }}>You have no active listings. Post something first.</p>
+              <Link href="/post" style={{ color: '#1B3A1D', fontFamily: '-apple-system, sans-serif', fontSize: 12, fontWeight: 700 }}>Post a listing</Link>
+            </div>
+          ) : (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 16 }}>
+              {listings.map(l => (
+                <button key={l.id} onClick={() => setSelectedListing(l.id)}
+                  style={{ background: selectedListing === l.id ? '#1B3A1D' : '#EDE7D9', border: '1.5px solid ' + (selectedListing === l.id ? '#1B3A1D' : '#D8D0BC'), borderRadius: 9, padding: '10px 12px', textAlign: 'left', cursor: 'pointer' }}>
+                  <p style={{ fontSize: 12, fontFamily: '-apple-system, sans-serif', fontWeight: 700, color: selectedListing === l.id ? '#fff' : '#18180F', marginBottom: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{l.title}</p>
+                  <p style={{ fontSize: 10, fontFamily: '-apple-system, sans-serif', color: selectedListing === l.id ? 'rgba(255,255,255,0.6)' : '#5A5A50' }}>{l.district || l.parish} · {l.category}</p>
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* Step 2 — Pick plan */}
+          <p className="eyebrow" style={{ marginBottom: 8 }}>2. Choose a plan</p>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 16 }}>
+            {PLANS.map(p => (
+              <button key={p.key} onClick={() => { setSelectedPlan(p.key); setShowPayPal(false) }}
+                style={{ background: selectedPlan === p.key ? p.featured ? '#1B3A1D' : '#EDE7D9' : p.color, border: '2px solid ' + (selectedPlan === p.key ? '#C8821A' : p.border), borderRadius: 12, padding: 13, textAlign: 'left', cursor: 'pointer', position: 'relative' }}>
+                {p.featured && (
+                  <span style={{ position: 'absolute', top: -9, right: 12, background: '#C8821A', color: '#fff', fontSize: 9, fontFamily: '-apple-system, sans-serif', fontWeight: 700, padding: '2px 7px', borderRadius: 20, textTransform: 'uppercase', letterSpacing: 0.5 }}>Most popular</span>
+                )}
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: 7 }}>
+                  <div>
+                    <p style={{ fontSize: 13, fontFamily: '-apple-system, sans-serif', fontWeight: 700, color: p.featured ? '#fff' : '#18180F' }}>{p.label}</p>
+                    <p style={{ fontSize: 10, fontFamily: '-apple-system, sans-serif', color: p.featured ? 'rgba(255,255,255,0.5)' : '#5A5A50', marginTop: 1 }}>{p.days} days</p>
+                  </div>
+                  <div style={{ textAlign: 'right' }}>
+                    <p style={{ fontSize: 17, color: '#C8821A', fontFamily: 'Georgia, serif' }}>${p.price.toLocaleString()} JMD</p>
+                    <p style={{ fontSize: 10, fontFamily: '-apple-system, sans-serif', color: p.featured ? 'rgba(255,255,255,0.4)' : '#5A5A50' }}>~${p.usd.toFixed(2)} USD</p>
+                  </div>
+                </div>
+                {p.perks.map((perk, i) => (
+                  <div key={i} style={{ display: 'flex', alignItems: 'start', gap: 6, marginBottom: 4 }}>
+                    <span style={{ color: '#C8821A', fontSize: 10, flexShrink: 0 }}>✓</span>
+                    <p style={{ fontSize: 11, fontFamily: '-apple-system, sans-serif', color: p.featured ? 'rgba(255,255,255,0.75)' : '#5A5A50', lineHeight: 1.5 }}>{perk}</p>
+                  </div>
+                ))}
               </button>
             ))}
           </div>
-        )}
 
-        {/* Step 2 — Pick plan */}
-        <p className="eyebrow" style={{ marginBottom: 8 }}>2. Choose a plan</p>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 16 }}>
-          {PLANS.map(plan => (
-            <button
-              key={plan.key}
-              onClick={() => setSelectedPlan(plan.key)}
-              style={{ background: selectedPlan === plan.key ? plan.featured ? '#1B3A1D' : '#EDE7D9' : plan.color, border: '2px solid ' + (selectedPlan === plan.key ? '#C8821A' : plan.border), borderRadius: 12, padding: 13, textAlign: 'left', cursor: 'pointer', position: 'relative' }}
-            >
-              {plan.featured && (
-                <span style={{ position: 'absolute', top: -9, right: 12, background: '#C8821A', color: '#fff', fontSize: 9, fontFamily: '-apple-system, sans-serif', fontWeight: 700, padding: '2px 7px', borderRadius: 20, textTransform: 'uppercase', letterSpacing: 0.5 }}>Most popular</span>
-              )}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: 7 }}>
-                <div>
-                  <p style={{ fontSize: 13, fontFamily: '-apple-system, sans-serif', fontWeight: 700, color: plan.featured ? '#fff' : '#18180F' }}>{plan.label}</p>
-                  <p style={{ fontSize: 10, fontFamily: '-apple-system, sans-serif', color: plan.featured ? 'rgba(255,255,255,0.5)' : '#5A5A50', marginTop: 1 }}>{plan.days} days</p>
-                </div>
-                <div style={{ textAlign: 'right' }}>
-                  <p style={{ fontSize: 17, color: '#C8821A', fontFamily: 'Georgia, serif' }}>${plan.price.toLocaleString()} JMD</p>
-                  <p style={{ fontSize: 10, fontFamily: '-apple-system, sans-serif', color: plan.featured ? 'rgba(255,255,255,0.4)' : '#5A5A50' }}>{plan.usd}</p>
-                </div>
-              </div>
-              {plan.perks.map((perk, i) => (
-                <div key={i} style={{ display: 'flex', alignItems: 'start', gap: 6, marginBottom: 4 }}>
-                  <span style={{ color: '#C8821A', fontSize: 10, flexShrink: 0 }}>✓</span>
-                  <p style={{ fontSize: 11, fontFamily: '-apple-system, sans-serif', color: plan.featured ? 'rgba(255,255,255,0.75)' : '#5A5A50', lineHeight: 1.5 }}>{perk}</p>
-                </div>
-              ))}
+          {/* Step 3 — Payment */}
+          <p className="eyebrow" style={{ marginBottom: 8 }}>3. Pay to activate</p>
+
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 14 }}>
+            {/* PayPal — primary */}
+            <button onClick={() => { setPaymentMethod('paypal'); setShowPayPal(false) }}
+              style={{ background: paymentMethod === 'paypal' ? '#1B3A1D' : '#EDE7D9', border: '1.5px solid ' + (paymentMethod === 'paypal' ? '#1B3A1D' : '#D8D0BC'), borderRadius: 8, padding: '10px 12px', fontSize: 12, fontFamily: '-apple-system, sans-serif', fontWeight: 700, color: paymentMethod === 'paypal' ? '#fff' : '#18180F', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span>PayPal</span>
+              <span style={{ fontSize: 10, fontWeight: 400, color: paymentMethod === 'paypal' ? 'rgba(255,255,255,0.7)' : '#5A5A50' }}>Card · Apple Pay · Google Pay — instant activation</span>
             </button>
-          ))}
-        </div>
 
-        {/* Step 3 — Payment method */}
-        <p className="eyebrow" style={{ marginBottom: 8 }}>3. How will you pay?</p>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 10 }}>
-          {[
-            { label: 'Cash', sub: 'Pay in person or on delivery', active: true },
-            { label: 'Bank transfer', sub: 'Wire to Naberly account — we confirm on receipt', active: true },
-            { label: 'Lynk', sub: 'Coming soon', active: false },
-            { label: 'WiPay', sub: 'Coming soon', active: false },
-          ].map(method => (
-            <button
-              key={method.label}
-              onClick={() => method.active && setPaymentMethod(method.label.toLowerCase())}
-              style={{ background: paymentMethod === method.label.toLowerCase() ? '#1B3A1D' : method.active ? '#EDE7D9' : '#F5F0E6', border: '1.5px solid ' + (paymentMethod === method.label.toLowerCase() ? '#1B3A1D' : '#D8D0BC'), borderRadius: 8, padding: '10px 12px', fontSize: 12, fontFamily: '-apple-system, sans-serif', fontWeight: 700, color: paymentMethod === method.label.toLowerCase() ? '#fff' : method.active ? '#18180F' : '#B0A898', cursor: method.active ? 'pointer' : 'default', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
-            >
-              <span>{method.label}</span>
-              <span style={{ fontSize: 10, fontWeight: 400, color: paymentMethod === method.label.toLowerCase() ? 'rgba(255,255,255,0.7)' : method.active ? '#5A5A50' : '#B0A898' }}>{method.sub}</span>
+            {/* Zelle — US diaspora */}
+            <button onClick={() => { setPaymentMethod('zelle'); setShowPayPal(false) }}
+              style={{ background: paymentMethod === 'zelle' ? '#1B3A1D' : '#EDE7D9', border: '1.5px solid ' + (paymentMethod === 'zelle' ? '#1B3A1D' : '#D8D0BC'), borderRadius: 8, padding: '10px 12px', fontSize: 12, fontFamily: '-apple-system, sans-serif', fontWeight: 700, color: paymentMethod === 'zelle' ? '#fff' : '#18180F', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span>Zelle <span style={{ fontSize: 9, fontWeight: 400 }}>(US only)</span></span>
+              <span style={{ fontSize: 10, fontWeight: 400, color: paymentMethod === 'zelle' ? 'rgba(255,255,255,0.7)' : '#5A5A50' }}>Free · instant · US bank accounts</span>
             </button>
-          ))}
-        </div>
 
-        <div style={{ marginBottom: 16 }}>
-          <label className="field-label">Payment note (optional)</label>
-          <input className="form-field" placeholder="e.g. Sending via Lynk to +1876..." value={paymentNote} onChange={e => setPaymentNote(e.target.value)} />
-        </div>
+            {/* Lynk — coming soon */}
+            <button disabled style={{ background: '#F5F0E6', border: '1.5px solid #D8D0BC', borderRadius: 8, padding: '10px 12px', fontSize: 12, fontFamily: '-apple-system, sans-serif', fontWeight: 700, color: '#B0A898', cursor: 'default', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span>Lynk</span>
+              <span style={{ fontSize: 10, fontWeight: 400, color: '#B0A898' }}>Coming soon</span>
+            </button>
 
-        <div className="info-box" style={{ marginBottom: 12 }}>
-          <p style={{ fontSize: 11, fontFamily: '-apple-system, sans-serif', color: '#2D5A2E', lineHeight: 1.65 }}>
-            Submit your request and we will open WhatsApp. Once we confirm your payment, your listing goes live as featured — usually within a few hours.
-          </p>
-        </div>
-
-        {error && (
-          <div style={{ background: '#F0CABA', borderRadius: 8, padding: '9px 11px', marginBottom: 10, borderLeft: '3px solid #A84B2A' }}>
-            <p style={{ fontSize: 12, fontFamily: '-apple-system, sans-serif', color: '#6B1E10' }}>{error}</p>
+            {/* Cash — admin only */}
+            {isAdmin && (
+              <>
+                <button onClick={() => { setPaymentMethod('cash'); setShowPayPal(false) }}
+                  style={{ background: paymentMethod === 'cash' ? '#633806' : '#F5EDD8', border: '1.5px solid ' + (paymentMethod === 'cash' ? '#633806' : '#C8821A'), borderRadius: 8, padding: '10px 12px', fontSize: 12, fontFamily: '-apple-system, sans-serif', fontWeight: 700, color: paymentMethod === 'cash' ? '#fff' : '#633806', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span>Cash <span style={{ fontSize: 9, fontWeight: 400 }}>Admin only</span></span>
+                  <span style={{ fontSize: 10, fontWeight: 400, color: paymentMethod === 'cash' ? 'rgba(255,255,255,0.7)' : '#854F0B' }}>In-person payment received</span>
+                </button>
+                <button onClick={() => { setPaymentMethod('free'); setShowPayPal(false) }}
+                  style={{ background: paymentMethod === 'free' ? '#633806' : '#F5EDD8', border: '1.5px solid ' + (paymentMethod === 'free' ? '#633806' : '#C8821A'), borderRadius: 8, padding: '10px 12px', fontSize: 12, fontFamily: '-apple-system, sans-serif', fontWeight: 700, color: paymentMethod === 'free' ? '#fff' : '#633806', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                  <span>Free boost <span style={{ fontSize: 9, fontWeight: 400 }}>Admin only</span></span>
+                  <span style={{ fontSize: 10, fontWeight: 400, color: paymentMethod === 'free' ? 'rgba(255,255,255,0.7)' : '#854F0B' }}>Complimentary — no payment required</span>
+                </button>
+              </>
+            )}
           </div>
-        )}
 
-        <button className="btn-primary" onClick={handleSubmit} disabled={submitting || listings.length === 0} style={{ marginBottom: 14, opacity: submitting ? 0.7 : 1 }}>
-          {submitting ? 'Submitting...' : 'Submit boost request via WhatsApp'}
-        </button>
+          {/* Zelle instructions */}
+          {paymentMethod === 'zelle' && (
+            <div style={{ background: '#EDE7D9', borderRadius: 8, padding: '10px 12px', marginBottom: 12, border: '1px solid #D8D0BC' }}>
+              <p style={{ fontSize: 12, fontFamily: '-apple-system, sans-serif', fontWeight: 700, color: '#18180F', marginBottom: 4 }}>Zelle instructions</p>
+              <p style={{ fontSize: 11, fontFamily: '-apple-system, sans-serif', color: '#5A5A50', lineHeight: 1.6 }}>
+                Send ${plan.usd.toFixed(2)} USD to <strong>naberlyja@gmail.com</strong> via Zelle. Add your listing title in the memo. Then submit your request below — we will activate your boost once payment is confirmed.
+              </p>
+            </div>
+          )}
 
+          {/* Payment note */}
+          {(paymentMethod === 'zelle' || paymentMethod === 'cash') && (
+            <div style={{ marginBottom: 14 }}>
+              <label className="field-label">Payment note (optional)</label>
+              <input className="form-field" placeholder="e.g. Sent via Zelle, reference: ..." value={paymentNote} onChange={e => setPaymentNote(e.target.value)} />
+            </div>
+          )}
+
+          {/* Info box */}
+          <div className="info-box" style={{ marginBottom: 14 }}>
+            <p style={{ fontSize: 11, fontFamily: '-apple-system, sans-serif', color: '#2D5A2E', lineHeight: 1.65 }}>
+              {paymentMethod === 'paypal'
+                ? 'Pay securely via PayPal. Your listing is activated automatically the moment payment is confirmed — no waiting.'
+                : paymentMethod === 'zelle'
+                ? 'Send your Zelle payment first, then submit your request. We activate your boost once we confirm receipt — usually within a few hours.'
+                : paymentMethod === 'free'
+                ? 'Apply a complimentary boost. Listing will be activated immediately.'
+                : 'Cash payment received in person. Submit to activate the boost.'}
+            </p>
+          </div>
+
+          {error && (
+            <div style={{ background: '#F0CABA', borderRadius: 8, padding: '9px 11px', marginBottom: 10, borderLeft: '3px solid #A84B2A' }}>
+              <p style={{ fontSize: 12, fontFamily: '-apple-system, sans-serif', color: '#6B1E10' }}>{error}</p>
+            </div>
+          )}
+
+          {/* PayPal button */}
+          {paymentMethod === 'paypal' && selectedListing && (
+            <div style={{ marginBottom: 14 }}>
+              <PayPalButtons
+                style={{ layout: 'vertical', color: 'gold', shape: 'rect', label: 'pay' }}
+                createOrder={(_data: any, actions: any) => {
+                  return actions.order.create({
+                    purchase_units: [{
+                      amount: { value: plan.usd.toFixed(2), currency_code: 'USD' },
+                      description: 'NaberlyJA — ' + plan.label,
+                    }]
+                  })
+                }}
+                onApprove={async (_data: any, actions: any) => {
+                  const order = await actions.order.capture()
+                  if (order.status === 'COMPLETED') {
+                    await activateBoost(selectedListing, plan, 'paypal')
+                    setSuccess(true)
+                  }
+                }}
+                onError={() => setError('Payment failed. Please try again or choose another payment method.')}
+              />
+            </div>
+          )}
+
+          {/* Cash / Zelle / Free submit button */}
+          {(paymentMethod === 'zelle' || paymentMethod === 'cash' || paymentMethod === 'free') && (
+            <button className="btn-primary" onClick={handleCashSubmit} disabled={submitting || !selectedListing}
+              style={{ marginBottom: 14, opacity: submitting ? 0.7 : 1 }}>
+              {submitting ? 'Submitting...' : paymentMethod === 'free' ? 'Apply free boost' : 'Submit boost request'}
+            </button>
+          )}
+
+        </div>
       </div>
-    </div>
+    </PayPalScriptProvider>
   )
 }
 
