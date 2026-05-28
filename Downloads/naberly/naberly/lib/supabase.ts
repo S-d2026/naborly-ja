@@ -122,11 +122,20 @@ export async function getApprovedListings(filters?: {
 }
 
 export async function createListing(listing: Partial<Listing>) {
+  const isFreeFood = listing.category === 'food' && listing.is_free === true
+  const isUrgent = listing.category === 'urgent'
+  const autoBoostHours = isFreeFood ? 48 : isUrgent ? 24 : 0
+  const now = new Date()
+  const featuredUntil = autoBoostHours > 0
+    ? new Date(now.getTime() + autoBoostHours * 60 * 60 * 1000).toISOString()
+    : null
+
   const { data, error } = await supabase
     .from('listings')
     .insert([{
       ...listing,
-      is_featured: false,
+      is_featured: autoBoostHours > 0,
+      featured_until: featuredUntil,
     }])
     .select()
     .single()
