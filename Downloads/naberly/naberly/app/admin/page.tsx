@@ -147,7 +147,7 @@ export default function AdminPage() {
     parish: '',
     whatsapp: '',
     package: 'monthly',
-    payment_method: 'cash',
+    payment_method: 'paypal',
     payment_status: 'paid',
     featured_listing_id: '',
   })
@@ -268,7 +268,7 @@ export default function AdminPage() {
         }).eq('id', newSponsor.featured_listing_id)
       }
       setSponsors(prev => [data, ...prev])
-      setNewSponsor({ business_name: '', tagline: '', parish: '', whatsapp: '', package: 'monthly', payment_method: 'cash', payment_status: 'paid', featured_listing_id: '' })
+      setNewSponsor({ business_name: '', tagline: '', parish: '', whatsapp: '', package: 'monthly', payment_method: 'paypal', payment_status: 'paid', featured_listing_id: '' })
       setShowSponsorForm(false)
     }
   }
@@ -494,12 +494,12 @@ export default function AdminPage() {
                 <div>
                   <label className="field-label">Payment method</label>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6 }}>
-                    {['Cash', 'Bank transfer'].map(m => (
-                      <button key={m} onClick={() => setNewSponsor(p => ({ ...p, payment_method: m.toLowerCase() }))}
-                        style={{ background: newSponsor.payment_method === m.toLowerCase() ? '#1B3A1D' : '#EDE7D9', color: newSponsor.payment_method === m.toLowerCase() ? '#fff' : '#18180F', border: '1.5px solid ' + (newSponsor.payment_method === m.toLowerCase() ? '#1B3A1D' : '#D8D0BC'), borderRadius: 8, padding: '9px 0', fontSize: 12, fontFamily: '-apple-system, sans-serif', fontWeight: 700, cursor: 'pointer' }}>
-                        {m}
-                      </button>
-                    ))}
+                    {['Cash', 'PayPal', 'Free'].map(m => (
+  <button key={m} onClick={() => setNewSponsor(p => ({ ...p, payment_method: m.toLowerCase() }))}
+    style={{ background: newSponsor.payment_method === m.toLowerCase() ? '#1B3A1D' : '#EDE7D9', color: newSponsor.payment_method === m.toLowerCase() ? '#fff' : '#18180F', border: '1.5px solid ' + (newSponsor.payment_method === m.toLowerCase() ? '#1B3A1D' : '#D8D0BC'), borderRadius: 8, padding: '9px 0', fontSize: 12, fontFamily: '-apple-system, sans-serif', fontWeight: 700, cursor: 'pointer' }}>
+    {m}
+  </button>
+))}
                   </div>
                 </div>
                 <div>
