@@ -346,6 +346,7 @@ export default function HomePage() {
         {/* FOOTER */}
         <div style={{ padding: 13 }}>
           <div style={{ borderRadius: 10, padding: 13, background: '#1B3A1D' }}>
+            <Link href="/sponsor" style={{ display: 'block', background: '#C8821A', color: '#fff', borderRadius: 8, padding: '11px 14px', fontSize: 12, fontFamily: '-apple-system, sans-serif', fontWeight: 700, textAlign: 'center', textDecoration: 'none', marginBottom: 13 }}>🏪 Become a Sponsor</Link>
             <p className="eyebrow" style={{ color: 'rgba(255,255,255,0.42)', marginBottom: 5 }}>The mission</p>
             <p style={{ color: '#fff', fontSize: 13, fontFamily: '-apple-system, sans-serif', lineHeight: 1.65 }}>
               Born in Jamaica, by Jamaicans, for Jamaicans. Every plate shared, every job found, every urgent need answered — giving every Jamaican, especially those outside the mainstream, a place to build, connect and be seen. Parish by parish. Neighbour by neighbour. Worldwide next.
