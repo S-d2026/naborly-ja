@@ -279,6 +279,11 @@ function BoostContent() {
 
           {paymentMethod === 'paypal' && selectedListing && (
             <div style={{ marginBottom: 14 }}>
+              <div style={{ background: '#EDE7D9', borderRadius: 8, padding: '10px 12px', marginBottom: 10, border: '1px solid #D8D0BC', textAlign: 'center' }}>
+                <p style={{ fontSize: 14, fontFamily: '-apple-system, sans-serif', fontWeight: 700, color: '#1B3A1D' }}>${plan.price.toLocaleString()} JMD</p>
+                <p style={{ fontSize: 11, fontFamily: '-apple-system, sans-serif', color: '#5A5A50', marginTop: 2 }}>~${plan.usd.toFixed(2)} USD · {plan.label} · {plan.days} days</p>
+                <p style={{ fontSize: 10, fontFamily: '-apple-system, sans-serif', color: '#888780', marginTop: 2 }}>Charged in USD — equivalent shown above</p>
+              </div>
               <PayPalButtons
                 style={{ layout: 'vertical', color: 'gold', shape: 'rect', label: 'pay' }}
                 createOrder={(_data: any, actions: any) => {
