@@ -67,8 +67,7 @@ function BoostContent() {
   const [loading, setLoading] = useState(true)
   const [isAdmin, setIsAdmin] = useState(false)
   const [userId, setUserId] = useState<string>('')
-  const [showPayPal, setShowPayPal] = useState(false)
-
+  
   const plan = PLANS.find(p => p.key === selectedPlan)!
 
   useEffect(() => {
