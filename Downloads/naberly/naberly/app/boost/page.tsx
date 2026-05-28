@@ -101,10 +101,10 @@ function BoostContent() {
       expires_at: expiresAt.toISOString(),
     }])
     const { error: featErr } = await supabase.from('listings').update({
-  is_featured: true,
-  featured_until: expiresAt.toISOString(),
-}).eq('id', listingId)
-if (featErr) console.error('Featured update failed:', featErr.message)
+      is_featured: true,
+      featured_until: expiresAt.toISOString(),
+    }).eq('id', listingId)
+    if (featErr) console.error('Featured update failed:', featErr.message)
   }
 
   async function handleCashSubmit() {
@@ -170,7 +170,7 @@ if (featErr) console.error('Featured update failed:', featErr.message)
   }
 
   return (
-    <PayPalScriptProvider options={{ clientId: PAYPAL_CLIENT_ID, currency: 'USD' }}>
+    <PayPalScriptProvider options={{ clientId: PAYPAL_CLIENT_ID, currency: 'USD', disableFunding: 'paylater,credit' }}>
       <div className="app-shell">
         <div className="header-sm">
           <Link href="/" className="back-btn">←</Link>
@@ -182,7 +182,6 @@ if (featErr) console.error('Featured update failed:', featErr.message)
 
         <div className="scroll-area" style={{ padding: 13 }}>
 
-          {/* Step 1 — Pick listing */}
           <p className="eyebrow" style={{ marginBottom: 8 }}>1. Choose your listing</p>
           {listings.length === 0 ? (
             <div style={{ background: '#EDE7D9', borderRadius: 10, padding: 13, marginBottom: 16, border: '1px solid #D8D0BC' }}>
@@ -201,7 +200,6 @@ if (featErr) console.error('Featured update failed:', featErr.message)
             </div>
           )}
 
-          {/* Step 2 — Pick plan */}
           <p className="eyebrow" style={{ marginBottom: 8 }}>2. Choose a plan</p>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 16 }}>
             {PLANS.map(p => (
@@ -230,31 +228,22 @@ if (featErr) console.error('Featured update failed:', featErr.message)
             ))}
           </div>
 
-          {/* Step 3 — Payment */}
           <p className="eyebrow" style={{ marginBottom: 8 }}>3. Pay to activate</p>
-
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 14 }}>
-            {/* PayPal — primary */}
             <button onClick={() => { setPaymentMethod('paypal'); setShowPayPal(false) }}
               style={{ background: paymentMethod === 'paypal' ? '#1B3A1D' : '#EDE7D9', border: '1.5px solid ' + (paymentMethod === 'paypal' ? '#1B3A1D' : '#D8D0BC'), borderRadius: 8, padding: '10px 12px', fontSize: 12, fontFamily: '-apple-system, sans-serif', fontWeight: 700, color: paymentMethod === 'paypal' ? '#fff' : '#18180F', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span>PayPal</span>
               <span style={{ fontSize: 10, fontWeight: 400, color: paymentMethod === 'paypal' ? 'rgba(255,255,255,0.7)' : '#5A5A50' }}>Card · Apple Pay · Google Pay — instant activation</span>
             </button>
-
-            {/* Zelle — US diaspora */}
             <button onClick={() => { setPaymentMethod('zelle'); setShowPayPal(false) }}
               style={{ background: paymentMethod === 'zelle' ? '#1B3A1D' : '#EDE7D9', border: '1.5px solid ' + (paymentMethod === 'zelle' ? '#1B3A1D' : '#D8D0BC'), borderRadius: 8, padding: '10px 12px', fontSize: 12, fontFamily: '-apple-system, sans-serif', fontWeight: 700, color: paymentMethod === 'zelle' ? '#fff' : '#18180F', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span>Zelle <span style={{ fontSize: 9, fontWeight: 400 }}>(US only)</span></span>
               <span style={{ fontSize: 10, fontWeight: 400, color: paymentMethod === 'zelle' ? 'rgba(255,255,255,0.7)' : '#5A5A50' }}>Free · instant · US bank accounts</span>
             </button>
-
-            {/* Lynk — coming soon */}
             <button disabled style={{ background: '#F5F0E6', border: '1.5px solid #D8D0BC', borderRadius: 8, padding: '10px 12px', fontSize: 12, fontFamily: '-apple-system, sans-serif', fontWeight: 700, color: '#B0A898', cursor: 'default', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span>Lynk</span>
               <span style={{ fontSize: 10, fontWeight: 400, color: '#B0A898' }}>Coming soon</span>
             </button>
-
-            {/* Cash — admin only */}
             {isAdmin && (
               <>
                 <button onClick={() => { setPaymentMethod('cash'); setShowPayPal(false) }}
@@ -271,7 +260,6 @@ if (featErr) console.error('Featured update failed:', featErr.message)
             )}
           </div>
 
-          {/* Zelle instructions */}
           {paymentMethod === 'zelle' && (
             <div style={{ background: '#EDE7D9', borderRadius: 8, padding: '10px 12px', marginBottom: 12, border: '1px solid #D8D0BC' }}>
               <p style={{ fontSize: 12, fontFamily: '-apple-system, sans-serif', fontWeight: 700, color: '#18180F', marginBottom: 4 }}>Zelle instructions</p>
@@ -281,7 +269,6 @@ if (featErr) console.error('Featured update failed:', featErr.message)
             </div>
           )}
 
-          {/* Payment note */}
           {(paymentMethod === 'zelle' || paymentMethod === 'cash') && (
             <div style={{ marginBottom: 14 }}>
               <label className="field-label">Payment note (optional)</label>
@@ -289,7 +276,6 @@ if (featErr) console.error('Featured update failed:', featErr.message)
             </div>
           )}
 
-          {/* Info box */}
           <div className="info-box" style={{ marginBottom: 14 }}>
             <p style={{ fontSize: 11, fontFamily: '-apple-system, sans-serif', color: '#2D5A2E', lineHeight: 1.65 }}>
               {paymentMethod === 'paypal'
@@ -308,11 +294,10 @@ if (featErr) console.error('Featured update failed:', featErr.message)
             </div>
           )}
 
-          {/* PayPal button */}
           {paymentMethod === 'paypal' && selectedListing && (
             <div style={{ marginBottom: 14 }}>
               <PayPalButtons
-                style={{ layout: 'vertical', color: 'gold', shape: 'rect', label: 'pay', disableFunding: 'paylater,credit' }}
+                style={{ layout: 'vertical', color: 'gold', shape: 'rect', label: 'pay' }}
                 createOrder={(_data: any, actions: any) => {
                   return actions.order.create({
                     purchase_units: [{
@@ -333,7 +318,6 @@ if (featErr) console.error('Featured update failed:', featErr.message)
             </div>
           )}
 
-          {/* Cash / Zelle / Free submit button */}
           {(paymentMethod === 'zelle' || paymentMethod === 'cash' || paymentMethod === 'free') && (
             <button className="btn-primary" onClick={handleCashSubmit} disabled={submitting || !selectedListing}
               style={{ marginBottom: 14, opacity: submitting ? 0.7 : 1 }}>
