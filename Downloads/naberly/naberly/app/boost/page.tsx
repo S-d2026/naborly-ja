@@ -135,7 +135,7 @@ function BoostContent() {
     if (paymentMethod !== 'free') {
       const num = '19174432797'
       const msg = encodeURIComponent(
-        'NaberlyJA — Boost request (cash/Zelle)\n\nListing: ' + (listing?.title || selectedListing) +
+        'NaberlyJA — Boost request (cash)\n\nListing: ' + (listing?.title || selectedListing) +
         '\nPlan: ' + plan.label + ' — $' + plan.price.toLocaleString() + ' JMD / $' + plan.usd + ' USD' +
         '\nPayment: ' + paymentMethod +
         (paymentNote ? '\nNote: ' + paymentNote : '') +
@@ -235,11 +235,6 @@ function BoostContent() {
               <span>PayPal</span>
               <span style={{ fontSize: 10, fontWeight: 400, color: paymentMethod === 'paypal' ? 'rgba(255,255,255,0.7)' : '#5A5A50' }}>Card · Apple Pay · Google Pay — instant activation</span>
             </button>
-            <button onClick={() => { setPaymentMethod('zelle'); setShowPayPal(false) }}
-              style={{ background: paymentMethod === 'zelle' ? '#1B3A1D' : '#EDE7D9', border: '1.5px solid ' + (paymentMethod === 'zelle' ? '#1B3A1D' : '#D8D0BC'), borderRadius: 8, padding: '10px 12px', fontSize: 12, fontFamily: '-apple-system, sans-serif', fontWeight: 700, color: paymentMethod === 'zelle' ? '#fff' : '#18180F', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <span>Zelle <span style={{ fontSize: 9, fontWeight: 400 }}>(US only)</span></span>
-              <span style={{ fontSize: 10, fontWeight: 400, color: paymentMethod === 'zelle' ? 'rgba(255,255,255,0.7)' : '#5A5A50' }}>Free · instant · US bank accounts</span>
-            </button>
             <button disabled style={{ background: '#F5F0E6', border: '1.5px solid #D8D0BC', borderRadius: 8, padding: '10px 12px', fontSize: 12, fontFamily: '-apple-system, sans-serif', fontWeight: 700, color: '#B0A898', cursor: 'default', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span>Lynk</span>
               <span style={{ fontSize: 10, fontWeight: 400, color: '#B0A898' }}>Coming soon</span>
@@ -260,19 +255,10 @@ function BoostContent() {
             )}
           </div>
 
-          {paymentMethod === 'zelle' && (
-            <div style={{ background: '#EDE7D9', borderRadius: 8, padding: '10px 12px', marginBottom: 12, border: '1px solid #D8D0BC' }}>
-              <p style={{ fontSize: 12, fontFamily: '-apple-system, sans-serif', fontWeight: 700, color: '#18180F', marginBottom: 4 }}>Zelle instructions</p>
-              <p style={{ fontSize: 11, fontFamily: '-apple-system, sans-serif', color: '#5A5A50', lineHeight: 1.6 }}>
-                Send ${plan.usd.toFixed(2)} USD to <strong>naberlyja@gmail.com</strong> via Zelle. Add your listing title in the memo. Then submit your request below — we will activate your boost once payment is confirmed.
-              </p>
-            </div>
-          )}
-
-          {(paymentMethod === 'zelle' || paymentMethod === 'cash') && (
+          {paymentMethod === 'cash' && (
             <div style={{ marginBottom: 14 }}>
               <label className="field-label">Payment note (optional)</label>
-              <input className="form-field" placeholder="e.g. Sent via Zelle, reference: ..." value={paymentNote} onChange={e => setPaymentNote(e.target.value)} />
+              <input className="form-field" placeholder="e.g. Cash received from vendor name..." value={paymentNote} onChange={e => setPaymentNote(e.target.value)} />
             </div>
           )}
 
@@ -280,8 +266,6 @@ function BoostContent() {
             <p style={{ fontSize: 11, fontFamily: '-apple-system, sans-serif', color: '#2D5A2E', lineHeight: 1.65 }}>
               {paymentMethod === 'paypal'
                 ? 'Pay securely via PayPal. Your listing is activated automatically the moment payment is confirmed — no waiting.'
-                : paymentMethod === 'zelle'
-                ? 'Send your Zelle payment first, then submit your request. We activate your boost once we confirm receipt — usually within a few hours.'
                 : paymentMethod === 'free'
                 ? 'Apply a complimentary boost. Listing will be activated immediately.'
                 : 'Cash payment received in person. Submit to activate the boost.'}
@@ -318,7 +302,7 @@ function BoostContent() {
             </div>
           )}
 
-          {(paymentMethod === 'zelle' || paymentMethod === 'cash' || paymentMethod === 'free') && (
+          {(paymentMethod === 'cash' || paymentMethod === 'free') && (
             <button className="btn-primary" onClick={handleCashSubmit} disabled={submitting || !selectedListing}
               style={{ marginBottom: 14, opacity: submitting ? 0.7 : 1 }}>
               {submitting ? 'Submitting...' : paymentMethod === 'free' ? 'Apply free boost' : 'Submit boost request'}
