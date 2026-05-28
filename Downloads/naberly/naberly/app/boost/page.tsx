@@ -100,10 +100,11 @@ function BoostContent() {
       activated_at: now.toISOString(),
       expires_at: expiresAt.toISOString(),
     }])
-    await supabase.from('listings').update({
-      is_featured: true,
-      featured_until: expiresAt.toISOString(),
-    }).eq('id', listingId)
+    const { error: featErr } = await supabase.from('listings').update({
+  is_featured: true,
+  featured_until: expiresAt.toISOString(),
+}).eq('id', listingId)
+if (featErr) console.error('Featured update failed:', featErr.message)
   }
 
   async function handleCashSubmit() {
