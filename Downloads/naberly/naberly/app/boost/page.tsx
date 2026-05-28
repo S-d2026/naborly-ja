@@ -202,7 +202,7 @@ function BoostContent() {
           <p className="eyebrow" style={{ marginBottom: 8 }}>2. Choose a plan</p>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 16 }}>
             {PLANS.map(p => (
-              <button key={p.key} onClick={() => { setSelectedPlan(p.key); setShowPayPal(false) }}
+              <button key={p.key} onClick={() => { setSelectedPlan(p.key)}
                 style={{ background: selectedPlan === p.key ? p.featured ? '#1B3A1D' : '#EDE7D9' : p.color, border: '2px solid ' + (selectedPlan === p.key ? '#C8821A' : p.border), borderRadius: 12, padding: 13, textAlign: 'left', cursor: 'pointer', position: 'relative' }}>
                 {p.featured && (
                   <span style={{ position: 'absolute', top: -9, right: 12, background: '#C8821A', color: '#fff', fontSize: 9, fontFamily: '-apple-system, sans-serif', fontWeight: 700, padding: '2px 7px', borderRadius: 20, textTransform: 'uppercase', letterSpacing: 0.5 }}>Most popular</span>
@@ -229,7 +229,7 @@ function BoostContent() {
 
           <p className="eyebrow" style={{ marginBottom: 8 }}>3. Pay to activate</p>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginBottom: 14 }}>
-            <button onClick={() => { setPaymentMethod('paypal'); setShowPayPal(false) }}
+            <button onClick={() => { setPaymentMethod('paypal')}
               style={{ background: paymentMethod === 'paypal' ? '#1B3A1D' : '#EDE7D9', border: '1.5px solid ' + (paymentMethod === 'paypal' ? '#1B3A1D' : '#D8D0BC'), borderRadius: 8, padding: '10px 12px', fontSize: 12, fontFamily: '-apple-system, sans-serif', fontWeight: 700, color: paymentMethod === 'paypal' ? '#fff' : '#18180F', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span>PayPal</span>
               <span style={{ fontSize: 10, fontWeight: 400, color: paymentMethod === 'paypal' ? 'rgba(255,255,255,0.7)' : '#5A5A50' }}>Card · Apple Pay · Google Pay — instant activation</span>
@@ -240,12 +240,12 @@ function BoostContent() {
             </button>
             {isAdmin && (
               <>
-                <button onClick={() => { setPaymentMethod('cash'); setShowPayPal(false) }}
+                <button onClick={() => { setPaymentMethod('cash')}
                   style={{ background: paymentMethod === 'cash' ? '#633806' : '#F5EDD8', border: '1.5px solid ' + (paymentMethod === 'cash' ? '#633806' : '#C8821A'), borderRadius: 8, padding: '10px 12px', fontSize: 12, fontFamily: '-apple-system, sans-serif', fontWeight: 700, color: paymentMethod === 'cash' ? '#fff' : '#633806', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <span>Cash <span style={{ fontSize: 9, fontWeight: 400 }}>Admin only</span></span>
                   <span style={{ fontSize: 10, fontWeight: 400, color: paymentMethod === 'cash' ? 'rgba(255,255,255,0.7)' : '#854F0B' }}>In-person payment received</span>
                 </button>
-                <button onClick={() => { setPaymentMethod('free'); setShowPayPal(false) }}
+                <button onClick={() => { setPaymentMethod('free')}
                   style={{ background: paymentMethod === 'free' ? '#633806' : '#F5EDD8', border: '1.5px solid ' + (paymentMethod === 'free' ? '#633806' : '#C8821A'), borderRadius: 8, padding: '10px 12px', fontSize: 12, fontFamily: '-apple-system, sans-serif', fontWeight: 700, color: paymentMethod === 'free' ? '#fff' : '#633806', cursor: 'pointer', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                   <span>Free boost <span style={{ fontSize: 9, fontWeight: 400 }}>Admin only</span></span>
                   <span style={{ fontSize: 10, fontWeight: 400, color: paymentMethod === 'free' ? 'rgba(255,255,255,0.7)' : '#854F0B' }}>Complimentary — no payment required</span>
