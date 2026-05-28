@@ -312,7 +312,7 @@ if (featErr) console.error('Featured update failed:', featErr.message)
           {paymentMethod === 'paypal' && selectedListing && (
             <div style={{ marginBottom: 14 }}>
               <PayPalButtons
-                style={{ layout: 'vertical', color: 'gold', shape: 'rect', label: 'pay' }}
+                style={{ layout: 'vertical', color: 'gold', shape: 'rect', label: 'pay', disableFunding: 'paylater,credit' }}
                 createOrder={(_data: any, actions: any) => {
                   return actions.order.create({
                     purchase_units: [{
