@@ -236,12 +236,18 @@ export default function SponsorPage() {
               </div>
 
               <button
-                onClick={() => { if (selectedPackage) setStep('details') else setError('Please select a package first.') }}
-                className="btn-primary"
-                style={{ marginBottom: 8 }}
-              >
-                Continue →
-              </button>
+  onClick={() => {
+    if (selectedPackage) {
+      setStep('details')
+    } else {
+      setError('Please select a package first.')
+    }
+  }}
+  className="btn-primary"
+  style={{ marginBottom: 8 }}
+>
+  Continue →
+</button>
 
               {error && <p style={{ fontSize: 12, fontFamily: '-apple-system, sans-serif', color: '#A84B2A', textAlign: 'center' }}>{error}</p>}
 
