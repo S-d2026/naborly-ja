@@ -284,7 +284,7 @@ export default function ListingPage() {
                         {isUrgent ? 'Help with this urgent need' : 'Support this free listing'}
                       </p>
                       <p style={{ fontSize: 11, fontFamily: '-apple-system, sans-serif', color: '#5A5A50', lineHeight: 1.5 }}>
-                        {isUrgent ? 'Your donation goes directly to this family.' : 'Donate what you can — it helps the next family too.'}
+                        {isUrgent ? 'Your donation supports this family through the NaberlyJA community fund.' : 'Your donation supports this listing and the NaberlyJA community fund.'}
                       </p>
                     </div>
                     <button
