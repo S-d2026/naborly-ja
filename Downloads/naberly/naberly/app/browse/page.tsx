@@ -1,7 +1,7 @@
 'use client'
-import { useState, useEffect, useCallback, useRef, Suspense } from 'react'
+import { useState, useEffect, useCallback, Suspense } from 'react'
 import Link from 'next/link'
-import { useSearchParams, useRouter } from 'next/navigation'
+import { useSearchParams } from 'next/navigation'
 import { supabase, getApprovedListings, getDistanceKm, formatDistance, type Listing } from '@/lib/supabase'
 
 const PARISHES = ['All Parishes','Kingston','St. Andrew','St. Thomas','Portland','St. Mary','St. Ann','Trelawny','St. James','Hanover','Westmoreland','St. Elizabeth','Manchester','Clarendon','St. Catherine']
@@ -13,7 +13,7 @@ const DISTRICTS: Record<string, string[]> = {
   'Manchester': ['All areas','Mandeville','Christiana','Porus'],
   'Clarendon': ['All areas','May Pen','Lionel Town','Chapelton'],
   'St. Elizabeth': ['All areas','Santa Cruz','Black River','Junction','Malvern','Southfield','Treasure Beach'],
-  'St. Ann': ['All areas','Ocho Rios','Brown\'s Town','St. Ann\'s Bay'],
+  'St. Ann': ["All areas","Ocho Rios","Brown's Town","St. Ann's Bay"],
   'Westmoreland': ['All areas','Savanna-la-Mar','Negril','Petersfield'],
   'St. Catherine': ['All areas','Portmore','Spanish Town','Old Harbour'],
   'default': ['All areas'],
@@ -55,11 +55,8 @@ const STATE_KEY = 'browse_state'
 
 function BrowseContent() {
   const searchParams = useSearchParams()
-  const router = useRouter()
   const initialCategory = searchParams.get('category') || 'all'
-  const scrollAreaRef = useRef<HTMLDivElement>(null)
 
-  // Restore saved state from sessionStorage
   const getSavedState = () => {
     try {
       const saved = sessionStorage.getItem(STATE_KEY)
@@ -83,11 +80,10 @@ function BrowseContent() {
   const [peopleLoading, setPeopleLoading] = useState(false)
   const [peopleSearch, setPeopleSearch] = useState(saved?.peopleSearch || '')
   const [peopleParish, setPeopleParish] = useState(saved?.peopleParish || 'All Parishes')
-  const [hasRestored, setHasRestored] = useState(false)
 
   const districts = DISTRICTS[parish] || DISTRICTS['default']
 
-  // Save state to sessionStorage whenever it changes
+  // Save state whenever filters change
   useEffect(() => {
     try {
       sessionStorage.setItem(STATE_KEY, JSON.stringify({
@@ -96,33 +92,31 @@ function BrowseContent() {
     } catch {}
   }, [activeTab, searchQuery, parish, category, district, peopleSearch, peopleParish])
 
-  // Save scroll position when leaving
+  // Save scroll position as user scrolls
   useEffect(() => {
-    const el = scrollAreaRef.current
+    if (loading) return
+    const el = document.querySelector('.scroll-area') as HTMLElement
     if (!el) return
     const handleScroll = () => {
       try { sessionStorage.setItem(SCROLL_KEY, el.scrollTop.toString()) } catch {}
     }
     el.addEventListener('scroll', handleScroll, { passive: true })
     return () => el.removeEventListener('scroll', handleScroll)
-  }, [])
+  }, [loading])
 
   // Restore scroll position after listings load
   useEffect(() => {
-    if (!loading && !hasRestored && scrollAreaRef.current) {
-      try {
-        const savedScroll = sessionStorage.getItem(SCROLL_KEY)
-        if (savedScroll) {
-          setTimeout(() => {
-            if (scrollAreaRef.current) {
-              scrollAreaRef.current.scrollTop = parseInt(savedScroll)
-            }
-          }, 50)
-        }
-      } catch {}
-      setHasRestored(true)
-    }
-  }, [loading, hasRestored])
+    if (loading) return
+    try {
+      const savedScroll = sessionStorage.getItem(SCROLL_KEY)
+      if (savedScroll && parseInt(savedScroll) > 0) {
+        setTimeout(() => {
+          const el = document.querySelector('.scroll-area') as HTMLElement
+          if (el) el.scrollTop = parseInt(savedScroll)
+        }, 100)
+      }
+    } catch {}
+  }, [loading])
 
   useEffect(() => {
     if (navigator.geolocation) {
@@ -131,7 +125,6 @@ function BrowseContent() {
           const { latitude, longitude } = pos.coords
           setUserLat(latitude)
           setUserLng(longitude)
-          // Only set parish from GPS if no saved state
           if (!saved?.parish) {
             const inJamaica = latitude >= JAMAICA_BOUNDS.minLat && latitude <= JAMAICA_BOUNDS.maxLat &&
               longitude >= JAMAICA_BOUNDS.minLng && longitude <= JAMAICA_BOUNDS.maxLng
@@ -291,7 +284,7 @@ function BrowseContent() {
         </>
       )}
 
-      <div className="scroll-area" ref={scrollAreaRef}>
+      <div className="scroll-area">
 
         {activeTab === 'listings' && (
           <>
