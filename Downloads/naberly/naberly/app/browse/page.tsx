@@ -113,7 +113,7 @@ function BrowseContent() {
         setTimeout(() => {
           const el = document.querySelector('.scroll-area') as HTMLElement
           if (el) el.scrollTop = parseInt(savedScroll)
-        }, 100)
+        }, 500)
       }
     } catch {}
   }, [loading])
