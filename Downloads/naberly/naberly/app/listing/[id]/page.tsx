@@ -336,7 +336,7 @@ export default function ListingPage() {
                       <div style={{ background: '#EDE7D9', borderRadius: 7, padding: '10px 12px', marginBottom: 12 }}>
                         <p style={{ fontSize: 11, fontFamily: '-apple-system, sans-serif', color: '#18180F', fontWeight: 700, marginBottom: 4 }}>Zelle instructions</p>
                         <p style={{ fontSize: 11, fontFamily: '-apple-system, sans-serif', color: '#5A5A50', lineHeight: 1.6 }}>
-                          Send ${effectiveDonationAmount} USD to <strong>naberlyja@gmail.com</strong> via Zelle. Add the listing title in the memo. Zero fees — 100% goes to supporting this community.
+                          Send ${effectiveDonationAmount} USD to <strong>+1 917 443 2797</strong> via Zelle. Add the listing title in the memo. Zero fees — 100% goes to supporting this community.
                         </p>
                         <button
                           onClick={() => setDonationSuccess(true)}
