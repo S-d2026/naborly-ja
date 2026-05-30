@@ -1,7 +1,7 @@
 'use client'
-import { useState, useEffect, useCallback, Suspense } from 'react'
+import { useState, useEffect, useCallback, useRef, Suspense } from 'react'
 import Link from 'next/link'
-import { useSearchParams } from 'next/navigation'
+import { useSearchParams, useRouter } from 'next/navigation'
 import { supabase, getApprovedListings, getDistanceKm, formatDistance, type Listing } from '@/lib/supabase'
 
 const PARISHES = ['All Parishes','Kingston','St. Andrew','St. Thomas','Portland','St. Mary','St. Ann','Trelawny','St. James','Hanover','Westmoreland','St. Elizabeth','Manchester','Clarendon','St. Catherine']
@@ -50,29 +50,79 @@ function getParishFromCoords(lat: number, lng: number): string {
   return 'Kingston'
 }
 
+const SCROLL_KEY = 'browse_scroll'
+const STATE_KEY = 'browse_state'
+
 function BrowseContent() {
   const searchParams = useSearchParams()
+  const router = useRouter()
   const initialCategory = searchParams.get('category') || 'all'
+  const scrollAreaRef = useRef<HTMLDivElement>(null)
 
-  const [activeTab, setActiveTab] = useState<'listings' | 'people'>('listings')
+  // Restore saved state from sessionStorage
+  const getSavedState = () => {
+    try {
+      const saved = sessionStorage.getItem(STATE_KEY)
+      return saved ? JSON.parse(saved) : null
+    } catch { return null }
+  }
+  const saved = getSavedState()
+
+  const [activeTab, setActiveTab] = useState<'listings' | 'people'>(saved?.activeTab || 'listings')
   const [listings, setListings] = useState<Listing[]>([])
   const [loading, setLoading] = useState(true)
-  const [searchQuery, setSearchQuery] = useState('')
-  const [parish, setParish] = useState('Kingston')
-  const [category, setCategory] = useState(initialCategory)
-  const [district, setDistrict] = useState('all')
+  const [searchQuery, setSearchQuery] = useState(saved?.searchQuery || '')
+  const [parish, setParish] = useState(saved?.parish || 'Kingston')
+  const [category, setCategory] = useState(saved?.category || initialCategory)
+  const [district, setDistrict] = useState(saved?.district || 'all')
   const [showParishModal, setShowParishModal] = useState(false)
   const [sponsor, setSponsor] = useState<any>(null)
   const [userLat, setUserLat] = useState<number | null>(null)
   const [userLng, setUserLng] = useState<number | null>(null)
-
-  // People tab state
   const [people, setPeople] = useState<any[]>([])
   const [peopleLoading, setPeopleLoading] = useState(false)
-  const [peopleSearch, setPeopleSearch] = useState('')
-  const [peopleParish, setPeopleParish] = useState('All Parishes')
+  const [peopleSearch, setPeopleSearch] = useState(saved?.peopleSearch || '')
+  const [peopleParish, setPeopleParish] = useState(saved?.peopleParish || 'All Parishes')
+  const [hasRestored, setHasRestored] = useState(false)
 
   const districts = DISTRICTS[parish] || DISTRICTS['default']
+
+  // Save state to sessionStorage whenever it changes
+  useEffect(() => {
+    try {
+      sessionStorage.setItem(STATE_KEY, JSON.stringify({
+        activeTab, searchQuery, parish, category, district, peopleSearch, peopleParish
+      }))
+    } catch {}
+  }, [activeTab, searchQuery, parish, category, district, peopleSearch, peopleParish])
+
+  // Save scroll position when leaving
+  useEffect(() => {
+    const el = scrollAreaRef.current
+    if (!el) return
+    const handleScroll = () => {
+      try { sessionStorage.setItem(SCROLL_KEY, el.scrollTop.toString()) } catch {}
+    }
+    el.addEventListener('scroll', handleScroll, { passive: true })
+    return () => el.removeEventListener('scroll', handleScroll)
+  }, [])
+
+  // Restore scroll position after listings load
+  useEffect(() => {
+    if (!loading && !hasRestored && scrollAreaRef.current) {
+      try {
+        const savedScroll = sessionStorage.getItem(SCROLL_KEY)
+        if (savedScroll) {
+          setTimeout(() => {
+            if (scrollAreaRef.current) {
+              scrollAreaRef.current.scrollTop = parseInt(savedScroll)
+            }
+          }, 50)
+        }
+      } catch {}
+      setHasRestored(true)
+    }
+  }, [loading, hasRestored])
 
   useEffect(() => {
     if (navigator.geolocation) {
@@ -81,18 +131,21 @@ function BrowseContent() {
           const { latitude, longitude } = pos.coords
           setUserLat(latitude)
           setUserLng(longitude)
-          const inJamaica = latitude >= JAMAICA_BOUNDS.minLat && latitude <= JAMAICA_BOUNDS.maxLat &&
-            longitude >= JAMAICA_BOUNDS.minLng && longitude <= JAMAICA_BOUNDS.maxLng
-          if (inJamaica) {
-            setParish(getParishFromCoords(latitude, longitude))
-          } else {
-            try {
-              const res = await fetch('https://nominatim.openstreetmap.org/reverse?lat=' + latitude + '&lon=' + longitude + '&format=json')
-              const data = await res.json()
-              const neighborhood = data.address?.suburb || data.address?.neighbourhood || data.address?.city_district || data.address?.town || data.address?.city || ''
-              const city = data.address?.city || data.address?.town || data.address?.county || ''
-              if (neighborhood) setParish(neighborhood + (city ? ', ' + city : ''))
-            } catch (e) {}
+          // Only set parish from GPS if no saved state
+          if (!saved?.parish) {
+            const inJamaica = latitude >= JAMAICA_BOUNDS.minLat && latitude <= JAMAICA_BOUNDS.maxLat &&
+              longitude >= JAMAICA_BOUNDS.minLng && longitude <= JAMAICA_BOUNDS.maxLng
+            if (inJamaica) {
+              setParish(getParishFromCoords(latitude, longitude))
+            } else {
+              try {
+                const res = await fetch('https://nominatim.openstreetmap.org/reverse?lat=' + latitude + '&lon=' + longitude + '&format=json')
+                const data = await res.json()
+                const neighborhood = data.address?.suburb || data.address?.neighbourhood || data.address?.city_district || data.address?.town || data.address?.city || ''
+                const city = data.address?.city || data.address?.town || data.address?.county || ''
+                if (neighborhood) setParish(neighborhood + (city ? ', ' + city : ''))
+              } catch (e) {}
+            }
           }
         },
         () => {}
@@ -100,7 +153,7 @@ function BrowseContent() {
     }
 
     supabase.auth.getUser().then(async ({ data }) => {
-      if (data.user) {
+      if (data.user && !saved?.parish) {
         const { data: profile } = await supabase
           .from('profiles')
           .select('parish')
@@ -138,8 +191,8 @@ function BrowseContent() {
       .from('profiles')
       .select('id, full_name, parish, services, is_verified, helper_count')
       .not('services', 'is', null)
-.neq('services', '')
-.eq('show_in_directory', true)
+      .neq('services', '')
+      .eq('show_in_directory', true)
       .order('helper_count', { ascending: false })
     if (peopleParish !== 'All Parishes') {
       query = query.eq('parish', peopleParish)
@@ -192,7 +245,6 @@ function BrowseContent() {
         </button>
       </div>
 
-      {/* Listings | People tab switcher */}
       <div style={{ display: 'flex', background: '#1B3A1D', borderBottom: '1px solid rgba(255,255,255,0.08)', flexShrink: 0 }}>
         <button
           onClick={() => setActiveTab('listings')}
@@ -208,7 +260,6 @@ function BrowseContent() {
         </button>
       </div>
 
-      {/* Listings tab filters */}
       {activeTab === 'listings' && (
         <>
           <div className="pill-row">
@@ -240,9 +291,8 @@ function BrowseContent() {
         </>
       )}
 
-      <div className="scroll-area">
+      <div className="scroll-area" ref={scrollAreaRef}>
 
-        {/* LISTINGS TAB */}
         {activeTab === 'listings' && (
           <>
             <div style={{ padding: '8px 14px 3px' }}>
@@ -301,7 +351,6 @@ function BrowseContent() {
           </>
         )}
 
-        {/* PEOPLE TAB */}
         {activeTab === 'people' && (
           <>
             <div style={{ padding: '8px 14px 3px' }}>
@@ -330,8 +379,8 @@ function BrowseContent() {
                       <div style={{ flex: 1, minWidth: 0 }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 2 }}>
                           <p style={{ fontSize: 13, fontFamily: '-apple-system, sans-serif', fontWeight: 700, color: '#18180F', margin: 0 }}>
-  {(() => { const p = (person.full_name || '').trim().split(' '); return p.length > 1 ? p[0] + ' ' + p[p.length-1][0] + '.' : person.full_name })()}
-</p>
+                            {(() => { const p = (person.full_name || '').trim().split(' '); return p.length > 1 ? p[0] + ' ' + p[p.length-1][0] + '.' : person.full_name })()}
+                          </p>
                           {person.is_verified && <span style={{ fontSize: 9, background: '#D0E8BC', color: '#1B3A1D', borderRadius: 3, padding: '1px 5px', fontFamily: '-apple-system, sans-serif', fontWeight: 700 }}>✓</span>}
                         </div>
                         <p style={{ fontSize: 10, fontFamily: '-apple-system, sans-serif', color: '#5A5A50', margin: '0 0 5px' }}>{person.parish}</p>
