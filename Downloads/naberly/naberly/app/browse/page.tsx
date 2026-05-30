@@ -49,7 +49,6 @@ const PARISH_COORDS: Record<string, { lat: number; lng: number }> = {
   'Clarendon': { lat: 17.9634, lng: -77.2345 },
   'St. Catherine': { lat: 17.9923, lng: -77.0234 },
 }
-
 const REPORT_REASONS = ['Spam or fake listing','Offensive or inappropriate content','Scam or fraud','Wrong category','Already fulfilled','Other']
 const DONATION_AMOUNTS = [{ label: '$5', value: '5.00' },{ label: '$10', value: '10.00' },{ label: '$20', value: '20.00' },{ label: '$50', value: '50.00' }]
 
@@ -69,6 +68,139 @@ function getParishFromCoords(lat: number, lng: number): string {
   if (lat >= 17.95 && lat <= 18.25 && lng >= -77.60 && lng <= -77.25) return 'Manchester'
   if (lat >= 17.80 && lat <= 18.10 && lng >= -77.35 && lng <= -76.95) return 'Clarendon'
   return 'Kingston'
+}
+
+// ===================== PROFILE PANEL =====================
+function ProfilePanel({ profileId, onClose }: { profileId: string, onClose: () => void }) {
+  const [profile, setProfile] = useState<any>(null)
+  const [listings, setListings] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [visible, setVisible] = useState(false)
+
+  useEffect(() => {
+    setTimeout(() => setVisible(true), 10)
+    async function load() {
+      const { data: p } = await supabase.from('profiles').select('*').eq('id', profileId).single()
+      if (!p) { setLoading(false); return }
+      setProfile(p)
+      const { data: l } = await supabase.from('listings').select('*').eq('user_id', profileId).eq('status', 'approved').order('created_at', { ascending: false }).limit(3)
+      setListings(l || [])
+      setLoading(false)
+    }
+    load()
+  }, [profileId])
+
+  function handleClose() {
+    setVisible(false)
+    setTimeout(onClose, 280)
+  }
+
+  function handleShare() {
+    const url = 'https://naberlyja.com/profile/' + profileId
+    if (navigator.share) { navigator.share({ title: profile?.full_name || 'Naberly JA Profile', url }) }
+    else { navigator.clipboard.writeText(url); alert('Link copied!') }
+  }
+
+  function handleWhatsApp() {
+    const msg = encodeURIComponent('Hi, I found your profile on NaberlyJA — naberlyja.com/profile/' + profileId)
+    window.open('https://wa.me/' + profile.whatsapp?.replace(/\D/g, '') + '?text=' + msg, '_blank')
+  }
+
+  const initials = profile?.full_name?.split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase() || '?'
+  const nameParts = (profile?.full_name || '').trim().split(' ')
+  const displayName = nameParts.length > 1 ? nameParts[0] + ' ' + nameParts[nameParts.length - 1][0] + '.' : profile?.full_name || ''
+  const serviceTags = profile?.services ? profile.services.split(',').map((s: string) => s.trim()).filter(Boolean) : []
+
+  return (
+    <>
+      <div onClick={handleClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 200, transition: 'opacity 0.28s', opacity: visible ? 1 : 0 }} />
+      <div style={{ position: 'fixed', bottom: 0, left: '50%', transform: 'translateX(-50%)', width: '100%', maxWidth: 480, height: '92vh', background: '#F5F0E6', borderRadius: '16px 16px 0 0', zIndex: 201, display: 'flex', flexDirection: 'column', transition: 'transform 0.28s cubic-bezier(0.32,0.72,0,1)', willChange: 'transform', overflow: 'hidden', ...(visible ? { transform: 'translateX(-50%) translateY(0)' } : { transform: 'translateX(-50%) translateY(100%)' }) }}>
+
+        {/* Header */}
+        <div style={{ background: '#1B3A1D', padding: '12px 15px', flexShrink: 0, display: 'flex', alignItems: 'center', gap: 10, borderRadius: '16px 16px 0 0' }}>
+          <button onClick={handleClose} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: '50%', width: 30, height: 30, color: 'rgba(255,255,255,0.85)', cursor: 'pointer', fontSize: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>←</button>
+          <p style={{ color: '#fff', fontSize: 14, flex: 1, margin: 0 }}>Profile</p>
+          {!loading && profile && <button onClick={handleShare} style={{ background: 'none', border: 'none', color: 'rgba(255,255,255,0.7)', fontSize: 13, fontFamily: '-apple-system, sans-serif', cursor: 'pointer' }}>Share</button>}
+        </div>
+
+        {loading ? (
+          <div className="loading">Loading...</div>
+        ) : !profile ? (
+          <div className="empty-state"><p style={{ fontSize: 13, fontFamily: '-apple-system, sans-serif', color: '#5A5A50' }}>Profile not found.</p></div>
+        ) : (
+          <div style={{ flex: 1, overflowY: 'auto', WebkitOverflowScrolling: 'touch' } as any}>
+
+            {/* Identity card */}
+            <div style={{ background: '#1B3A1D', padding: '20px 17px 24px' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+                <div style={{ width: 60, height: 60, borderRadius: '50%', background: '#2D5A2E', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, fontWeight: 700, color: '#A8D5A2', flexShrink: 0, fontFamily: '-apple-system, sans-serif' }}>
+                  {initials}
+                </div>
+                <div style={{ flex: 1 }}>
+                  <p style={{ color: '#fff', fontSize: 18, fontFamily: '-apple-system, sans-serif', fontWeight: 600, margin: 0 }}>{displayName}</p>
+                  <p style={{ color: 'rgba(255,255,255,0.6)', fontSize: 13, fontFamily: '-apple-system, sans-serif', margin: '3px 0 0' }}>
+                    {profile.parish}{profile.district ? ', ' + profile.district : ''}{profile.is_verified ? ' · ✓ Verified' : ''}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div style={{ padding: '16px 17px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+
+              {serviceTags.length > 0 && (
+                <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #E8E4DC', padding: '14px 15px' }}>
+                  <p style={{ fontSize: 10, fontFamily: '-apple-system, sans-serif', fontWeight: 700, color: '#5A5A50', textTransform: 'uppercase', letterSpacing: '0.06em', margin: '0 0 10px' }}>Work & Services</p>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 7 }}>
+                    {serviceTags.map((tag: string, i: number) => (
+                      <span key={i} style={{ fontSize: 12, background: '#D0E8BC', color: '#1B3A1D', borderRadius: 20, padding: '4px 11px', fontFamily: '-apple-system, sans-serif', fontWeight: 500 }}>{tag}</span>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {profile.whatsapp && (
+                <button className="btn-wa" onClick={handleWhatsApp} style={{ width: '100%' }}>
+                  💬 WhatsApp {profile.full_name?.split(' ')[0]}
+                </button>
+              )}
+
+              <button className="btn-ghost" onClick={handleShare} style={{ width: '100%' }}>Share this profile</button>
+
+              {listings.length > 0 && (
+                <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #E8E4DC', padding: '14px 15px' }}>
+                  <p style={{ fontSize: 10, fontFamily: '-apple-system, sans-serif', fontWeight: 700, color: '#5A5A50', textTransform: 'uppercase', letterSpacing: '0.06em', margin: '0 0 12px' }}>Their listings</p>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                    {listings.map((l: any) => (
+                      <div key={l.id} style={{ padding: '10px 12px', background: '#FAFAF8', borderRadius: 8, border: '1px solid #E8E4DC' }}>
+                        <p style={{ fontSize: 14, fontFamily: '-apple-system, sans-serif', fontWeight: 600, color: '#18180F', margin: '0 0 2px' }}>{l.title}</p>
+                        <p style={{ fontSize: 12, fontFamily: '-apple-system, sans-serif', color: '#5A5A50', margin: 0 }}>{l.parish}{l.district ? ' · ' + l.district : ''}{l.price_jmd ? ' · ' + l.price_jmd : l.is_free ? ' · Free' : ''}</p>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10 }}>
+                <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #E8E4DC', padding: '12px 14px', textAlign: 'center' }}>
+                  <p style={{ fontSize: 22, fontWeight: 700, color: '#1B3A1D', margin: 0, fontFamily: '-apple-system, sans-serif' }}>{profile.helper_count || 0}</p>
+                  <p style={{ fontSize: 11, color: '#5A5A50', margin: '2px 0 0', fontFamily: '-apple-system, sans-serif' }}>People helped</p>
+                </div>
+                <div style={{ background: '#fff', borderRadius: 12, border: '1px solid #E8E4DC', padding: '12px 14px', textAlign: 'center' }}>
+                  <p style={{ fontSize: 22, fontWeight: 700, color: '#1B3A1D', margin: 0, fontFamily: '-apple-system, sans-serif' }}>{profile.response_count || 0}</p>
+                  <p style={{ fontSize: 11, color: '#5A5A50', margin: '2px 0 0', fontFamily: '-apple-system, sans-serif' }}>Responses</p>
+                </div>
+              </div>
+
+              <p style={{ fontSize: 11, fontFamily: '-apple-system, sans-serif', color: '#5A5A50', textAlign: 'center', margin: 0 }}>
+                Member since {new Date(profile.created_at).toLocaleDateString('en-JM', { month: 'long', year: 'numeric' })}
+              </p>
+
+            </div>
+          </div>
+        )}
+      </div>
+    </>
+  )
 }
 
 // ===================== LISTING PANEL =====================
@@ -173,16 +305,13 @@ function ListingPanel({ listingId, onClose, userLat, userLng }: { listingId: str
   }
 
   const effectiveDonationAmount = customAmount && parseFloat(customAmount) > 0 ? parseFloat(customAmount).toFixed(2) : donationAmount
-
   const BG_MAP: Record<string, string> = { food: '#D0E8BC', urgent: '#F0CABA', work: '#BCD0E8', ride: '#E0D8F0', service: '#F0E8BC', 'buy-sell': '#EDE7D9' }
   const EMOJI_MAP: Record<string, string> = { food: '🍲', urgent: '⚠️', work: '💼', ride: '🚗', service: '🛠️', 'buy-sell': '🛍️' }
 
   return (
     <PayPalScriptProvider options={{ clientId: PAYPAL_CLIENT_ID, currency: 'USD', disableFunding: 'paylater,credit' }}>
-      {/* Backdrop */}
       <div onClick={handleClose} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 200, transition: 'opacity 0.28s', opacity: visible ? 1 : 0 }} />
-      {/* Panel */}
-      <div style={{ position: 'fixed', bottom: 0, left: '50%', transform: 'translateX(-50%)', width: '100%', maxWidth: 480, height: '92vh', background: '#F5F0E6', borderRadius: '16px 16px 0 0', zIndex: 201, display: 'flex', flexDirection: 'column', transition: 'transform 0.28s cubic-bezier(0.32,0.72,0,1)', willChange: 'transform', overflowY: 'hidden', ...(visible ? { transform: 'translateX(-50%) translateY(0)' } : { transform: 'translateX(-50%) translateY(100%)' }) }}>
+      <div style={{ position: 'fixed', bottom: 0, left: '50%', transform: 'translateX(-50%)', width: '100%', maxWidth: 480, height: '92vh', background: '#F5F0E6', borderRadius: '16px 16px 0 0', zIndex: 201, display: 'flex', flexDirection: 'column', transition: 'transform 0.28s cubic-bezier(0.32,0.72,0,1)', willChange: 'transform', overflow: 'hidden', ...(visible ? { transform: 'translateX(-50%) translateY(0)' } : { transform: 'translateX(-50%) translateY(100%)' }) }}>
         {loading ? (
           <div className="loading">Loading...</div>
         ) : !listing ? (
@@ -201,25 +330,19 @@ function ListingPanel({ listingId, onClose, userLat, userLng }: { listingId: str
 
           return (
             <>
-              {/* Panel header */}
               <div style={{ background: headerBg, padding: '12px 15px', flexShrink: 0, display: 'flex', alignItems: 'center', gap: 10, borderRadius: '16px 16px 0 0' }}>
                 <button onClick={handleClose} style={{ background: 'rgba(255,255,255,0.1)', border: 'none', borderRadius: '50%', width: 30, height: 30, color: 'rgba(255,255,255,0.85)', cursor: 'pointer', fontSize: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>←</button>
                 <span style={{ color: '#fff', fontSize: 14, flex: 1 }}>{isUrgent ? 'Urgent Need' : 'Listing'}</span>
                 {isLive && <span style={{ background: '#A84B2A', color: '#fff', fontSize: 9, fontFamily: '-apple-system, sans-serif', fontWeight: 700, padding: '3px 7px', borderRadius: 20, letterSpacing: 0.5 }}>🔴 LIVE</span>}
                 {listing.is_anonymous && <span className="chip chip-anon" style={{ fontSize: 9 }}>Anonymous</span>}
-                <button onClick={handleSave} style={{ background: 'rgba(255,255,255,0.09)', border: 'none', borderRadius: '50%', width: 29, height: 29, cursor: 'pointer', color: saved ? '#C0392B' : 'rgba(255,255,255,0.7)', fontSize: 14 }}>
-                  {saved ? '♥' : '♡'}
-                </button>
+                <button onClick={handleSave} style={{ background: 'rgba(255,255,255,0.09)', border: 'none', borderRadius: '50%', width: 29, height: 29, cursor: 'pointer', color: saved ? '#C0392B' : 'rgba(255,255,255,0.7)', fontSize: 14 }}>{saved ? '♥' : '♡'}</button>
               </div>
 
-              {/* Panel scroll area */}
               <div style={{ flex: 1, overflowY: 'auto', WebkitOverflowScrolling: 'touch' } as any}>
                 {listing.photo_url ? (
                   <img src={listing.photo_url} alt={listing.title} style={{ width: '100%', maxHeight: 220, objectFit: 'cover' }} />
                 ) : (
-                  <div style={{ background: BG_MAP[listing.category] || '#EDE7D9', height: 155, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 58 }}>
-                    {EMOJI_MAP[listing.category] || '📋'}
-                  </div>
+                  <div style={{ background: BG_MAP[listing.category] || '#EDE7D9', height: 155, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 58 }}>{EMOJI_MAP[listing.category] || '📋'}</div>
                 )}
 
                 <div style={{ padding: 14 }}>
@@ -245,13 +368,10 @@ function ListingPanel({ listingId, onClose, userLat, userLng }: { listingId: str
                   </div>
 
                   <p style={{ fontSize: 17, color: '#18180F', lineHeight: 1.3, marginBottom: 5 }}>{listing.title}</p>
-                  <p style={{ fontSize: 18, color: '#1B3A1D', marginBottom: 10 }}>
-                    {listing.price_jmd ? listing.price_jmd : listing.is_free ? 'Free' : 'By quote'}
-                  </p>
+                  <p style={{ fontSize: 18, color: '#1B3A1D', marginBottom: 10 }}>{listing.price_jmd ? listing.price_jmd : listing.is_free ? 'Free' : 'By quote'}</p>
                   <div className="divider" />
                   {listing.description && <p style={{ fontSize: 12, fontFamily: '-apple-system, sans-serif', color: '#18180F', lineHeight: 1.75, marginBottom: 10 }}>{listing.description}</p>}
 
-                  {/* Donation */}
                   {showDonateButton && (
                     <div style={{ background: '#F5F0E6', borderRadius: 10, padding: 13, marginBottom: 12, border: '1px solid #D8D0BC' }}>
                       {donationSuccess ? (
@@ -273,8 +393,7 @@ function ListingPanel({ listingId, onClose, userLat, userLng }: { listingId: str
                           <p style={{ fontSize: 12, fontFamily: '-apple-system, sans-serif', fontWeight: 700, color: '#18180F', marginBottom: 12 }}>Choose an amount (USD)</p>
                           <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 6, marginBottom: 10 }}>
                             {DONATION_AMOUNTS.map(a => (
-                              <button key={a.value} onClick={() => { setDonationAmount(a.value); setCustomAmount('') }}
-                                style={{ background: donationAmount === a.value && !customAmount ? '#1B3A1D' : '#EDE7D9', color: donationAmount === a.value && !customAmount ? '#fff' : '#18180F', border: '1px solid ' + (donationAmount === a.value && !customAmount ? '#1B3A1D' : '#D8D0BC'), borderRadius: 6, padding: '8px 0', fontSize: 13, fontFamily: '-apple-system, sans-serif', fontWeight: 700, cursor: 'pointer' }}>{a.label}</button>
+                              <button key={a.value} onClick={() => { setDonationAmount(a.value); setCustomAmount('') }} style={{ background: donationAmount === a.value && !customAmount ? '#1B3A1D' : '#EDE7D9', color: donationAmount === a.value && !customAmount ? '#fff' : '#18180F', border: '1px solid ' + (donationAmount === a.value && !customAmount ? '#1B3A1D' : '#D8D0BC'), borderRadius: 6, padding: '8px 0', fontSize: 13, fontFamily: '-apple-system, sans-serif', fontWeight: 700, cursor: 'pointer' }}>{a.label}</button>
                             ))}
                           </div>
                           <input className="form-field" type="number" placeholder="Or enter custom amount (USD)" value={customAmount} onChange={e => setCustomAmount(e.target.value)} style={{ marginBottom: 12 }} />
@@ -301,7 +420,6 @@ function ListingPanel({ listingId, onClose, userLat, userLng }: { listingId: str
                     </div>
                   )}
 
-                  {/* Live vendor */}
                   {isLive && vendorLocation && (
                     <div style={{ background: '#3D1010', borderRadius: 10, padding: 12, marginBottom: 12, border: '1px solid #7A2020' }}>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 8 }}>
@@ -313,11 +431,10 @@ function ListingPanel({ listingId, onClose, userLat, userLng }: { listingId: str
                     </div>
                   )}
 
-                  {/* Owner live controls */}
                   {isOwner && (
                     <div style={{ background: '#EDE7D9', borderRadius: 10, padding: 12, marginBottom: 12, border: '1px solid #D8D0BC' }}>
                       <p style={{ fontSize: 12, fontFamily: '-apple-system, sans-serif', fontWeight: 700, color: '#18180F', marginBottom: 4 }}>Live location</p>
-                      <p style={{ fontSize: 10, fontFamily: '-apple-system, sans-serif', color: '#5A5A50', marginBottom: 9, lineHeight: 1.6 }}>{isLive ? 'Your live location is broadcasting. Customers can see where you are in real time.' : 'Go live to let customers see your exact location as you move — perfect for food trucks, mobile services and taxis.'}</p>
+                      <p style={{ fontSize: 10, fontFamily: '-apple-system, sans-serif', color: '#5A5A50', marginBottom: 9, lineHeight: 1.6 }}>{isLive ? 'Your live location is broadcasting.' : 'Go live to let customers see your exact location as you move.'}</p>
                       {isLive ? (
                         <button onClick={handleStopLive} style={{ background: '#A84B2A', color: '#fff', border: 'none', borderRadius: 7, padding: '9px 16px', fontSize: 12, fontFamily: '-apple-system, sans-serif', fontWeight: 700, cursor: 'pointer' }}>Stop broadcasting</button>
                       ) : (
@@ -440,6 +557,7 @@ function BrowseContent() {
   const [peopleSearch, setPeopleSearch] = useState(saved?.peopleSearch || '')
   const [peopleParish, setPeopleParish] = useState(saved?.peopleParish || 'All Parishes')
   const [selectedListingId, setSelectedListingId] = useState<string | null>(null)
+  const [selectedProfileId, setSelectedProfileId] = useState<string | null>(null)
 
   const districts = DISTRICTS[parish] || DISTRICTS['default']
 
@@ -603,24 +721,22 @@ function BrowseContent() {
                 const initials = (person.full_name || '?').split(' ').map((n: string) => n[0]).join('').slice(0, 2).toUpperCase()
                 const tags = person.services ? person.services.split(',').map((s: string) => s.trim()).filter(Boolean) : []
                 return (
-                  <Link key={person.id} href={'/profile/' + person.id} style={{ textDecoration: 'none' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', borderBottom: '1px solid #E8E4DC', background: '#fff' }}>
-                      <div style={{ width: 44, height: 44, borderRadius: '50%', background: '#2D5A2E', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, fontWeight: 700, color: '#A8D5A2', flexShrink: 0, fontFamily: '-apple-system, sans-serif' }}>{initials}</div>
-                      <div style={{ flex: 1, minWidth: 0 }}>
-                        <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 2 }}>
-                          <p style={{ fontSize: 13, fontFamily: '-apple-system, sans-serif', fontWeight: 700, color: '#18180F', margin: 0 }}>
-                            {(() => { const p = (person.full_name || '').trim().split(' '); return p.length > 1 ? p[0] + ' ' + p[p.length-1][0] + '.' : person.full_name })()}
-                          </p>
-                          {person.is_verified && <span style={{ fontSize: 9, background: '#D0E8BC', color: '#1B3A1D', borderRadius: 3, padding: '1px 5px', fontFamily: '-apple-system, sans-serif', fontWeight: 700 }}>✓</span>}
-                        </div>
-                        <p style={{ fontSize: 10, fontFamily: '-apple-system, sans-serif', color: '#5A5A50', margin: '0 0 5px' }}>{person.parish}</p>
-                        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
-                          {tags.slice(0, 3).map((tag: string, i: number) => <span key={i} style={{ fontSize: 10, background: '#D0E8BC', color: '#1B3A1D', borderRadius: 20, padding: '2px 8px', fontFamily: '-apple-system, sans-serif' }}>{tag}</span>)}
-                        </div>
+                  <div key={person.id} onClick={() => setSelectedProfileId(person.id)} style={{ display: 'flex', alignItems: 'center', gap: 12, padding: '12px 14px', borderBottom: '1px solid #E8E4DC', background: '#fff', cursor: 'pointer' }}>
+                    <div style={{ width: 44, height: 44, borderRadius: '50%', background: '#2D5A2E', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, fontWeight: 700, color: '#A8D5A2', flexShrink: 0, fontFamily: '-apple-system, sans-serif' }}>{initials}</div>
+                    <div style={{ flex: 1, minWidth: 0 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 5, marginBottom: 2 }}>
+                        <p style={{ fontSize: 13, fontFamily: '-apple-system, sans-serif', fontWeight: 700, color: '#18180F', margin: 0 }}>
+                          {(() => { const p = (person.full_name || '').trim().split(' '); return p.length > 1 ? p[0] + ' ' + p[p.length-1][0] + '.' : person.full_name })()}
+                        </p>
+                        {person.is_verified && <span style={{ fontSize: 9, background: '#D0E8BC', color: '#1B3A1D', borderRadius: 3, padding: '1px 5px', fontFamily: '-apple-system, sans-serif', fontWeight: 700 }}>✓</span>}
                       </div>
-                      <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M4 3L9 6.5L4 10" stroke="#D8D0BC" strokeWidth="1.5" strokeLinecap="round"/></svg>
+                      <p style={{ fontSize: 10, fontFamily: '-apple-system, sans-serif', color: '#5A5A50', margin: '0 0 5px' }}>{person.parish}</p>
+                      <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4 }}>
+                        {tags.slice(0, 3).map((tag: string, i: number) => <span key={i} style={{ fontSize: 10, background: '#D0E8BC', color: '#1B3A1D', borderRadius: 20, padding: '2px 8px', fontFamily: '-apple-system, sans-serif' }}>{tag}</span>)}
+                      </div>
                     </div>
-                  </Link>
+                    <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M4 3L9 6.5L4 10" stroke="#D8D0BC" strokeWidth="1.5" strokeLinecap="round"/></svg>
+                  </div>
                 )
               })}
             </>
@@ -650,14 +766,12 @@ function BrowseContent() {
         )}
       </div>
 
-      {/* Listing panel */}
       {selectedListingId && (
-        <ListingPanel
-          listingId={selectedListingId}
-          onClose={() => setSelectedListingId(null)}
-          userLat={userLat}
-          userLng={userLng}
-        />
+        <ListingPanel listingId={selectedListingId} onClose={() => setSelectedListingId(null)} userLat={userLat} userLng={userLng} />
+      )}
+
+      {selectedProfileId && (
+        <ProfilePanel profileId={selectedProfileId} onClose={() => setSelectedProfileId(null)} />
       )}
     </>
   )
