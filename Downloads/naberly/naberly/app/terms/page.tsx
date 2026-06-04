@@ -110,13 +110,13 @@ export default function TermsPage() {
         <div style={{ marginBottom: 30 }}>
           <p style={{ fontSize: 13, fontFamily: '-apple-system, sans-serif', fontWeight: 700, color: '#1B3A1D', marginBottom: 8 }}>12. Contact</p>
           <p style={{ fontSize: 12, fontFamily: '-apple-system, sans-serif', color: '#18180F', lineHeight: 1.75 }}>
-            For questions about these terms or to request account deletion, contact us at hello@naberlyja.com or via WhatsApp at +19174432797.
+            For questions about these terms or to request account deletion, contact us at naberlyja@gmail.com or via WhatsApp at +19174432797.
           </p>
         </div>
 
         <div style={{ background: '#EDE7D9', borderRadius: 10, padding: 13, border: '1px solid #D8D0BC' }}>
           <p style={{ fontSize: 11, fontFamily: '-apple-system, sans-serif', color: '#5A5A50', lineHeight: 1.65, textAlign: 'center' }}>
-            NaberlyJA is operated by Omega Care Solutions LLC · Bronx, NY · naberlyja.com
+            NaberlyJA · naberlyja.com
           </p>
         </div>
 
