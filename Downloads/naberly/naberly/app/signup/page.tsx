@@ -16,12 +16,14 @@ export default function SignupPage() {
   const [showPassword, setShowPassword] = useState(false)
   const [isVendor, setIsVendor] = useState(false)
   const [services, setServices] = useState('')
+  const [agreedToTerms, setAgreedToTerms] = useState(false)
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
   async function handleSignup() {
     if (!fullName || !email || !password || !whatsapp) { setError('Please fill in all fields.'); return }
     if (password.length < 8) { setError('Password must be at least 8 characters.'); return }
+    if (!agreedToTerms) { setError('Please agree to the Terms & Conditions to continue.'); return }
     setLoading(true)
     setError('')
     const { error: err } = await supabase.auth.signUp({
@@ -33,7 +35,6 @@ export default function SignupPage() {
     })
     setLoading(false)
     if (err) { setError(err.message); return }
-    // Vendors go to vendor signup with details pre-filled via URL params
     if (isVendor) {
       const params = new URLSearchParams({ name: fullName, whatsapp, parish })
       router.push('/vendor-signup?' + params.toString())
@@ -75,17 +76,17 @@ export default function SignupPage() {
             </select>
           </div>
           <div>
-  <label className="field-label">What work do you do or can do?</label>
-  <input
-    className="form-field"
-    placeholder="e.g. Cook, carpenter, seamstress"
-    value={services}
-    onChange={e => setServices(e.target.value)}
-  />
-  <p style={{ fontSize: 9, fontFamily: '-apple-system, sans-serif', color: '#5A5A50', marginTop: 2 }}>
-    Optional — helps your neighbours find you
-  </p>
-</div>
+            <label className="field-label">What work do you do or can do?</label>
+            <input
+              className="form-field"
+              placeholder="e.g. Cook, carpenter, seamstress"
+              value={services}
+              onChange={e => setServices(e.target.value)}
+            />
+            <p style={{ fontSize: 9, fontFamily: '-apple-system, sans-serif', color: '#5A5A50', marginTop: 2 }}>
+              Optional — helps your neighbours find you
+            </p>
+          </div>
           <div>
             <label className="field-label">Password</label>
             <div style={{ position: 'relative' }}>
@@ -97,9 +98,7 @@ export default function SignupPage() {
           </div>
 
           {/* Vendor checkbox */}
-          <label
-            style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '11px 12px', border: `1.5px solid ${isVendor ? '#1B3A1D' : '#D8D0BC'}`, borderRadius: 10, cursor: 'pointer', background: isVendor ? '#D0E8BC' : '#FAFAF8', transition: 'all 0.15s' }}
-          >
+          <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '11px 12px', border: `1.5px solid ${isVendor ? '#1B3A1D' : '#D8D0BC'}`, borderRadius: 10, cursor: 'pointer', background: isVendor ? '#D0E8BC' : '#FAFAF8', transition: 'all 0.15s' }}>
             <input
               type="checkbox"
               checked={isVendor}
@@ -112,6 +111,25 @@ export default function SignupPage() {
               </p>
               <p style={{ fontSize: 11, fontFamily: '-apple-system, sans-serif', color: '#5A5A50', lineHeight: 1.5 }}>
                 Tick this to list your business on NaberlyJA after signup — free, takes 1 minute.
+              </p>
+            </div>
+          </label>
+
+          {/* Terms & Conditions checkbox */}
+          <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '11px 12px', border: `1.5px solid ${agreedToTerms ? '#1B3A1D' : '#D8D0BC'}`, borderRadius: 10, cursor: 'pointer', background: agreedToTerms ? '#D0E8BC' : '#FAFAF8', transition: 'all 0.15s' }}>
+            <input
+              type="checkbox"
+              checked={agreedToTerms}
+              onChange={e => setAgreedToTerms(e.target.checked)}
+              style={{ accentColor: '#1B3A1D', marginTop: 1, width: 16, height: 16, flexShrink: 0 }}
+            />
+            <div>
+              <p style={{ fontSize: 12, fontFamily: '-apple-system, sans-serif', color: '#18180F', lineHeight: 1.6 }}>
+                I agree to the{' '}
+                <Link href="/terms" style={{ color: '#1B3A1D', fontWeight: 700, textDecoration: 'underline' }}>
+                  Terms & Conditions
+                </Link>
+                {' '}including the disclaimer regarding vendor and buyer disputes, donations, and anonymous listings.
               </p>
             </div>
           </label>
