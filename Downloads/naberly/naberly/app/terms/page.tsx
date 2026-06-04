@@ -22,7 +22,7 @@ export default function TermsPage() {
         <div style={{ marginBottom: 20 }}>
           <p style={{ fontSize: 13, fontFamily: '-apple-system, sans-serif', fontWeight: 700, color: '#1B3A1D', marginBottom: 8 }}>1. About NaberlyJA</p>
           <p style={{ fontSize: 12, fontFamily: '-apple-system, sans-serif', color: '#18180F', lineHeight: 1.75 }}>
-            NaberlyJA (naberlyja.com) is a community marketplace platform operated by Omega Care Solutions LLC. It connects neighbours in Jamaica and beyond to share resources, find work, offer services, and support one another. NaberlyJA is a platform only — we do not sell goods or services directly and we are not a party to any transaction between users.
+            NaberlyJA (naberlyja.com) is a community marketplace platform. It connects neighbours in Jamaica and beyond to share resources, find work, offer services, and support one another. NaberlyJA is a platform only — we do not sell goods or services directly and we are not a party to any transaction between users.
           </p>
         </div>
 
@@ -62,7 +62,7 @@ export default function TermsPage() {
         <div style={{ marginBottom: 20 }}>
           <p style={{ fontSize: 13, fontFamily: '-apple-system, sans-serif', fontWeight: 700, color: '#1B3A1D', marginBottom: 8 }}>6. Privacy and Data</p>
           <p style={{ fontSize: 12, fontFamily: '-apple-system, sans-serif', color: '#18180F', lineHeight: 1.75 }}>
-            NaberlyJA collects the following information when you create an account: your name, email address, WhatsApp number, parish, and any services you choose to list. This information is used solely to operate the platform and connect you with your community. NaberlyJA does not sell your personal information to third parties. Your WhatsApp number is shared with other users only when you respond to or post a non-anonymous listing. You may request deletion of your account and associated data at any time by contacting hello@naberlyja.com.
+            NaberlyJA collects the following information when you create an account: your name, email address, WhatsApp number, parish, and any services you choose to list. This information is used solely to operate the platform and connect you with your community. NaberlyJA does not sell your personal information to third parties. Your WhatsApp number is shared with other users only when you respond to or post a non-anonymous listing. You may request deletion of your account and associated data at any time by contacting naberlyja@gmail.com.
           </p>
         </div>
 
