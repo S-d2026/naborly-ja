@@ -351,6 +351,7 @@ export default function HomePage() {
               Born in Jamaica, by Jamaicans, for Jamaicans. Every plate shared, every job found, every urgent need answered — giving every Jamaican, especially those outside the mainstream, a place to build, connect and be seen. Parish by parish. Neighbour by neighbour. Worldwide next.
             </p>
             <p style={{ color: 'rgba(255,255,255,0.32)', fontSize: 10, fontFamily: '-apple-system, sans-serif', marginTop: 7 }}>naberlyja.com</p>
+<Link href="/terms" style={{ color: 'rgba(255,255,255,0.32)', fontSize: 10, fontFamily: '-apple-system, sans-serif', marginTop: 4, display: 'block', textDecoration: 'underline' }}>Terms & Conditions</Link>
             <Link href="/sponsor" style={{ display: 'block', background: '#C8821A', color: '#fff', borderRadius: 8, padding: '11px 14px', fontSize: 12, fontFamily: '-apple-system, sans-serif', fontWeight: 700, textAlign: 'center', textDecoration: 'none', marginBottom: 13 }}>🏪 Become a Sponsor</Link>
           </div>
         </div>
