@@ -38,7 +38,7 @@ export default function TermsPage() {
         <div style={{ marginBottom: 20 }}>
           <p style={{ fontSize: 13, fontFamily: '-apple-system, sans-serif', fontWeight: 700, color: '#1B3A1D', marginBottom: 8 }}>3. Donations</p>
           <p style={{ fontSize: 12, fontFamily: '-apple-system, sans-serif', color: '#18180F', lineHeight: 1.75 }}>
-            Donations made through NaberlyJA are received and managed by Omega Care Solutions LLC via the NaberlyJA community fund. Donations do not go directly to individual listing posters. NaberlyJA makes no guarantee that donations will be passed on to any specific individual or family. Donation amounts are at the sole discretion of the donor. All donations are voluntary and non-refundable unless required by applicable law.
+            Donations made through NaberlyJA are received and managed via the NaberlyJA community fund. Donations do not go directly to individual listing posters. NaberlyJA makes no guarantee that donations will be passed on to any specific individual or family. Donation amounts are at the sole discretion of the donor. All donations are voluntary and non-refundable unless required by applicable law.
           </p>
         </div>
 
@@ -94,7 +94,7 @@ export default function TermsPage() {
         <div style={{ marginBottom: 20 }}>
           <p style={{ fontSize: 13, fontFamily: '-apple-system, sans-serif', fontWeight: 700, color: '#1B3A1D', marginBottom: 8 }}>10. Limitation of Liability</p>
           <p style={{ fontSize: 12, fontFamily: '-apple-system, sans-serif', color: '#18180F', lineHeight: 1.75 }}>
-            To the fullest extent permitted by law, NaberlyJA and Omega Care Solutions LLC shall not be liable for any direct, indirect, incidental, special, or consequential damages arising out of or in connection with your use of the platform, including but not limited to damages arising from transactions between users, reliance on listing content, or donations made through the platform.
+            To the fullest extent permitted by law, NaberlyJA shall not be liable for any direct, indirect, incidental, special, or consequential damages arising out of or in connection with your use of the platform, including but not limited to damages arising from transactions between users, reliance on listing content, or donations made through the platform.
           </p>
         </div>
 
