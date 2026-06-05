@@ -352,7 +352,7 @@ export default function HomePage() {
             </p>
             <p style={{ color: 'rgba(255,255,255,0.32)', fontSize: 10, fontFamily: '-apple-system, sans-serif', marginTop: 7 }}>naberlyja.com</p>
 <Link href="/terms" style={{ color: 'rgba(255,255,255,0.32)', fontSize: 10, fontFamily: '-apple-system, sans-serif', marginTop: 4, display: 'block', textDecoration: 'underline' }}>Terms & Conditions</Link>
-            <Link href="/sponsor" style={{ display: 'block', background: '#C8821A', color: '#fff', borderRadius: 8, padding: '11px 14px', fontSize: 12, fontFamily: '-apple-system, sans-serif', fontWeight: 700, textAlign: 'center', textDecoration: 'none', marginBottom: 13 }}>🏪 Become a Sponsor</Link>
+            <Link href="/sponsor" style={{ display: 'block', background: '#C8821A', color: '#fff', borderRadius: 8, padding: '11px 14px', fontSize: 12, fontFamily: '-apple-system, sans-serif', fontWeight: 700, textAlign: 'center', textDecoration: 'none', marginTop: 13, marginBottom: 13 }}>🏪 Become a Sponsor</Link>
           </div>
         </div>
         <div style={{ height: 10 }} />
