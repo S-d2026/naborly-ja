@@ -13,7 +13,7 @@ const SPONSOR_PACKAGES = [
   { key: 'featured', label: 'Featured + Sponsor', price: 15000, days: 30 },
 ]
 
-const PARISHES = ['Kingston','St. Andrew','St. Thomas','Portland','St. Mary','St. Ann','Trelawny','St. James','Hanover','Westmoreland','St. Elizabeth','Manchester','Clarendon','St. Catherine']
+const PARISHES = ['Kingston','St. Andrew','St. Thomas','Portland','St. Mary','St. Ann','Trelawny','St. James','Hanover','Westmoreland','St. Elizabeth','Manchester','Clarendon','St. Catherine','Other (outside Jamaica)']
 
 function AddListingForUser({ users, onClose, onSaved }: { users: any[], onClose: () => void, onSaved: () => void }) {
   const [selectedUser, setSelectedUser] = useState('')
@@ -21,6 +21,7 @@ function AddListingForUser({ users, onClose, onSaved }: { users: any[], onClose:
   const [category, setCategory] = useState('food')
   const [listingType, setListingType] = useState('offer')
   const [parish, setParish] = useState('Kingston')
+  const [otherLocation, setOtherLocation] = useState('')
   const [district, setDistrict] = useState('')
   const [price, setPrice] = useState('')
   const [description, setDescription] = useState('')
@@ -28,11 +29,15 @@ function AddListingForUser({ users, onClose, onSaved }: { users: any[], onClose:
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState('')
 
+  const isOther = parish === 'Other (outside Jamaica)'
+
   async function handleSave() {
     if (!selectedUser) { setError('Please select a user.'); return }
     if (!title.trim()) { setError('Please add a title.'); return }
+    if (isOther && !otherLocation.trim()) { setError('Please enter the city or area.'); return }
     setSaving(true)
     const user = users.find(u => u.id === selectedUser)
+    const finalParish = isOther ? otherLocation.trim() : parish
     const { error: err } = await supabase.from('listings').insert([{
       user_id: selectedUser,
       title: title.trim(),
@@ -41,7 +46,7 @@ function AddListingForUser({ users, onClose, onSaved }: { users: any[], onClose:
       listing_type: listingType,
       price_jmd: price.trim() || null,
       is_free: !price.trim(),
-      parish,
+      parish: finalParish,
       district: district.trim() || null,
       whatsapp: whatsapp.trim() || user?.whatsapp || null,
       is_anonymous: false,
@@ -66,7 +71,14 @@ function AddListingForUser({ users, onClose, onSaved }: { users: any[], onClose:
             <select className="form-field" style={{ appearance: 'none' }} value={selectedUser} onChange={e => {
               setSelectedUser(e.target.value)
               const u = users.find(u => u.id === e.target.value)
-              if (u?.parish) setParish(u.parish)
+              if (u?.parish) {
+                if (PARISHES.includes(u.parish)) {
+                  setParish(u.parish)
+                } else {
+                  setParish('Other (outside Jamaica)')
+                  setOtherLocation(u.parish)
+                }
+              }
               if (u?.whatsapp) setWhatsapp(u.whatsapp)
             }}>
               <option value="">Choose a user...</option>
@@ -110,6 +122,12 @@ function AddListingForUser({ users, onClose, onSaved }: { users: any[], onClose:
               </select>
             </div>
           </div>
+          {isOther && (
+            <div>
+              <label className="field-label">City, borough or area</label>
+              <input className="form-field" placeholder="e.g. Bronx, NY" value={otherLocation} onChange={e => setOtherLocation(e.target.value)} />
+            </div>
+          )}
           <div>
             <label className="field-label">District</label>
             <input className="form-field" placeholder="e.g. Cross Roads" value={district} onChange={e => setDistrict(e.target.value)} />
