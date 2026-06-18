@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { supabase } from '@/lib/supabase'
 
-const PARISHES = ['Kingston','St. Andrew','St. Thomas','Portland','St. Mary','St. Ann','Trelawny','St. James','Hanover','Westmoreland','St. Elizabeth','Manchester','Clarendon','St. Catherine']
+const PARISHES = ['Kingston','St. Andrew','St. Thomas','Portland','St. Mary','St. Ann','Trelawny','St. James','Hanover','Westmoreland','St. Elizabeth','Manchester','Clarendon','St. Catherine','Other (outside Jamaica)']
 
 export default function SignupPage() {
   const router = useRouter()
@@ -12,6 +12,7 @@ export default function SignupPage() {
   const [whatsapp, setWhatsapp] = useState('')
   const [email, setEmail] = useState('')
   const [parish, setParish] = useState('Kingston')
+  const [otherLocation, setOtherLocation] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
   const [isVendor, setIsVendor] = useState(false)
@@ -20,23 +21,27 @@ export default function SignupPage() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
+  const isOther = parish === 'Other (outside Jamaica)'
+
   async function handleSignup() {
     if (!fullName || !email || !password || !whatsapp) { setError('Please fill in all fields.'); return }
+    if (isOther && !otherLocation.trim()) { setError('Please tell us your city or area.'); return }
     if (password.length < 8) { setError('Password must be at least 8 characters.'); return }
     if (!agreedToTerms) { setError('Please agree to the Terms & Conditions to continue.'); return }
     setLoading(true)
     setError('')
+    const finalParish = isOther ? otherLocation.trim() : parish
     const { error: err } = await supabase.auth.signUp({
       email,
       password,
       options: {
-        data: { full_name: fullName, whatsapp, parish, is_vendor: isVendor, services }
+        data: { full_name: fullName, whatsapp, parish: finalParish, is_vendor: isVendor, services }
       }
     })
     setLoading(false)
     if (err) { setError(err.message); return }
     if (isVendor) {
-      const params = new URLSearchParams({ name: fullName, whatsapp, parish })
+      const params = new URLSearchParams({ name: fullName, whatsapp, parish: finalParish })
       router.push('/vendor-signup?' + params.toString())
     } else {
       router.push('/')
@@ -75,6 +80,13 @@ export default function SignupPage() {
               {PARISHES.map(p => <option key={p} value={p}>{p}</option>)}
             </select>
           </div>
+          {isOther && (
+            <div>
+              <label className="field-label">Your city, borough or area</label>
+              <input className="form-field" placeholder="e.g. Bronx, NY or Brooklyn, NY" value={otherLocation} onChange={e => setOtherLocation(e.target.value)} />
+              <p style={{ fontSize: 9, fontFamily: '-apple-system, sans-serif', color: '#5A5A50', marginTop: 2 }}>Tell us where you are so neighbours nearby can find you</p>
+            </div>
+          )}
           <div>
             <label className="field-label">What work do you do or can do?</label>
             <input
@@ -97,7 +109,6 @@ export default function SignupPage() {
             </div>
           </div>
 
-          {/* Vendor checkbox */}
           <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '11px 12px', border: `1.5px solid ${isVendor ? '#1B3A1D' : '#D8D0BC'}`, borderRadius: 10, cursor: 'pointer', background: isVendor ? '#D0E8BC' : '#FAFAF8', transition: 'all 0.15s' }}>
             <input
               type="checkbox"
@@ -115,7 +126,6 @@ export default function SignupPage() {
             </div>
           </label>
 
-          {/* Terms & Conditions checkbox */}
           <label style={{ display: 'flex', alignItems: 'flex-start', gap: 10, padding: '11px 12px', border: `1.5px solid ${agreedToTerms ? '#1B3A1D' : '#D8D0BC'}`, borderRadius: 10, cursor: 'pointer', background: agreedToTerms ? '#D0E8BC' : '#FAFAF8', transition: 'all 0.15s' }}>
             <input
               type="checkbox"
@@ -129,7 +139,6 @@ export default function SignupPage() {
                 <Link href="/terms" style={{ color: '#1B3A1D', fontWeight: 700, textDecoration: 'underline' }}>
                   Terms & Conditions
                 </Link>
-                {' '}including the disclaimer regarding vendor and buyer disputes, donations, and anonymous listings.
               </p>
             </div>
           </label>
