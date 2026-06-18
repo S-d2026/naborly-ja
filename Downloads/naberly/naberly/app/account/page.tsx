@@ -4,6 +4,8 @@ import Link from 'next/link'
 import { useRouter } from 'next/navigation'
 import { supabase, getUserProfile, getUserListings, type Profile, type Listing } from '@/lib/supabase'
 
+const PARISHES = ['Kingston','St. Andrew','St. Thomas','Portland','St. Mary','St. Ann','Trelawny','St. James','Hanover','Westmoreland','St. Elizabeth','Manchester','Clarendon','St. Catherine','Other (outside Jamaica)']
+
 export default function AccountPage() {
   const router = useRouter()
   const [profile, setProfile] = useState<Profile | null>(null)
@@ -11,6 +13,12 @@ export default function AccountPage() {
   const [loading, setLoading] = useState(true)
   const [directoryOn, setDirectoryOn] = useState(false)
   const [savingDirectory, setSavingDirectory] = useState(false)
+  const [editingParish, setEditingParish] = useState(false)
+  const [parishSelect, setParishSelect] = useState('Kingston')
+  const [otherLocation, setOtherLocation] = useState('')
+  const [savingParish, setSavingParish] = useState(false)
+
+  const isOther = parishSelect === 'Other (outside Jamaica)'
 
   useEffect(() => {
     supabase.auth.getUser().then(async ({ data: { user } }) => {
@@ -20,6 +28,15 @@ export default function AccountPage() {
       setProfile(prof as Profile)
       setDirectoryOn((prof as Profile)?.show_in_directory || false)
       setListings((lsts as Listing[]) || [])
+      const currentParish = (prof as Profile)?.parish
+      if (currentParish) {
+        if (PARISHES.includes(currentParish)) {
+          setParishSelect(currentParish)
+        } else {
+          setParishSelect('Other (outside Jamaica)')
+          setOtherLocation(currentParish)
+        }
+      }
       setLoading(false)
     })
   }, [router])
@@ -35,6 +52,17 @@ export default function AccountPage() {
     setSavingDirectory(true)
     await supabase.from('profiles').update({ show_in_directory: val }).eq('id', profile.id)
     setSavingDirectory(false)
+  }
+
+  async function saveParish() {
+    if (!profile) return
+    if (isOther && !otherLocation.trim()) return
+    const finalParish = isOther ? otherLocation.trim() : parishSelect
+    setSavingParish(true)
+    await supabase.from('profiles').update({ parish: finalParish }).eq('id', profile.id)
+    setProfile(prev => prev ? { ...prev, parish: finalParish } : prev)
+    setSavingParish(false)
+    setEditingParish(false)
   }
 
   const nameParts = profile?.full_name?.trim().split(' ') || []
@@ -61,9 +89,35 @@ export default function AccountPage() {
             {initials}
           </div>
           <p style={{ fontSize: 15 }}>{profile?.full_name || 'Naberly member'}</p>
-          <p style={{ fontSize: 10, fontFamily: '-apple-system, sans-serif', color: '#5A5A50', marginTop: 2 }}>
-            {profile?.parish || 'Jamaica'}
-          </p>
+
+          {!editingParish ? (
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginTop: 2 }}>
+              <p style={{ fontSize: 10, fontFamily: '-apple-system, sans-serif', color: '#5A5A50' }}>
+                {profile?.parish || 'Jamaica'}
+              </p>
+              <button onClick={() => setEditingParish(true)} style={{ background: 'none', border: 'none', color: '#1B3A1D', fontSize: 10, fontFamily: '-apple-system, sans-serif', fontWeight: 700, cursor: 'pointer', textDecoration: 'underline', padding: 0 }}>
+                Edit
+              </button>
+            </div>
+          ) : (
+            <div style={{ width: '100%', marginTop: 8, display: 'flex', flexDirection: 'column', gap: 7 }}>
+              <select className="form-field" style={{ appearance: 'none', fontSize: 12 }} value={parishSelect} onChange={e => setParishSelect(e.target.value)}>
+                {PARISHES.map(p => <option key={p} value={p}>{p}</option>)}
+              </select>
+              {isOther && (
+                <input className="form-field" style={{ fontSize: 12 }} placeholder="e.g. Bronx, NY" value={otherLocation} onChange={e => setOtherLocation(e.target.value)} />
+              )}
+              <div style={{ display: 'flex', gap: 6 }}>
+                <button onClick={saveParish} disabled={savingParish} style={{ flex: 1, background: '#1B3A1D', color: '#fff', border: 'none', borderRadius: 6, padding: '7px 0', fontSize: 11, fontFamily: '-apple-system, sans-serif', fontWeight: 700, cursor: 'pointer', opacity: savingParish ? 0.7 : 1 }}>
+                  {savingParish ? 'Saving...' : 'Save'}
+                </button>
+                <button onClick={() => setEditingParish(false)} style={{ flex: 1, background: '#EDE7D9', color: '#5A5A50', border: '1px solid #D8D0BC', borderRadius: 6, padding: '7px 0', fontSize: 11, fontFamily: '-apple-system, sans-serif', cursor: 'pointer' }}>
+                  Cancel
+                </button>
+              </div>
+            </div>
+          )}
+
           <div style={{ display: 'flex', gap: 5, marginTop: 7 }}>
             {profile?.is_verified && <span className="chip chip-approved">Verified</span>}
             {(profile?.helper_count ?? 0) > 0 && <span className="chip chip-featured">Community helper</span>}
