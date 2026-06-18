@@ -4,7 +4,7 @@ import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { supabase, createListing } from '@/lib/supabase'
 
-const PARISHES = ['Kingston','St. Andrew','St. Thomas','Portland','St. Mary','St. Ann','Trelawny','St. James','Hanover','Westmoreland','St. Elizabeth','Manchester','Clarendon','St. Catherine']
+const PARISHES = ['Kingston','St. Andrew','St. Thomas','Portland','St. Mary','St. Ann','Trelawny','St. James','Hanover','Westmoreland','St. Elizabeth','Manchester','Clarendon','St. Catherine','Other (outside Jamaica)']
 
 const CATEGORIES = [
   { key: 'food', label: 'Food', emoji: '🍲', bg: '#D0E8BC' },
@@ -44,6 +44,7 @@ function PostContent() {
   const [description, setDescription] = useState('')
   const [price, setPrice] = useState('')
   const [parish, setParish] = useState('Kingston')
+  const [otherLocation, setOtherLocation] = useState('')
   const [district, setDistrict] = useState('')
   const [whatsapp, setWhatsapp] = useState('')
   const [photoUrl, setPhotoUrl] = useState('')
@@ -58,6 +59,8 @@ function PostContent() {
   const [gpsLat, setGpsLat] = useState<number | null>(null)
   const [gpsLng, setGpsLng] = useState<number | null>(null)
 
+  const isOther = parish === 'Other (outside Jamaica)'
+
   useEffect(() => {
     supabase.auth.getUser().then(async ({ data }) => {
       if (!data.user) {
@@ -69,7 +72,14 @@ function PostContent() {
         .select('parish, whatsapp')
         .eq('id', data.user.id)
         .single()
-      if (profile?.parish) setParish(profile.parish)
+      if (profile?.parish) {
+        if (PARISHES.includes(profile.parish)) {
+          setParish(profile.parish)
+        } else {
+          setParish('Other (outside Jamaica)')
+          setOtherLocation(profile.parish)
+        }
+      }
       if (profile?.whatsapp) setWhatsapp(profile.whatsapp)
       setAuthChecked(true)
     })
@@ -115,7 +125,8 @@ function PostContent() {
           } else {
             const neighborhood = data.address?.suburb || data.address?.neighbourhood || data.address?.city_district || data.address?.town || data.address?.city || ''
             const city = data.address?.city || data.address?.town || data.address?.county || ''
-            if (neighborhood) setParish(neighborhood + (city ? ', ' + city : ''))
+            setParish('Other (outside Jamaica)')
+            setOtherLocation(neighborhood + (city ? ', ' + city : ''))
             const dist = data.address?.suburb || data.address?.neighbourhood || ''
             if (dist) setDistrict(dist)
           }
@@ -131,9 +142,11 @@ function PostContent() {
   async function handleSubmit() {
     if (!title.trim()) { setError('Please add a title.'); return }
     if (!parish) { setError('Please choose your parish.'); return }
+    if (isOther && !otherLocation.trim()) { setError('Please tell us your city or area.'); return }
     if (!isAnonymous && !whatsapp.trim()) { setError('Please add your WhatsApp number.'); return }
     setSubmitting(true)
     setError('')
+    const finalParish = isOther ? otherLocation.trim() : parish
     const { data: { user } } = await supabase.auth.getUser()
     const { error: err } = await createListing({
       user_id: user?.id || null,
@@ -143,7 +156,7 @@ function PostContent() {
       listing_type: listingType,
       price_jmd: price.trim() || null,
       is_free: !price.trim(),
-      parish,
+      parish: finalParish,
       district: district.trim() || null,
       whatsapp: isAnonymous ? null : whatsapp.trim(),
       is_anonymous: isAnonymous,
@@ -237,7 +250,7 @@ function PostContent() {
                   {locationSet ? '📍 Location saved' : 'Use my location'}
                 </p>
                 <p style={{ fontSize: 10, fontFamily: '-apple-system, sans-serif', color: '#5A5A50', marginTop: 1 }}>
-                  {locationSet ? parish + (district ? ', ' + district : '') + ' · GPS saved' : 'Auto-fills parish, district and saves your GPS coordinates'}
+                  {locationSet ? (isOther ? otherLocation : parish) + (district ? ', ' + district : '') + ' · GPS saved' : 'Auto-fills parish, district and saves your GPS coordinates'}
                 </p>
               </div>
               <button onClick={handleUseLocation} disabled={locating} style={{ background: locationSet ? '#2D5A2E' : '#1B3A1D', color: '#fff', border: 'none', borderRadius: 6, padding: '6px 11px', fontSize: 10, fontFamily: '-apple-system, sans-serif', cursor: 'pointer', opacity: locating ? 0.7 : 1 }}>
@@ -266,6 +279,12 @@ function PostContent() {
               </select>
             </div>
           </div>
+          {isOther && (
+            <div>
+              <label className="field-label">Your city, borough or area</label>
+              <input className="form-field" placeholder="e.g. Bronx, NY or Brooklyn, NY" value={otherLocation} onChange={e => setOtherLocation(e.target.value)} />
+            </div>
+          )}
           <div>
             <label className="field-label">District / Community <span style={{ color: '#C8821A', fontWeight: 700 }}>— how neighbours find you</span></label>
             <input className="form-field" placeholder="e.g. Cross Roads, Maxfield Ave, Dunrobin..." value={district} onChange={e => setDistrict(e.target.value)} />
