@@ -323,12 +323,14 @@ export interface AmbassadorSummary {
   status: string
   school_name: string | null
   agreement_signed: boolean
+  milestone_10_paid: boolean
+  milestone_25_paid: boolean
+  milestone_50_paid: boolean
+  milestone_100_paid: boolean
   qualifying_count: number
   pending_count: number
   total_referrals: number
   milestone_reached: number
-  total_paid: number
-  cost_per_qualifying_vendor: number | null
 }
 
 export interface AmbassadorKPIs {
@@ -406,6 +408,37 @@ export async function getAmbassadorKPIs() {
   const { data, error } = await supabase
     .from('naberlyja_ambassador_kpis')
     .select('*')
+    .single()
+  return { data, error }
+}
+
+export async function getAmbassadorReferrals(ambassadorId: string) {
+  const { data, error } = await supabase
+    .from('ambassador_referrals')
+    .select('*')
+    .eq('ambassador_id', ambassadorId)
+    .order('referred_at', { ascending: false })
+  return { data, error }
+}
+
+export async function markReferralQualified(referralId: string) {
+  const { data, error } = await supabase
+    .from('ambassador_referrals')
+    .update({ qualifying_status: 'qualified', qualified_at: new Date().toISOString() })
+    .eq('id', referralId)
+    .select()
+    .single()
+  return { data, error }
+}
+
+export async function markMilestonePaid(ambassadorId: string, milestone: 10 | 25 | 50 | 100) {
+  const field = `milestone_${milestone}_paid`
+  const fieldAt = `milestone_${milestone}_paid_at`
+  const { data, error } = await supabase
+    .from('ambassadors')
+    .update({ [field]: true, [fieldAt]: new Date().toISOString() })
+    .eq('id', ambassadorId)
+    .select()
     .single()
   return { data, error }
 }
