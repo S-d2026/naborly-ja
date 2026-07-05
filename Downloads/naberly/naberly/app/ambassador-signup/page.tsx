@@ -76,7 +76,7 @@ export default function AmbassadorSignupPage() {
 
         <div>
           <p style={styles.stepTitle}>1. How to sign up a vendor</p>
-          <p style={styles.stepText}>Have them download NaberlyJA or go to naberlyja.com, register with their phone number, and enter your referral code: <strong>{result.referral_code}</strong>. Help them post at least 1 listing.</p>
+          <p style={styles.stepText}>Have them go to naberlyja.com, register with their phone number, and enter your referral code: <strong>{result.referral_code}</strong>. Help them post at least 1 listing.</p>
 
           <p style={styles.stepTitle}>2. What to say</p>
           <p style={{ ...styles.stepText, fontStyle: 'italic' }}>"Have you heard of NaberlyJA? It's a free app connecting people in our community to buy and sell — like a local marketplace. I can help you set up your page right now, takes 5 minutes."</p>
@@ -88,7 +88,16 @@ export default function AmbassadorSignupPage() {
           <p style={styles.stepText}>Milestone bonuses at 10 (J$1,000), 25 (J$5,000), 50 (+J$7,500), and 100 (+J$15,000) qualifying vendors — paid to your school toward fees, or to your parent/guardian if the school can't apply it.</p>
         </div>
 
-        <p style={{ marginTop: '32px', fontSize: '13px', color: '#888' }}>Questions? Message us directly on WhatsApp anytime.</p>
+        <p style={{ marginTop: '32px', fontSize: '14px', color: '#444' }}>
+          Questions? Message us on WhatsApp at{' '}
+          <a href="https://wa.me/19174432797" style={{ color: '#1B5FAA', fontWeight: 600, textDecoration: 'none' }}>
+            917-443-2797
+          </a>
+          {' '}or email{' '}
+          <a href="mailto:naberlyja@gmail.com" style={{ color: '#1B5FAA', fontWeight: 600, textDecoration: 'none' }}>
+            naberlyja@gmail.com
+          </a>
+        </p>
       </div>
     )
   }
