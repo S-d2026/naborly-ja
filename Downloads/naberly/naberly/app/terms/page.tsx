@@ -70,7 +70,7 @@ export default function TermsPage() {
         <div style={{ marginBottom: 20 }}>
           <p style={{ fontSize: 13, fontFamily: '-apple-system, sans-serif', fontWeight: 700, color: '#1B3A1D', marginBottom: 8 }}>7. Age Requirement</p>
           <p style={{ fontSize: 12, fontFamily: '-apple-system, sans-serif', color: '#18180F', lineHeight: 1.75 }}>
-            NaberlyJA is intended for users who are 18 years of age or older. By creating an account you confirm that you are at least 18 years old. If we become aware that a user is under 18 we reserve the right to suspend or delete their account.
+            NaberlyJA is intended for users who are 18 years of age or older. By creating an account you confirm that you are at least 18 years old. If we become aware that a user is under 18 we reserve the right to suspend or delete their account. The NaberlyJA Ambassador Program operates separately from platform accounts and does not require account creation, and is therefore not subject to this age requirement.
           </p>
         </div>
 
