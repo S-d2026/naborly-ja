@@ -2,10 +2,15 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { supabase, getAllListingsAdmin, adminUpdateListing, type Listing } from '@/lib/supabase'
+import {
+  supabase, getAllListingsAdmin, adminUpdateListing, type Listing,
+  getAmbassadorSummaries, getAmbassadorKPIs, getAmbassadorReferrals,
+  markReferralQualified, markMilestonePaid,
+  type AmbassadorSummary, type AmbassadorKPIs, type AmbassadorReferral,
+} from '@/lib/supabase'
 
 type AdminFilter = 'all' | 'pending' | 'approved' | 'hidden' | 'archived' | 'rejected'
-type AdminTab = 'listings' | 'boosts' | 'sponsors' | 'users'
+type AdminTab = 'listings' | 'boosts' | 'sponsors' | 'users' | 'ambassadors'
 
 const SPONSOR_PACKAGES = [
   { key: 'weekly', label: 'Weekly Spot', price: 2500, days: 7 },
@@ -146,6 +151,118 @@ function AddListingForUser({ users, onClose, onSaved }: { users: any[], onClose:
   )
 }
 
+const MILESTONES: { value: 10 | 25 | 50 | 100; amount: string }[] = [
+  { value: 10, amount: 'J$1,000' },
+  { value: 25, amount: 'J$5,000' },
+  { value: 50, amount: 'J$7,500' },
+  { value: 100, amount: 'J$15,000' },
+]
+
+function AmbassadorReferralsPanel({ ambassador, onMilestoneUpdated }: { ambassador: AmbassadorSummary, onMilestoneUpdated: () => void }) {
+  const [referrals, setReferrals] = useState<AmbassadorReferral[]>([])
+  const [loading, setLoading] = useState(true)
+  const [updatingId, setUpdatingId] = useState<string | null>(null)
+  const [updatingMilestone, setUpdatingMilestone] = useState<number | null>(null)
+
+  useEffect(() => {
+    load()
+  }, [ambassador.id])
+
+  async function load() {
+    setLoading(true)
+    const { data } = await getAmbassadorReferrals(ambassador.id)
+    if (data) setReferrals(data as AmbassadorReferral[])
+    setLoading(false)
+  }
+
+  async function handleMarkQualified(referralId: string) {
+    setUpdatingId(referralId)
+    await markReferralQualified(referralId)
+    await load()
+    onMilestoneUpdated()
+    setUpdatingId(null)
+  }
+
+  async function handleMarkMilestonePaid(milestone: 10 | 25 | 50 | 100) {
+    setUpdatingMilestone(milestone)
+    await markMilestonePaid(ambassador.id, milestone)
+    onMilestoneUpdated()
+    setUpdatingMilestone(null)
+  }
+
+  const milestonePaidField = (m: number) => {
+    if (m === 10) return ambassador.milestone_10_paid
+    if (m === 25) return ambassador.milestone_25_paid
+    if (m === 50) return ambassador.milestone_50_paid
+    return ambassador.milestone_100_paid
+  }
+
+  return (
+    <div style={{ background: '#EDE7D9', padding: 11, borderTop: '1px solid #D8D0BC' }}>
+      <p style={{ fontSize: 10, fontFamily: '-apple-system, sans-serif', fontWeight: 700, color: '#5A5A50', marginBottom: 7, textTransform: 'uppercase' as const, letterSpacing: 0.4 }}>
+        Milestone Bonuses
+      </p>
+      <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap', marginBottom: 13 }}>
+        {MILESTONES.map(m => {
+          const reached = ambassador.qualifying_count >= m.value
+          const paid = milestonePaidField(m.value)
+          return (
+            <button
+              key={m.value}
+              disabled={!reached || !!paid || updatingMilestone === m.value}
+              onClick={() => handleMarkMilestonePaid(m.value)}
+              style={{
+                background: paid ? '#D0E8BC' : reached ? '#C8821A' : '#F5F0E6',
+                color: paid ? '#1B3A1D' : reached ? '#fff' : '#5A5A50',
+                border: '1px solid ' + (paid ? '#2D5A2E' : reached ? '#C8821A' : '#D8D0BC'),
+                borderRadius: 6, padding: '6px 10px', fontSize: 10, fontFamily: '-apple-system, sans-serif',
+                fontWeight: 700, cursor: reached && !paid ? 'pointer' : 'default',
+                opacity: updatingMilestone === m.value ? 0.6 : 1,
+              }}
+            >
+              {paid ? '✓ ' : ''}{m.value} vendors · {m.amount}{!reached ? ' (locked)' : paid ? ' (paid)' : ''}
+            </button>
+          )
+        })}
+      </div>
+
+      <p style={{ fontSize: 10, fontFamily: '-apple-system, sans-serif', fontWeight: 700, color: '#5A5A50', marginBottom: 7, textTransform: 'uppercase' as const, letterSpacing: 0.4 }}>
+        Referrals
+      </p>
+      {loading ? (
+        <p style={{ fontSize: 11, fontFamily: '-apple-system, sans-serif', color: '#5A5A50' }}>Loading...</p>
+      ) : referrals.length === 0 ? (
+        <p style={{ fontSize: 11, fontFamily: '-apple-system, sans-serif', color: '#5A5A50' }}>No vendor referrals yet.</p>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+          {referrals.map(r => (
+            <div key={r.id} style={{ background: '#F5F0E6', borderRadius: 6, padding: '8px 10px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 }}>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <p style={{ fontSize: 11, fontFamily: '-apple-system, sans-serif', fontWeight: 700, color: '#18180F' }}>{r.vendor_phone}</p>
+                <p style={{ fontSize: 9, fontFamily: '-apple-system, sans-serif', color: '#5A5A50' }}>
+                  Referred {new Date(r.referred_at).toLocaleDateString('en-JM')} · {r.listing_count} listing{r.listing_count === 1 ? '' : 's'}
+                </p>
+              </div>
+              <span className={'chip ' + (r.qualifying_status === 'qualified' || r.qualifying_status === 'paid' ? 'chip-approved' : 'chip-pending')}>
+                {r.qualifying_status}
+              </span>
+              {r.qualifying_status === 'pending' && (
+                <button
+                  onClick={() => handleMarkQualified(r.id)}
+                  disabled={updatingId === r.id}
+                  style={{ background: '#1B3A1D', color: '#fff', border: 'none', borderRadius: 5, padding: '5px 9px', fontSize: 9, fontFamily: '-apple-system, sans-serif', fontWeight: 700, cursor: 'pointer', opacity: updatingId === r.id ? 0.6 : 1, whiteSpace: 'nowrap' }}
+                >
+                  {updatingId === r.id ? '...' : 'Mark Qualified'}
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  )
+}
+
 export default function AdminPage() {
   const router = useRouter()
   const [listings, setListings] = useState<Listing[]>([])
@@ -159,6 +276,9 @@ export default function AdminPage() {
   const [showAddListing, setShowAddListing] = useState(false)
   const [activeTab, setActiveTab] = useState<AdminTab>('listings')
   const [activatingBoost, setActivatingBoost] = useState<string | null>(null)
+  const [ambassadors, setAmbassadors] = useState<AmbassadorSummary[]>([])
+  const [ambassadorKPIs, setAmbassadorKPIs] = useState<AmbassadorKPIs | null>(null)
+  const [expandedAmbassadorId, setExpandedAmbassadorId] = useState<string | null>(null)
   const [newSponsor, setNewSponsor] = useState({
     business_name: '',
     tagline: '',
@@ -179,6 +299,7 @@ export default function AdminPage() {
       loadSponsors()
       loadBoosts()
       loadUsers()
+      loadAmbassadors()
     })
   }, [router])
 
@@ -212,6 +333,13 @@ export default function AdminPage() {
   async function loadUsers() {
     const { data } = await supabase.from('profiles').select('*').order('created_at', { ascending: false })
     if (data) setUsers(data)
+  }
+
+  async function loadAmbassadors() {
+    const { data } = await getAmbassadorSummaries()
+    if (data) setAmbassadors(data as AmbassadorSummary[])
+    const { data: kpiData } = await getAmbassadorKPIs()
+    if (kpiData) setAmbassadorKPIs(kpiData as AmbassadorKPIs)
   }
 
   async function updateStatus(listingId: string, status: string) {
@@ -322,7 +450,7 @@ export default function AdminPage() {
       </div>
 
       <div style={{ display: 'flex', background: '#EDE7D9', borderBottom: '1px solid #D8D0BC', flexShrink: 0 }}>
-        {(['listings', 'boosts', 'sponsors', 'users'] as AdminTab[]).map(tab => (
+        {(['listings', 'boosts', 'sponsors', 'users', 'ambassadors'] as AdminTab[]).map(tab => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
@@ -592,6 +720,61 @@ export default function AdminPage() {
                 <p style={{ fontSize: 10, fontFamily: '-apple-system, sans-serif', color: '#5A5A50' }}>
                   {u.parish || 'No parish'} · {u.whatsapp || 'No WhatsApp'} · Joined {new Date(u.created_at).toLocaleDateString('en-JM')}
                 </p>
+              </div>
+            ))
+          )}
+        </div>
+      )}
+
+      {/* AMBASSADORS TAB */}
+      {activeTab === 'ambassadors' && (
+        <div className="scroll-area">
+          {ambassadorKPIs && (
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1, background: '#D8D0BC', borderBottom: '1px solid #D8D0BC' }}>
+              {[
+                { label: 'Total ambassadors', value: ambassadorKPIs.total_ambassadors, color: '#1B3A1D' },
+                { label: 'Active', value: ambassadorKPIs.active_ambassadors, color: '#1B3A1D' },
+                { label: 'Qualifying vendors', value: ambassadorKPIs.total_qualifying_vendors, color: '#C8821A' },
+                { label: 'Qualifying rate', value: (ambassadorKPIs.qualifying_rate_percent ?? 0) + '%', color: '#5A5A50' },
+              ].map(stat => (
+                <div key={stat.label} style={{ background: '#F5F0E6', padding: '11px 13px' }}>
+                  <p style={{ fontSize: 18, color: stat.color }}>{stat.value}</p>
+                  <p className="eyebrow" style={{ marginTop: 1 }}>{stat.label}</p>
+                </div>
+              ))}
+            </div>
+          )}
+
+          <div style={{ padding: '9px 13px 3px' }}>
+            <p style={{ fontSize: 10, fontFamily: '-apple-system, sans-serif', color: '#5A5A50' }}>
+              Tap an ambassador to view their referrals and mark milestone bonuses as paid.
+            </p>
+          </div>
+
+          {ambassadors.length === 0 ? (
+            <div className="empty-state"><p style={{ fontSize: 13, fontFamily: '-apple-system, sans-serif', color: '#5A5A50' }}>No ambassadors yet.</p></div>
+          ) : (
+            ambassadors.map(amb => (
+              <div key={amb.id} style={{ borderBottom: '1px solid #D8D0BC' }}>
+                <div
+                  onClick={() => setExpandedAmbassadorId(expandedAmbassadorId === amb.id ? null : amb.id)}
+                  style={{ padding: '11px 13px', cursor: 'pointer' }}
+                >
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: 3 }}>
+                    <p style={{ fontSize: 12, fontFamily: '-apple-system, sans-serif', fontWeight: 700, color: '#18180F' }}>{amb.name}</p>
+                    <span className={'chip ' + (amb.status === 'active' ? 'chip-approved' : 'chip-neutral')}>{amb.status}</span>
+                  </div>
+                  <p style={{ fontSize: 10, fontFamily: '-apple-system, sans-serif', color: '#C8821A', marginBottom: 3 }}>
+                    {amb.referral_code}{amb.school_name ? ' · ' + amb.school_name : ''}
+                  </p>
+                  <p style={{ fontSize: 10, fontFamily: '-apple-system, sans-serif', color: '#5A5A50' }}>
+                    {amb.qualifying_count} qualifying · {amb.pending_count} pending · {amb.total_referrals} total referred
+                    {amb.milestone_reached > 0 ? ' · milestone: ' + amb.milestone_reached : ''}
+                  </p>
+                </div>
+                {expandedAmbassadorId === amb.id && (
+                  <AmbassadorReferralsPanel ambassador={amb} onMilestoneUpdated={loadAmbassadors} />
+                )}
               </div>
             ))
           )}
