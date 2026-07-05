@@ -76,15 +76,27 @@ export default function AmbassadorSignupPage() {
 
         <div>
           <p style={styles.stepTitle}>1. How to sign up a vendor</p>
-          <p style={styles.stepText}>Have them go to naberlyja.com, register with their phone number, and enter your referral code: <strong>{result.referral_code}</strong>. Help them post at least 1 listing.</p>
+          <p style={styles.stepText}>Have them go to naberlyja.com and click Sign Up. They check the "I'm a vendor" box and agree to the Terms & Conditions, then continue to the vendor details page — enter your referral code: <strong>{result.referral_code}</strong> at the bottom of that form.</p>
 
-          <p style={styles.stepTitle}>2. What to say</p>
-          <p style={{ ...styles.stepText, fontStyle: 'italic' }}>"Have you heard of NaberlyJA? It's a free app connecting people in our community to buy and sell — like a local marketplace. I can help you set up your page right now, takes 5 minutes."</p>
+          <p style={styles.stepTitle}>2. Let them type their own email and password</p>
+          <p style={styles.stepText}>This is their account — always have the vendor type their own email and password themselves, even if you're guiding them through every other step. If they're unsure what password to use, suggest something memorable (like their WhatsApp number plus a word), but they should type it in.</p>
 
-          <p style={styles.stepTitle}>3. Remind vendors to share</p>
+          <p style={styles.stepTitle}>3. Email confirmation</p>
+          <p style={styles.stepText}>Everyone verifies their account by clicking the confirmation link sent to their email. Once confirmed, their vendor listing goes live automatically — no waiting on anyone.</p>
+
+          <p style={styles.stepTitle}>4. Find their listing together</p>
+          <p style={styles.stepText}>Once verified, search the app together to find their live listing. This is the perfect moment to show them how Boost and Featured placement move a listing to the top of the page, so more people see it.</p>
+
+          <p style={styles.stepTitle}>5. Show them around</p>
+          <p style={styles.stepText}>Keep going: how to appear in the people directory, and how sponsorship packages work. Helping them actually use these features is part of the job, not just getting them signed up.</p>
+
+          <p style={styles.stepTitle}>6. What to say</p>
+          <p style={{ ...styles.stepText, fontStyle: 'italic' }}>"Have you heard of NaberlyJA? It's a free app connecting people in our community to buy and sell — like a local marketplace. I can help you set up your own account right now, takes 5 minutes."</p>
+
+          <p style={styles.stepTitle}>7. Remind vendors to share</p>
           <p style={styles.stepText}>After posting, remind them to tap the share button so more people see their listing.</p>
 
-          <p style={styles.stepTitle}>4. Getting paid</p>
+          <p style={styles.stepTitle}>8. Getting paid</p>
           <p style={styles.stepText}>Milestone bonuses at 10 (J$1,000), 25 (J$5,000), 50 (+J$7,500), and 100 (+J$15,000) qualifying vendors — paid to your school toward fees, or to your parent/guardian if the school can't apply it.</p>
         </div>
 
