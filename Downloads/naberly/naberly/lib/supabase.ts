@@ -442,3 +442,21 @@ export async function markMilestonePaid(ambassadorId: string, milestone: 10 | 25
     .single()
   return { data, error }
 }
+
+export async function linkVendorToAmbassador(referralCode: string, vendorPhone: string, vendorName?: string) {
+  const code = referralCode.trim().toUpperCase()
+  if (!code) return { linked: false }
+
+  const { data: ambassador } = await getAmbassadorByCode(code)
+  if (!ambassador || ambassador.status !== 'active') return { linked: false }
+
+  const { error } = await supabase.from('ambassador_referrals').insert([{
+    ambassador_id: ambassador.id,
+    vendor_phone: vendorPhone,
+    vendor_name: vendorName || null,
+    listing_count: 1,
+    first_listing_at: new Date().toISOString(),
+  }])
+
+  return { linked: !error }
+}
