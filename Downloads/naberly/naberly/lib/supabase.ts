@@ -281,3 +281,131 @@ export async function getProfileById(profileId: string) {
     .single()
   return { data, error }
 }
+
+// ============================================
+// Ambassador Program
+// ============================================
+
+export interface Ambassador {
+  id: string
+  name: string
+  phone: string | null
+  email: string | null
+  referral_code: string
+  status: 'active' | 'inactive'
+  school_name: string | null
+  school_payment_contact: string | null
+  guardian_name: string | null
+  guardian_phone: string | null
+  agreement_signed: boolean
+  agreement_signed_at: string | null
+  created_at: string
+}
+
+export interface AmbassadorReferral {
+  id: string
+  ambassador_id: string
+  vendor_phone: string
+  vendor_name: string | null
+  referred_at: string
+  listing_count: number
+  first_listing_at: string | null
+  qualifying_status: 'pending' | 'qualified' | 'paid'
+  qualified_at: string | null
+  paid_at: string | null
+  payout_amount: number | null
+}
+
+export interface AmbassadorSummary {
+  id: string
+  name: string
+  referral_code: string
+  status: string
+  school_name: string | null
+  agreement_signed: boolean
+  qualifying_count: number
+  pending_count: number
+  total_referrals: number
+  milestone_reached: number
+  total_paid: number
+  cost_per_qualifying_vendor: number | null
+}
+
+export interface AmbassadorKPIs {
+  total_ambassadors: number
+  active_ambassadors: number
+  total_referrals: number
+  total_qualifying_vendors: number
+  qualifying_rate_percent: number | null
+  total_paid_out: number
+}
+
+function generateReferralCode(name: string): string {
+  const cleanName = name.trim().toUpperCase().replace(/[^A-Z]/g, '').slice(0, 5) || 'AMB'
+  const randomDigits = Math.floor(1000 + Math.random() * 9000)
+  return `AMB-${cleanName}${randomDigits}`
+}
+
+export async function createAmbassador(ambassador: {
+  name: string
+  phone?: string
+  email?: string
+  school_name?: string
+  school_payment_contact?: string
+  guardian_name?: string
+  guardian_phone?: string
+}) {
+  let referral_code = generateReferralCode(ambassador.name)
+  let attempts = 0
+  let data: Ambassador | null = null
+  let error: any = null
+
+  // Retry a few times in the unlikely event of a referral code collision
+  while (attempts < 5) {
+    const result = await supabase
+      .from('ambassadors')
+      .insert([{
+        ...ambassador,
+        referral_code,
+        agreement_signed: true,
+        agreement_signed_at: new Date().toISOString(),
+      }])
+      .select()
+      .single()
+
+    data = result.data as Ambassador | null
+    error = result.error
+
+    if (!error) break
+    if (error.code !== '23505') break // not a unique-violation, stop retrying
+    referral_code = generateReferralCode(ambassador.name)
+    attempts++
+  }
+
+  return { data, error }
+}
+
+export async function getAmbassadorByCode(code: string) {
+  const { data, error } = await supabase
+    .from('ambassadors')
+    .select('*')
+    .eq('referral_code', code)
+    .single()
+  return { data, error }
+}
+
+export async function getAmbassadorSummaries() {
+  const { data, error } = await supabase
+    .from('ambassador_summary')
+    .select('*')
+    .order('qualifying_count', { ascending: false })
+  return { data, error }
+}
+
+export async function getAmbassadorKPIs() {
+  const { data, error } = await supabase
+    .from('naberlyja_ambassador_kpis')
+    .select('*')
+    .single()
+  return { data, error }
+}
