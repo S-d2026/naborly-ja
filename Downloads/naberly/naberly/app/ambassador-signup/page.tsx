@@ -33,6 +33,7 @@ export default function AmbassadorSignupPage() {
   const [submitting, setSubmitting] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [result, setResult] = useState<{ referral_code: string; name: string } | null>(null)
+  const [showAgreement, setShowAgreement] = useState(false)
 
   function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
     setForm({ ...form, [e.target.name]: e.target.value })
@@ -120,26 +121,46 @@ export default function AmbassadorSignupPage() {
       <p style={styles.subtitle}>Earn toward your school fees by helping vendors in your community join NaberlyJA.</p>
 
       <div style={styles.infoBox}>
-        <p style={{ fontWeight: 700, marginBottom: '10px', color: '#111' }}>NaberlyJA Community Ambassador Agreement</p>
-
-        <p style={{ fontWeight: 600, marginTop: '14px', marginBottom: '4px' }}>1. Nature of This Agreement</p>
-        <p>This is a referral/commission agreement between Omega Care Solutions LLC, operator of NaberlyJA ("NaberlyJA"), and the individual signing up below ("Ambassador"). This is not an employment relationship. The Ambassador sets their own hours, is not required to work exclusively for NaberlyJA, and is not supervised on a day-to-day basis.</p>
-
-        <p style={{ fontWeight: 600, marginTop: '14px', marginBottom: '4px' }}>2. What the Ambassador Does</p>
-        <p>The Ambassador refers vendors, service providers, and community members to sign up and post listings on the NaberlyJA app, using a unique referral code provided by NaberlyJA.</p>
-
-        <p style={{ fontWeight: 600, marginTop: '14px', marginBottom: '4px' }}>3. Qualifying Vendor Sign-Up</p>
-        <p>A vendor sign-up qualifies for payment when the vendor: registers on NaberlyJA with a valid phone number and the Ambassador's referral code; posts at least 1 listing; and remains active (at least 1 live listing) for 30 consecutive days after signup. Ambassadors are encouraged to remind vendors to use the app's share button when posting, but this is guidance only and not a requirement for qualification.</p>
-
-        <p style={{ fontWeight: 600, marginTop: '14px', marginBottom: '4px' }}>4. Payment — Milestone Bonuses Only</p>
-        <p>No per-vendor cash payments are made. Instead, the Ambassador earns milestone bonuses based on cumulative qualifying vendors: 10 vendors = J$1,000; 25 vendors = J$5,000 toward school fees; 50 vendors = an additional J$7,500; 100 vendors = an additional J$15,000. Total possible: J$28,500 at 100 qualifying vendors. Payments are made once a milestone is reached, based on the qualifying vendor count confirmed by NaberlyJA. Payment destination: milestone payments are made directly to the Ambassador's school toward their fee balance. If the school is unable to receive or apply the payment (e.g., fees already paid in full), payment will instead be made to the Ambassador's parent/guardian.</p>
-
-        <p style={{ fontWeight: 600, marginTop: '14px', marginBottom: '4px' }}>5. Term & Termination</p>
-        <p>Either party may end this agreement at any time, for any reason, without notice. Any payments owed for already-qualifying vendors at the time of termination will still be paid.</p>
-
-        <p style={{ fontWeight: 600, marginTop: '14px', marginBottom: '4px' }}>6. Acknowledgment</p>
-        <p style={{ marginBottom: 0 }}>The Ambassador understands this is an independent referral arrangement, not employment, and that no taxes, National Insurance Scheme (NIS), or National Housing Trust (NHT) contributions are withheld by NaberlyJA. The Ambassador is responsible for any personal tax obligations related to payments received.</p>
+        <p><strong>This is a referral partnership, not employment.</strong> You choose your own hours and are not required to work exclusively for NaberlyJA.</p>
+        <p><strong>A vendor qualifies</strong> when they register with your referral code, post at least 1 listing, and stay active for 30 days.</p>
+        <p><strong>Payment:</strong> milestone bonuses at 10, 25, 50, and 100 qualifying vendors (up to J$28,500 total), paid to your school toward fees, or to your parent/guardian if the school can't apply the payment.</p>
+        <p style={{ marginBottom: '10px' }}>No taxes, NIS, or NHT are withheld — you're responsible for any personal tax obligations on payments received.</p>
+        <button type="button" onClick={() => setShowAgreement(true)} style={{ color: '#1B5FAA', fontWeight: 600, fontSize: '14px', textDecoration: 'underline', background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}>
+          📄 View Full Ambassador Agreement
+        </button>
       </div>
+
+      {showAgreement && (
+        <div onClick={() => setShowAgreement(false)} style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', zIndex: 1000, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: '20px' }}>
+          <div onClick={(e) => e.stopPropagation()} style={{ background: '#fff', borderRadius: '12px', padding: '28px', maxWidth: '560px', width: '100%', maxHeight: '80vh', overflowY: 'auto', position: 'relative' }}>
+            <button onClick={() => setShowAgreement(false)} style={{ position: 'absolute', top: '16px', right: '16px', background: 'none', border: 'none', fontSize: '22px', cursor: 'pointer', color: '#666', lineHeight: 1 }}>×</button>
+
+            <p style={{ fontWeight: 700, fontSize: '18px', marginBottom: '16px', color: '#111' }}>NaberlyJA Community Ambassador Agreement</p>
+
+            <p style={{ fontWeight: 600, marginTop: '14px', marginBottom: '4px', color: '#111' }}>1. Nature of This Agreement</p>
+            <p style={{ fontSize: '14px', color: '#333', lineHeight: 1.6 }}>This is a referral/commission agreement between NaberlyJA and the individual signing up below ("Ambassador"). This is not an employment relationship. The Ambassador sets their own hours, is not required to work exclusively for NaberlyJA, and is not supervised on a day-to-day basis.</p>
+
+            <p style={{ fontWeight: 600, marginTop: '14px', marginBottom: '4px', color: '#111' }}>2. What the Ambassador Does</p>
+            <p style={{ fontSize: '14px', color: '#333', lineHeight: 1.6 }}>The Ambassador refers vendors, service providers, and community members to sign up and post listings on the NaberlyJA app, using a unique referral code provided by NaberlyJA.</p>
+
+            <p style={{ fontWeight: 600, marginTop: '14px', marginBottom: '4px', color: '#111' }}>3. Qualifying Vendor Sign-Up</p>
+            <p style={{ fontSize: '14px', color: '#333', lineHeight: 1.6 }}>A vendor sign-up qualifies for payment when the vendor: registers on NaberlyJA with a valid phone number and the Ambassador's referral code; posts at least 1 listing; and remains active (at least 1 live listing) for 30 consecutive days after signup. Ambassadors are encouraged to remind vendors to use the app's share button when posting, but this is guidance only and not a requirement for qualification.</p>
+
+            <p style={{ fontWeight: 600, marginTop: '14px', marginBottom: '4px', color: '#111' }}>4. Payment — Milestone Bonuses Only</p>
+            <p style={{ fontSize: '14px', color: '#333', lineHeight: 1.6 }}>No per-vendor cash payments are made. Instead, the Ambassador earns milestone bonuses based on cumulative qualifying vendors: 10 vendors = J$1,000; 25 vendors = J$5,000 toward school fees; 50 vendors = an additional J$7,500; 100 vendors = an additional J$15,000. Total possible: J$28,500 at 100 qualifying vendors. Payments are made once a milestone is reached, based on the qualifying vendor count confirmed by NaberlyJA. Payment destination: milestone payments are made directly to the Ambassador's school toward their fee balance. If the school is unable to receive or apply the payment (e.g., fees already paid in full), payment will instead be made to the Ambassador's parent/guardian.</p>
+
+            <p style={{ fontWeight: 600, marginTop: '14px', marginBottom: '4px', color: '#111' }}>5. Term & Termination</p>
+            <p style={{ fontSize: '14px', color: '#333', lineHeight: 1.6 }}>Either party may end this agreement at any time, for any reason, without notice. Any payments owed for already-qualifying vendors at the time of termination will still be paid.</p>
+
+            <p style={{ fontWeight: 600, marginTop: '14px', marginBottom: '4px', color: '#111' }}>6. Acknowledgment</p>
+            <p style={{ fontSize: '14px', color: '#333', lineHeight: 1.6, marginBottom: '20px' }}>The Ambassador understands this is an independent referral arrangement, not employment, and that no taxes, National Insurance Scheme (NIS), or National Housing Trust (NHT) contributions are withheld by NaberlyJA. The Ambassador is responsible for any personal tax obligations related to payments received.</p>
+
+            <button onClick={() => setShowAgreement(false)} style={{ width: '100%', background: '#1B5FAA', color: '#fff', fontWeight: 600, padding: '12px', borderRadius: '8px', border: 'none', fontSize: '15px', cursor: 'pointer' }}>
+              Close
+            </button>
+          </div>
+        </div>
+      )}
 
       <form onSubmit={handleSubmit}>
         <label style={styles.label}>Full Name *</label>
@@ -159,7 +180,7 @@ export default function AmbassadorSignupPage() {
 
         <div style={styles.checkboxRow}>
           <input type="checkbox" checked={agreed} onChange={(e) => setAgreed(e.target.checked)} style={{ marginTop: '3px' }} />
-          <span>I have read and agree to the NaberlyJA Community Ambassador Agreement above — this is a referral partnership, not employment.</span>
+          <span>I have read and agree to the full Ambassador Agreement (linked above) — this is a referral partnership, not employment.</span>
         </div>
 
         {error && <p style={styles.error}>{error}</p>}
