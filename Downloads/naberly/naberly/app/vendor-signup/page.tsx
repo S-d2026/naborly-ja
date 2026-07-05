@@ -2,7 +2,7 @@
 import { useState, useEffect, Suspense } from 'react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { supabase } from '@/lib/supabase'
+import { supabase, linkVendorToAmbassador } from '@/lib/supabase'
 
 const PARISHES = [
   'Kingston','St. Andrew','St. Thomas','Portland','St. Mary',
@@ -24,7 +24,7 @@ function VendorSignupContent() {
 
   const [form, setForm] = useState({
     name: '', parish: '', district: '', whatsapp: '', phone: '',
-    description: '', sells: [] as string[], days: [] as string[],
+    description: '', sells: [] as string[], days: [] as string[], referralCode: '',
   })
   const [status, setStatus] = useState<'idle'|'loading'|'success'|'error'>('idle')
   const [errorMsg, setErrorMsg] = useState('')
@@ -35,9 +35,13 @@ function VendorSignupContent() {
     const nameParam   = searchParams.get('name')
     const waParam     = searchParams.get('whatsapp')
     const parishParam = searchParams.get('parish')
+    const refParam    = searchParams.get('ref')
     if (nameParam || waParam || parishParam) {
-      setForm(f => ({ ...f, name: nameParam || f.name, whatsapp: waParam || f.whatsapp, parish: parishParam || f.parish }))
+      setForm(f => ({ ...f, name: nameParam || f.name, whatsapp: waParam || f.whatsapp, parish: parishParam || f.parish, referralCode: refParam || f.referralCode }))
       return
+    }
+    if (refParam) {
+      setForm(f => ({ ...f, referralCode: refParam }))
     }
     supabase.auth.getUser().then(async ({ data: { user } }) => {
       if (!user) return
@@ -70,6 +74,13 @@ function VendorSignupContent() {
       status: listingStatus, is_featured: false, user_id: null,
     }])
     if (error) { setErrorMsg('Something went wrong. Please try again.'); setStatus('error'); return }
+
+    // If a referral code was entered, try to link this vendor to the ambassador.
+    // Silently ignored if the code is invalid — never blocks the vendor's signup.
+    if (form.referralCode.trim()) {
+      await linkVendorToAmbassador(form.referralCode, form.whatsapp, form.name)
+    }
+
     setStatus('success')
   }
 
@@ -168,13 +179,15 @@ function VendorSignupContent() {
         </div>
         <textarea placeholder="Describe your goods — what makes them special..." value={form.description} onChange={e => setForm(f => ({ ...f, description: e.target.value }))} style={{ width: '100%', padding: '10px 12px', border: '1.5px solid #D8D0BC', borderRadius: 8, fontSize: 14, minHeight: 80, marginBottom: 16, resize: 'vertical', background: '#FAFAF8', fontFamily: '-apple-system, sans-serif' }} />
         <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 1.5, textTransform: 'uppercase', color: '#5A5A50', marginBottom: 8, fontFamily: '-apple-system, sans-serif' }}>Trading Days</p>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, marginBottom: 24 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 6, marginBottom: 20 }}>
           {DAYS.map(d => (
             <label key={d} style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '7px 10px', border: `1.5px solid ${form.days.includes(d) ? '#1B3A1D' : '#D8D0BC'}`, borderRadius: 8, cursor: 'pointer', fontSize: 12, background: form.days.includes(d) ? '#D0E8BC' : '#FAFAF8', fontFamily: '-apple-system, sans-serif' }}>
               <input type="checkbox" checked={form.days.includes(d)} onChange={() => toggle('days', d)} style={{ accentColor: '#1B3A1D' }} />{d}
             </label>
           ))}
         </div>
+        <p style={{ fontSize: 11, fontWeight: 700, letterSpacing: 1.5, textTransform: 'uppercase', color: '#5A5A50', marginBottom: 8, fontFamily: '-apple-system, sans-serif' }}>Referred By an Ambassador?</p>
+        <input placeholder="Referral Code (optional)" value={form.referralCode} onChange={e => setForm(f => ({ ...f, referralCode: e.target.value }))} style={{ width: '100%', padding: '10px 12px', border: '1.5px solid #D8D0BC', borderRadius: 8, fontSize: 14, marginBottom: 24, background: '#FAFAF8', fontFamily: '-apple-system, sans-serif', textTransform: 'uppercase' }} />
         <button onClick={handleSubmit} disabled={status === 'loading'}
           style={{ width: '100%', padding: '14px', background: '#1B3A1D', color: '#F5F0E6', border: 'none', borderRadius: 10, fontSize: 15, fontWeight: 700, cursor: 'pointer', fontFamily: '-apple-system, sans-serif', opacity: status === 'loading' ? 0.7 : 1 }}>
           {status === 'loading' ? 'Listing your business...' : 'List My Business on NaberlyJA →'}
@@ -191,4 +204,3 @@ export default function VendorSignupPage() {
     </Suspense>
   )
 }
-
