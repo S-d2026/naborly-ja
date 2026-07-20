@@ -7,6 +7,7 @@ import { PayPalScriptProvider, PayPalButtons } from '@paypal/react-paypal-js'
 
 const RELAY_NUMBER = '+19174432797'
 const PAYPAL_CLIENT_ID = process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID_LIVE || ''
+const CALL_SURVEY_STORAGE_KEY = 'naberly_pending_call_survey'
 
 const PARISH_COORDS: Record<string, { lat: number; lng: number }> = {
   'Kingston': { lat: 17.9971, lng: -76.7936 },
@@ -41,6 +42,72 @@ const DONATION_AMOUNTS = [
   { label: '$50', value: '50.00' },
 ]
 
+const callSurveyStyles: Record<string, any> = {
+  backdrop: {
+    position: 'fixed',
+    inset: 0,
+    background: 'rgba(0,0,0,0.45)',
+    display: 'flex',
+    alignItems: 'flex-end',
+    justifyContent: 'center',
+    zIndex: 1000,
+  },
+  card: {
+    background: '#fff',
+    borderRadius: '16px 16px 0 0',
+    padding: '24px 20px 28px',
+    width: '100%',
+    maxWidth: 420,
+    textAlign: 'center',
+    boxShadow: '0 -4px 20px rgba(0,0,0,0.15)',
+  },
+  question: { fontSize: 15, fontFamily: '-apple-system, sans-serif', fontWeight: 700, color: '#18180F', marginBottom: 6 },
+  hint: { fontSize: 12, fontFamily: '-apple-system, sans-serif', color: '#5A5A50', marginBottom: 16, lineHeight: 1.5 },
+  buttonRow: { display: 'flex', gap: 8, justifyContent: 'center', marginTop: 8 },
+  primaryBtn: {
+    padding: '10px 24px',
+    borderRadius: 7,
+    border: 'none',
+    background: '#1B3A1D',
+    color: '#fff',
+    fontFamily: '-apple-system, sans-serif',
+    fontWeight: 700,
+    fontSize: 12,
+    cursor: 'pointer',
+  },
+  secondaryBtn: {
+    padding: '10px 24px',
+    borderRadius: 7,
+    border: '1px solid #D8D0BC',
+    background: '#EDE7D9',
+    color: '#18180F',
+    fontFamily: '-apple-system, sans-serif',
+    fontWeight: 700,
+    fontSize: 12,
+    cursor: 'pointer',
+  },
+  input: {
+    width: '100%',
+    padding: 10,
+    borderRadius: 7,
+    border: '1px solid #D8D0BC',
+    fontSize: 14,
+    marginBottom: 8,
+    fontFamily: '-apple-system, sans-serif',
+  },
+  skipLink: {
+    display: 'block',
+    margin: '12px auto 0',
+    background: 'none',
+    border: 'none',
+    color: '#5A5A50',
+    fontSize: 11,
+    fontFamily: '-apple-system, sans-serif',
+    textDecoration: 'underline',
+    cursor: 'pointer',
+  },
+}
+
 export default function ListingPage() {
   const { id } = useParams()
   const router = useRouter()
@@ -66,6 +133,13 @@ export default function ListingPage() {
   const [donationSuccess, setDonationSuccess] = useState(false)
   const [donationMethod, setDonationMethod] = useState<'paypal' | 'zelle'>('paypal')
   const liveIntervalRef = useRef<NodeJS.Timeout | null>(null)
+
+  // --- Call/WhatsApp contact survey state ---
+  const [showCallSurvey, setShowCallSurvey] = useState(false)
+  const [callSurveyStep, setCallSurveyStep] = useState<'ask' | 'amount' | 'done'>('ask')
+  const [callSurveyAmount, setCallSurveyAmount] = useState('')
+  const [callSurveySubmitting, setCallSurveySubmitting] = useState(false)
+  const callTriggeredRef = useRef(false)
 
   useEffect(() => {
     if (navigator.geolocation) {
@@ -124,6 +198,21 @@ export default function ListingPage() {
     }
   }, [id, router])
 
+  // --- Contact survey: detect when the person returns to the tab after tapping Call or WhatsApp ---
+  useEffect(() => {
+    function handleVisibilityChange() {
+      if (document.visibilityState === 'visible' && callTriggeredRef.current) {
+        const pending = sessionStorage.getItem(CALL_SURVEY_STORAGE_KEY)
+        if (pending) {
+          setTimeout(() => setShowCallSurvey(true), 800)
+        }
+        callTriggeredRef.current = false
+      }
+    }
+    document.addEventListener('visibilitychange', handleVisibilityChange)
+    return () => document.removeEventListener('visibilitychange', handleVisibilityChange)
+  }, [])
+
   useEffect(() => {
     if (listing && userLat && userLng && listing.lat && listing.lng) {
       const km = getDistanceKm(userLat, userLng, listing.lat, listing.lng)
@@ -181,6 +270,83 @@ export default function ListingPage() {
     setReporting(false)
     setReportSubmitted(true)
     setShowReport(false)
+  }
+
+  // --- Contact logging: shared by both Call and WhatsApp ---
+  async function logContactEvent(channelType: 'call' | 'whatsapp') {
+    if (!listing) return
+    try {
+      const { data, error } = await supabase
+        .from('call_events')
+        .insert({
+          vendor_id: listing.user_id,
+          listing_id: listing.id,
+          buyer_id: user?.id || null,
+          channel: channelType,
+        })
+        .select('id')
+        .single()
+
+      if (!error && data) {
+        sessionStorage.setItem(CALL_SURVEY_STORAGE_KEY, data.id)
+        callTriggeredRef.current = true
+      }
+    } catch (err) {
+      console.error('Could not log ' + channelType + ' contact event:', err)
+    }
+  }
+
+  async function handleCallClick(e: any) {
+    e.preventDefault()
+    await logContactEvent('call')
+    window.location.href = 'tel:' + listing?.whatsapp
+  }
+
+  async function handleWhatsAppClick() {
+    if (!whatsappContact) return
+    await logContactEvent('whatsapp')
+    const num = whatsappContact.replace(/\D/g, '')
+    window.open('https://wa.me/' + num + '?text=' + whatsappMessage, '_blank')
+  }
+
+  async function saveCallSurvey(completed: boolean, amount: number | null) {
+    const callEventId = sessionStorage.getItem(CALL_SURVEY_STORAGE_KEY)
+    if (!callEventId) { setShowCallSurvey(false); return }
+    setCallSurveySubmitting(true)
+    try {
+      await supabase.from('call_surveys').insert({
+        call_event_id: callEventId,
+        completed_purchase: completed,
+        amount_spent: amount,
+      })
+    } catch (err) {
+      console.error('Could not save contact survey:', err)
+    } finally {
+      sessionStorage.removeItem(CALL_SURVEY_STORAGE_KEY)
+      setCallSurveySubmitting(false)
+      setCallSurveyStep('done')
+      setTimeout(() => setShowCallSurvey(false), 1200)
+    }
+  }
+
+  function handleCallSurveyAnswer(completed: boolean) {
+    if (completed) {
+      setCallSurveyStep('amount')
+      return
+    }
+    saveCallSurvey(false, null)
+  }
+
+  function handleCallSurveyAmountSubmit() {
+    const parsed = callSurveyAmount.trim() === '' ? null : parseFloat(callSurveyAmount)
+    saveCallSurvey(true, parsed)
+  }
+
+  function dismissCallSurvey() {
+    sessionStorage.removeItem(CALL_SURVEY_STORAGE_KEY)
+    setShowCallSurvey(false)
+    setCallSurveyStep('ask')
+    setCallSurveyAmount('')
   }
 
   const effectiveDonationAmount = customAmount && parseFloat(customAmount) > 0
@@ -440,17 +606,14 @@ export default function ListingPage() {
             {whatsappContact && (
               <div style={{ display: 'flex', gap: 7, marginBottom: 8 }}>
                 <div
-                  onClick={() => {
-                    const num = whatsappContact.replace(/\D/g, '')
-                    window.open('https://wa.me/' + num + '?text=' + whatsappMessage, '_blank')
-                  }}
+                  onClick={handleWhatsAppClick}
                   className="btn-wa"
                   style={{ flex: 1, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}
                 >
                   💬 {listing.is_anonymous ? 'Send help via Naberly' : 'WhatsApp'}
                 </div>
                 {!listing.is_anonymous && listing.whatsapp && (
-                  <a href={'tel:' + listing.whatsapp} className="btn-call" style={{ flex: 0.55, fontSize: 12 }}>
+                  <a href={'tel:' + listing.whatsapp} onClick={handleCallClick} className="btn-call" style={{ flex: 0.55, fontSize: 12 }}>
                     📞 Call
                   </a>
                 )}
@@ -570,6 +733,48 @@ export default function ListingPage() {
             </Link>
           </div>
         </div>
+
+        {showCallSurvey && (
+          <div style={callSurveyStyles.backdrop}>
+            <div style={callSurveyStyles.card}>
+              {callSurveyStep === 'ask' && (
+                <>
+                  <p style={callSurveyStyles.question}>Did reaching out lead to a purchase?</p>
+                  <p style={callSurveyStyles.hint}>
+                    This helps us support local vendors. Your answer is optional and anonymous.
+                  </p>
+                  <div style={callSurveyStyles.buttonRow}>
+                    <button style={callSurveyStyles.primaryBtn} onClick={() => handleCallSurveyAnswer(true)}>Yes</button>
+                    <button style={callSurveyStyles.secondaryBtn} onClick={() => handleCallSurveyAnswer(false)}>No</button>
+                  </div>
+                  <button style={callSurveyStyles.skipLink} onClick={dismissCallSurvey}>Skip</button>
+                </>
+              )}
+
+              {callSurveyStep === 'amount' && (
+                <>
+                  <p style={callSurveyStyles.question}>Roughly how much did you spend?</p>
+                  <input
+                    type="number"
+                    inputMode="decimal"
+                    placeholder="e.g. 2500"
+                    value={callSurveyAmount}
+                    onChange={(e) => setCallSurveyAmount(e.target.value)}
+                    style={callSurveyStyles.input}
+                  />
+                  <div style={callSurveyStyles.buttonRow}>
+                    <button style={callSurveyStyles.primaryBtn} onClick={handleCallSurveyAmountSubmit} disabled={callSurveySubmitting}>
+                      {callSurveySubmitting ? 'Saving...' : 'Submit'}
+                    </button>
+                  </div>
+                  <button style={callSurveyStyles.skipLink} onClick={dismissCallSurvey}>Skip</button>
+                </>
+              )}
+
+              {callSurveyStep === 'done' && <p style={callSurveyStyles.question}>Thanks! 🙏</p>}
+            </div>
+          </div>
+        )}
       </div>
     </PayPalScriptProvider>
   )
