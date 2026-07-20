@@ -10,7 +10,7 @@ import {
 } from '@/lib/supabase'
 
 type AdminFilter = 'all' | 'pending' | 'approved' | 'hidden' | 'archived' | 'rejected'
-type AdminTab = 'listings' | 'boosts' | 'sponsors' | 'users' | 'ambassadors'
+type AdminTab = 'listings' | 'boosts' | 'sponsors' | 'users' | 'ambassadors' | 'activity'
 
 const SPONSOR_PACKAGES = [
   { key: 'weekly', label: 'Weekly Spot', price: 2500, days: 7 },
@@ -279,6 +279,8 @@ export default function AdminPage() {
   const [ambassadors, setAmbassadors] = useState<AmbassadorSummary[]>([])
   const [ambassadorKPIs, setAmbassadorKPIs] = useState<AmbassadorKPIs | null>(null)
   const [expandedAmbassadorId, setExpandedAmbassadorId] = useState<string | null>(null)
+  const [activity, setActivity] = useState<any[]>([])
+  const [activityLoading, setActivityLoading] = useState(true)
   const [newSponsor, setNewSponsor] = useState({
     business_name: '',
     tagline: '',
@@ -300,6 +302,7 @@ export default function AdminPage() {
       loadBoosts()
       loadUsers()
       loadAmbassadors()
+      loadActivity()
     })
   }, [router])
 
@@ -340,6 +343,21 @@ export default function AdminPage() {
     if (data) setAmbassadors(data as AmbassadorSummary[])
     const { data: kpiData } = await getAmbassadorKPIs()
     if (kpiData) setAmbassadorKPIs(kpiData as AmbassadorKPIs)
+  }
+
+  async function loadActivity() {
+    setActivityLoading(true)
+    const { data } = await supabase
+      .from('vendor_call_survey_summary')
+      .select('*')
+      .order('total_contacts', { ascending: false })
+    if (data) setActivity(data)
+    setActivityLoading(false)
+  }
+
+  function vendorDisplayName(vendorId: string) {
+    const u = users.find(u => u.id === vendorId)
+    return u?.full_name || 'Unnamed user'
   }
 
   async function updateStatus(listingId: string, status: string) {
@@ -422,6 +440,16 @@ export default function AdminPage() {
   const filtered = listings.filter(l => filter === 'all' || l.status === filter)
   const pendingBoosts = boosts.filter(b => b.payment_status === 'pending')
 
+  const activityTotals = activity.reduce((acc, row) => {
+    acc.totalContacts += row.total_contacts || 0
+    acc.totalResponses += row.total_survey_responses || 0
+    acc.totalPurchases += row.purchases_reported || 0
+    return acc
+  }, { totalContacts: 0, totalResponses: 0, totalPurchases: 0 })
+  const overallConversionRate = activityTotals.totalResponses > 0
+    ? Math.round((activityTotals.totalPurchases / activityTotals.totalResponses) * 1000) / 10
+    : 0
+
   const STATUS_CHIPS: Record<string, string> = {
     pending: 'chip-pending', approved: 'chip-approved',
     hidden: 'chip-pending', archived: 'chip-archived', rejected: 'chip-urgent',
@@ -449,12 +477,12 @@ export default function AdminPage() {
         ))}
       </div>
 
-      <div style={{ display: 'flex', background: '#EDE7D9', borderBottom: '1px solid #D8D0BC', flexShrink: 0 }}>
-        {(['listings', 'boosts', 'sponsors', 'users', 'ambassadors'] as AdminTab[]).map(tab => (
+      <div style={{ display: 'flex', background: '#EDE7D9', borderBottom: '1px solid #D8D0BC', flexShrink: 0, overflowX: 'auto' }}>
+        {(['listings', 'boosts', 'sponsors', 'users', 'ambassadors', 'activity'] as AdminTab[]).map(tab => (
           <button
             key={tab}
             onClick={() => setActiveTab(tab)}
-            style={{ flex: 1, padding: '10px 0', border: 'none', background: activeTab === tab ? '#1B3A1D' : 'transparent', color: activeTab === tab ? '#fff' : '#5A5A50', fontSize: 10, fontFamily: '-apple-system, sans-serif', fontWeight: 700, cursor: 'pointer', position: 'relative' }}
+            style={{ flex: 1, minWidth: 74, padding: '10px 0', border: 'none', background: activeTab === tab ? '#1B3A1D' : 'transparent', color: activeTab === tab ? '#fff' : '#5A5A50', fontSize: 10, fontFamily: '-apple-system, sans-serif', fontWeight: 700, cursor: 'pointer', position: 'relative' }}
           >
             {tab.charAt(0).toUpperCase() + tab.slice(1)}
             {tab === 'boosts' && pendingBoosts.length > 0 && (
@@ -775,6 +803,57 @@ export default function AdminPage() {
                 {expandedAmbassadorId === amb.id && (
                   <AmbassadorReferralsPanel ambassador={amb} onMilestoneUpdated={loadAmbassadors} />
                 )}
+              </div>
+            ))
+          )}
+        </div>
+      )}
+
+      {/* ACTIVITY TAB */}
+      {activeTab === 'activity' && (
+        <div className="scroll-area">
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 1, background: '#D8D0BC', borderBottom: '1px solid #D8D0BC' }}>
+            {[
+              { label: 'Total contacts', value: activityTotals.totalContacts, color: '#1B3A1D' },
+              { label: 'Survey responses', value: activityTotals.totalResponses, color: '#1B3A1D' },
+              { label: 'Purchases reported', value: activityTotals.totalPurchases, color: '#C8821A' },
+              { label: 'Conversion rate', value: overallConversionRate + '%', color: '#5A5A50' },
+            ].map(stat => (
+              <div key={stat.label} style={{ background: '#F5F0E6', padding: '11px 13px' }}>
+                <p style={{ fontSize: 18, color: stat.color }}>{stat.value}</p>
+                <p className="eyebrow" style={{ marginTop: 1 }}>{stat.label}</p>
+              </div>
+            ))}
+          </div>
+
+          <div style={{ padding: '9px 13px 3px' }}>
+            <p style={{ fontSize: 10, fontFamily: '-apple-system, sans-serif', color: '#5A5A50' }}>
+              Contacts logged from every Call and WhatsApp tap on a listing, whether or not the person was logged in. Self-reported via the post-contact survey.
+            </p>
+          </div>
+
+          {activityLoading ? (
+            <div className="loading">Loading...</div>
+          ) : activity.length === 0 ? (
+            <div className="empty-state"><p style={{ fontSize: 13, fontFamily: '-apple-system, sans-serif', color: '#5A5A50' }}>No contact activity yet.</p></div>
+          ) : (
+            activity.map((row, i) => (
+              <div key={row.vendor_id + '-' + row.channel + '-' + i} style={{ padding: '11px 13px', borderBottom: '1px solid #D8D0BC' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: 3 }}>
+                  <p style={{ fontSize: 12, fontFamily: '-apple-system, sans-serif', fontWeight: 700, color: '#18180F', flex: 1, marginRight: 7 }}>
+                    {vendorDisplayName(row.vendor_id)}
+                  </p>
+                  <span className="chip chip-neutral">
+                    {row.channel === 'whatsapp' ? '💬 WhatsApp' : '📞 Call'}
+                  </span>
+                </div>
+                <p style={{ fontSize: 10, fontFamily: '-apple-system, sans-serif', color: '#5A5A50', marginBottom: 3 }}>
+                  {row.total_contacts} contact{row.total_contacts === 1 ? '' : 's'} · {row.total_survey_responses} response{row.total_survey_responses === 1 ? '' : 's'} · {row.purchases_reported} purchase{row.purchases_reported === 1 ? '' : 's'} reported
+                </p>
+                <p style={{ fontSize: 10, fontFamily: '-apple-system, sans-serif', color: '#C8821A' }}>
+                  {row.conversion_rate_pct != null ? row.conversion_rate_pct + '% conversion' : 'No responses yet'}
+                  {row.avg_amount_spent != null ? ' · avg $' + row.avg_amount_spent + ' JMD' : ''}
+                </p>
               </div>
             ))
           )}
