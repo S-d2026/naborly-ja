@@ -351,7 +351,17 @@ export default function HomePage() {
               Born in Jamaica, by Jamaicans, for Jamaicans. Every plate shared, every job found, every urgent need answered — giving every Jamaican, especially those outside the mainstream, a place to build, connect and be seen. Parish by parish. Neighbour by neighbour. Worldwide next.
             </p>
             <p style={{ color: 'rgba(255,255,255,0.32)', fontSize: 10, fontFamily: '-apple-system, sans-serif', marginTop: 7 }}>naberlyja.com</p>
-<Link href="/terms" style={{ color: 'rgba(255,255,255,0.32)', fontSize: 10, fontFamily: '-apple-system, sans-serif', marginTop: 4, display: 'block', textDecoration: 'underline' }}>Terms & Conditions</Link>
+            <Link
+              href="/terms"
+              style={{
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.16)',
+                borderRadius: 8, padding: '11px 13px', textDecoration: 'none', marginTop: 9,
+              }}
+            >
+              <span style={{ color: '#fff', fontSize: 12, fontFamily: '-apple-system, sans-serif', fontWeight: 700 }}>📄 Terms &amp; Conditions</span>
+              <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M4 3L9 6.5L4 10" stroke="rgba(255,255,255,0.6)" strokeWidth="1.3" strokeLinecap="round"/></svg>
+            </Link>
             <Link href="/sponsor" style={{ display: 'block', background: '#C8821A', color: '#fff', borderRadius: 8, padding: '11px 14px', fontSize: 12, fontFamily: '-apple-system, sans-serif', fontWeight: 700, textAlign: 'center', textDecoration: 'none', marginTop: 13, marginBottom: 13 }}>🏪 Become a Sponsor</Link>
           </div>
         </div>
