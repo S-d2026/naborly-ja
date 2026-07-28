@@ -77,7 +77,7 @@ export default function AmbassadorSignupPage() {
 
         <div>
           <p style={styles.stepTitle}>1. How to sign up a vendor</p>
-          <p style={styles.stepText}>Have them go to naberlyja.com and click Sign Up. They check the "I'm a vendor" box and agree to the Terms & Conditions, then continue to the vendor details page — enter your referral code: <strong>{result.referral_code}</strong> at the bottom of that form.</p>
+          <p style={styles.stepText}>Have them go to <strong>naberlyja.com/signup</strong> (or tap "Create account — it's free" from the login page). They check the "I'm a vendor" box and agree to the Terms & Conditions, then continue to the vendor details page — enter your referral code: <strong>{result.referral_code}</strong> at the bottom of that form.</p>
 
           <p style={styles.stepTitle}>2. Let them type their own email and password</p>
           <p style={styles.stepText}>This is their account — always have the vendor type their own email and password themselves, even if you're guiding them through every other step. If they're unsure what password to use, suggest something memorable (like their WhatsApp number plus a word), but they should type it in.</p>
