@@ -2,11 +2,12 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { supabase } from '@/lib/supabase'
+import { supabase, getFreeSponsorCount } from '@/lib/supabase'
 import { PayPalScriptProvider, PayPalButtons } from '@paypal/react-paypal-js'
 
 const RELAY = '+19174432797'
 const PAYPAL_CLIENT_ID = process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID_LIVE || ''
+const FREE_SPOTS_TOTAL = 3
 
 const PACKAGES = [
   {
@@ -60,6 +61,7 @@ export default function SponsorPage() {
   const [successPkg, setSuccessPkg] = useState<typeof PACKAGES[0] | null>(null)
   const [error, setError] = useState('')
   const [step, setStep] = useState<'packages' | 'details' | 'pay'>('packages')
+  const [freeSpotsClaimed, setFreeSpotsClaimed] = useState<number | null>(null)
 
   useEffect(() => {
     supabase.auth.getUser().then(async ({ data }) => {
@@ -71,9 +73,14 @@ export default function SponsorPage() {
         if (profile?.parish) setParish(profile.parish)
       }
     })
+
+    getFreeSponsorCount().then(({ count }) => {
+      setFreeSpotsClaimed(count)
+    })
   }, [])
 
   const pkg = PACKAGES.find(p => p.name === selectedPackage)
+  const freeSpotsRemaining = freeSpotsClaimed === null ? null : Math.max(0, FREE_SPOTS_TOTAL - freeSpotsClaimed)
 
   async function activateSponsor(payMethod: string, note?: string) {
     if (!pkg) return
@@ -219,21 +226,36 @@ export default function SponsorPage() {
                 </div>
               ))}
 
-              <div style={{ background: '#F5F0E6', borderRadius: 10, padding: 13, border: '1px solid #D8D0BC', marginBottom: 13 }}>
-                <p style={{ fontSize: 12, fontFamily: '-apple-system, sans-serif', fontWeight: 700, color: '#18180F', marginBottom: 5 }}>Early adopter offer</p>
-                <p style={{ fontSize: 11, fontFamily: '-apple-system, sans-serif', color: '#5A5A50', lineHeight: 1.65 }}>
-                  First 3 sponsors get their first month free. Show us your business, we show your Naberhood. WhatsApp us to claim your free spot.
-                </p>
-                <button
-                  onClick={() => {
-                    const num = RELAY.replace(/\D/g, '')
-                    window.open('https://wa.me/' + num + '?text=' + encodeURIComponent('Hi Naberly, I would like to claim the free early adopter sponsorship for my business.'), '_blank')
-                  }}
-                  style={{ marginTop: 10, width: '100%', background: '#2D5A2E', color: '#fff', border: 'none', borderRadius: 8, padding: 11, fontSize: 12, fontFamily: '-apple-system, sans-serif', fontWeight: 700, cursor: 'pointer' }}
-                >
-                  Claim free first month
-                </button>
-              </div>
+              {/* EARLY ADOPTER OFFER — only shown while free spots remain */}
+              {freeSpotsRemaining !== null && freeSpotsRemaining > 0 && (
+                <div style={{ background: '#F5F0E6', borderRadius: 10, padding: 13, border: '1px solid #D8D0BC', marginBottom: 13 }}>
+                  <p style={{ fontSize: 12, fontFamily: '-apple-system, sans-serif', fontWeight: 700, color: '#18180F', marginBottom: 5 }}>Early adopter offer</p>
+                  <p style={{ fontSize: 11, fontFamily: '-apple-system, sans-serif', color: '#5A5A50', lineHeight: 1.65 }}>
+                    First 3 sponsors get their first month free. Show us your business, we show your Naberhood.
+                  </p>
+                  <p style={{ fontSize: 11, fontFamily: '-apple-system, sans-serif', color: '#C8821A', fontWeight: 700, marginTop: 6 }}>
+                    {freeSpotsRemaining} of {FREE_SPOTS_TOTAL} free spot{freeSpotsRemaining === 1 ? '' : 's'} remaining
+                  </p>
+                  <button
+                    onClick={() => {
+                      const num = RELAY.replace(/\D/g, '')
+                      window.open('https://wa.me/' + num + '?text=' + encodeURIComponent('Hi Naberly, I would like to claim the free early adopter sponsorship for my business.'), '_blank')
+                    }}
+                    style={{ marginTop: 10, width: '100%', background: '#2D5A2E', color: '#fff', border: 'none', borderRadius: 8, padding: 11, fontSize: 12, fontFamily: '-apple-system, sans-serif', fontWeight: 700, cursor: 'pointer' }}
+                  >
+                    Claim free first month
+                  </button>
+                </div>
+              )}
+
+              {freeSpotsRemaining === 0 && (
+                <div style={{ background: '#EDE7D9', borderRadius: 10, padding: 13, border: '1px solid #D8D0BC', marginBottom: 13 }}>
+                  <p style={{ fontSize: 12, fontFamily: '-apple-system, sans-serif', fontWeight: 700, color: '#18180F', marginBottom: 5 }}>Early adopter offer</p>
+                  <p style={{ fontSize: 11, fontFamily: '-apple-system, sans-serif', color: '#5A5A50', lineHeight: 1.65 }}>
+                    All {FREE_SPOTS_TOTAL} free early adopter spots have been claimed. Choose a package above to get started today.
+                  </p>
+                </div>
+              )}
 
               <button
   onClick={() => {
