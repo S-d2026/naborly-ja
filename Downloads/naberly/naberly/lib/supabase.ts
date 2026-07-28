@@ -23,6 +23,7 @@ export interface Listing {
   whatsapp: string | null
   is_anonymous: boolean
   status: ListingStatus
+  vendor_paused: boolean
   is_featured: boolean
   featured_until: string | null
   photo_url: string | null
@@ -102,6 +103,7 @@ export async function getApprovedListings(filters?: {
     .from('listings')
     .select('*, profiles(full_name, whatsapp, is_verified)')
     .eq('status', 'approved')
+    .eq('vendor_paused', false)
     .order('is_featured', { ascending: false })
     .order('created_at', { ascending: false })
 
@@ -210,6 +212,22 @@ export async function adminUpdateListing(listingId: string, updates: Partial<Lis
     .select()
     .single()
   return { data, error }
+}
+
+// Vendor self-service pause/show toggle — only ever touches vendor_paused,
+// and only on the vendor's own listing while it is currently 'approved'.
+// It never reads or writes the status field, so it can never override
+// an admin action (e.g. status = 'hidden').
+export async function vendorTogglePause(listingId: string, paused: boolean) {
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { data: null, error: new Error('Not authenticated') }
+  return supabase
+    .from('listings')
+    .update({ vendor_paused: paused, updated_at: new Date().toISOString() })
+    .eq('id', listingId)
+    .eq('user_id', user.id)
+    .eq('status', 'approved')
+    .select()
 }
 
 export async function getAllListingsAdmin() {
