@@ -71,6 +71,7 @@ export default function HomePage() {
   const [userParish, setUserParish] = useState('Kingston')
   const [userName, setUserName] = useState('')
   const [greeting, setGreeting] = useState<{ text: string; emoji: string } | null>(null)
+  const [termsOpen, setTermsOpen] = useState(false)
 
   useEffect(() => {
     // GPS detection
@@ -351,21 +352,89 @@ export default function HomePage() {
               Born in Jamaica, by Jamaicans, for Jamaicans. Every plate shared, every job found, every urgent need answered — giving every Jamaican, especially those outside the mainstream, a place to build, connect and be seen. Parish by parish. Neighbour by neighbour. Worldwide next.
             </p>
             <p style={{ color: 'rgba(255,255,255,0.32)', fontSize: 10, fontFamily: '-apple-system, sans-serif', marginTop: 7 }}>naberlyja.com</p>
-            <Link
-              href="/terms"
+            <button
+              onClick={() => setTermsOpen(true)}
               style={{
+                width: '100%',
                 display: 'flex', alignItems: 'center', justifyContent: 'space-between',
                 background: 'rgba(255,255,255,0.08)', border: '1px solid rgba(255,255,255,0.16)',
-                borderRadius: 8, padding: '11px 13px', textDecoration: 'none', marginTop: 9,
+                borderRadius: 8, padding: '11px 13px', marginTop: 9, cursor: 'pointer',
               }}
             >
               <span style={{ color: '#fff', fontSize: 12, fontFamily: '-apple-system, sans-serif', fontWeight: 700 }}>📄 Terms &amp; Conditions</span>
               <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M4 3L9 6.5L4 10" stroke="rgba(255,255,255,0.6)" strokeWidth="1.3" strokeLinecap="round"/></svg>
-            </Link>
+            </button>
             <Link href="/sponsor" style={{ display: 'block', background: '#C8821A', color: '#fff', borderRadius: 8, padding: '11px 14px', fontSize: 12, fontFamily: '-apple-system, sans-serif', fontWeight: 700, textAlign: 'center', textDecoration: 'none', marginTop: 13, marginBottom: 13 }}>🏪 Become a Sponsor</Link>
           </div>
         </div>
         <div style={{ height: 10 }} />
+      </div>
+
+      {/* TERMS SLIDE-UP PANEL */}
+      <div
+        onClick={() => setTermsOpen(false)}
+        style={{
+          position: 'fixed', inset: 0,
+          background: termsOpen ? 'rgba(0,0,0,0.55)' : 'rgba(0,0,0,0)',
+          pointerEvents: termsOpen ? 'auto' : 'none',
+          transition: 'background 0.25s ease',
+          zIndex: 100, display: 'flex', alignItems: 'flex-end', justifyContent: 'center',
+        }}
+      >
+        <div
+          onClick={(e) => e.stopPropagation()}
+          style={{
+            background: '#F5F0E6', width: '100%', maxWidth: 480,
+            borderRadius: '16px 16px 0 0', maxHeight: '82vh', overflowY: 'auto',
+            transform: termsOpen ? 'translateY(0)' : 'translateY(100%)',
+            transition: 'transform 0.3s ease',
+          }}
+        >
+          <div style={{ background: '#1B3A1D', padding: '15px 17px 12px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', position: 'sticky', top: 0 }}>
+            <div>
+              <p className="eyebrow" style={{ color: 'rgba(255,255,255,0.42)', marginBottom: 4 }}>Legal</p>
+              <p style={{ color: '#fff', fontSize: 16 }}>Terms &amp; Conditions</p>
+            </div>
+            <button
+              onClick={() => setTermsOpen(false)}
+              style={{ background: 'rgba(255,255,255,0.09)', border: 'none', borderRadius: '50%', width: 26, height: 26, color: '#fff', fontSize: 14, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}
+            >
+              ✕
+            </button>
+          </div>
+
+          <div style={{ padding: '16px 17px 30px' }}>
+            <p style={{ fontSize: 11, fontFamily: '-apple-system, sans-serif', color: '#5A5A50', marginBottom: 20 }}>
+              Last updated: June 2026. By using NaberlyJA you agree to these terms.
+            </p>
+
+            {[
+              { title: '1. About NaberlyJA', text: 'NaberlyJA (naberlyja.com) is a community marketplace platform. It connects neighbours in Jamaica and beyond to share resources, find work, offer services, and support one another. NaberlyJA is a platform only — we do not sell goods or services directly and we are not a party to any transaction between users.' },
+              { title: '2. Vendor and Buyer Disputes', text: 'NaberlyJA is not responsible for disputes between vendors and buyers or between any users of the platform. All transactions, arrangements, payments and agreements made between users are solely between those users. NaberlyJA does not guarantee the quality, safety, legality, or accuracy of any listing, product, or service offered on the platform. Users engage with one another at their own risk. If you have a dispute with another user, NaberlyJA encourages you to resolve it directly. NaberlyJA may, at its sole discretion, assist in mediation but is under no obligation to do so.' },
+              { title: '3. Donations', text: 'Donations made through NaberlyJA are received and managed via the NaberlyJA community fund. Donations do not go directly to individual listing posters. NaberlyJA makes no guarantee that donations will be passed on to any specific individual or family. Donation amounts are at the sole discretion of the donor. All donations are voluntary and non-refundable unless required by applicable law.' },
+              { title: '4. Anonymous Listings', text: "NaberlyJA offers an anonymous posting option that hides the poster's name and contact number. When a user contacts an anonymous listing, their message is relayed through NaberlyJA's relay number. NaberlyJA does not verify the identity of anonymous posters and is not responsible for the accuracy, truthfulness, or legitimacy of anonymous listings. Users who respond to anonymous listings do so at their own risk." },
+              { title: '5. No Guarantee of Listing Accuracy', text: 'Listings on NaberlyJA are posted by community members and are not verified by NaberlyJA unless specifically stated. NaberlyJA does not guarantee the accuracy, completeness, or reliability of any listing. NaberlyJA reserves the right to remove any listing at any time without notice for any reason including but not limited to suspected fraud, spam, inappropriate content, or violation of these terms. Users are encouraged to exercise their own judgement before responding to or acting on any listing.' },
+              { title: '6. Privacy and Data', text: 'NaberlyJA collects the following information when you create an account: your name, email address, WhatsApp number, parish, and any services you choose to list. This information is used solely to operate the platform and connect you with your community. NaberlyJA does not sell your personal information to third parties. Your WhatsApp number is shared with other users only when you respond to or post a non-anonymous listing. You may request deletion of your account and associated data at any time by contacting naberlyja@gmail.com.' },
+              { title: '7. Age Requirement', text: 'NaberlyJA is intended for users who are 18 years of age or older. By creating an account you confirm that you are at least 18 years old. If we become aware that a user is under 18 we reserve the right to suspend or delete their account. The NaberlyJA Ambassador Program operates separately from platform accounts and does not require account creation, and is therefore not subject to this age requirement.' },
+              { title: '8. Payments', text: 'Payments for boosts, sponsorships, and donations are processed securely via PayPal and Zelle. NaberlyJA does not store your payment information. All payments are subject to the terms of the relevant payment provider. Boost and sponsorship fees are non-refundable once activated. NaberlyJA reserves the right to change pricing at any time with reasonable notice.' },
+              { title: '9. Prohibited Conduct', text: 'Users must not post fraudulent, misleading, offensive, or illegal listings. Users must not use the platform to harass, scam, or harm other users. Users must not post content that violates the rights of any third party. Violation of these prohibitions may result in immediate account suspension and removal of all listings without notice.' },
+              { title: '10. Limitation of Liability', text: 'To the fullest extent permitted by law, NaberlyJA shall not be liable for any direct, indirect, incidental, special, or consequential damages arising out of or in connection with your use of the platform, including but not limited to damages arising from transactions between users, reliance on listing content, or donations made through the platform.' },
+              { title: '11. Changes to These Terms', text: 'NaberlyJA reserves the right to update these terms at any time. Updated terms will be posted at naberlyja.com/terms with the date of the last update. Continued use of the platform after any update constitutes acceptance of the new terms.' },
+              { title: '12. Contact', text: 'For questions about these terms or to request account deletion, contact us at naberlyja@gmail.com or via WhatsApp at +19174432797.' },
+            ].map((section, i) => (
+              <div key={i} style={{ marginBottom: 20 }}>
+                <p style={{ fontSize: 13, fontFamily: '-apple-system, sans-serif', fontWeight: 700, color: '#1B3A1D', marginBottom: 8 }}>{section.title}</p>
+                <p style={{ fontSize: 12, fontFamily: '-apple-system, sans-serif', color: '#18180F', lineHeight: 1.75 }}>{section.text}</p>
+              </div>
+            ))}
+
+            <div style={{ background: '#EDE7D9', borderRadius: 10, padding: 13, border: '1px solid #D8D0BC' }}>
+              <p style={{ fontSize: 11, fontFamily: '-apple-system, sans-serif', color: '#5A5A50', lineHeight: 1.65, textAlign: 'center' }}>
+                NaberlyJA · naberlyja.com
+              </p>
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* BOTTOM NAV */}
