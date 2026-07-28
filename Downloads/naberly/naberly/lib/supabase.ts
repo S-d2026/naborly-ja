@@ -478,3 +478,11 @@ export async function linkVendorToAmbassador(referralCode: string, vendorPhone: 
 
   return { linked: !error }
 }
+// Counts how many sponsors have ever claimed the free early-adopter offer
+export async function getFreeSponsorCount() {
+  const { count, error } = await supabase
+    .from('sponsors')
+    .select('*', { count: 'exact', head: true })
+    .eq('payment_method', 'free')
+  return { count: count || 0, error }
+}
