@@ -604,3 +604,28 @@ select.form-field, select.form-field-box {
   text-align: center;
   padding: 36px 20px;
 }
+
+/* ============================================================
+   DESKTOP / LARGER-SCREEN SIZING
+   Everything above this line is completely unchanged — phones
+   and small screens (anything narrower than 768px) render
+   exactly as before, no cut-off, nothing lost.
+   These rules ONLY apply on wider screens, where the phone-width
+   app was previously just floating small in the middle.
+   ============================================================ */
+@media (min-width: 768px) {
+  body {
+    background: var(--linen);
+  }
+
+  .app-shell {
+    max-width: 640px;
+    box-shadow: 0 0 40px rgba(0, 0, 0, 0.10);
+  }
+}
+
+@media (min-width: 1200px) {
+  .app-shell {
+    max-width: 760px;
+  }
+}
