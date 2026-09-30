@@ -230,6 +230,35 @@ export async function vendorTogglePause(listingId: string, paused: boolean) {
     .select()
 }
 
+// Fetch a single listing by id — used by the vendor edit page. The
+// edit page itself checks that the returned listing's user_id matches
+// the logged-in user before allowing any editing.
+export async function getListingById(listingId: string) {
+  const { data, error } = await supabase
+    .from('listings')
+    .select('*')
+    .eq('id', listingId)
+    .single()
+  return { data, error }
+}
+
+// Vendor self-service edit — lets a vendor update their own listing's
+// title, description, and photo after it has already been posted.
+// Only ever touches these three fields, only on the vendor's own
+// listing (enforced by the user_id match below), and never changes
+// status, category, pricing, or any other field.
+export async function vendorUpdateListing(listingId: string, updates: { title?: string; description?: string; photo_url?: string | null }) {
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { data: null, error: new Error('Not authenticated') }
+  return supabase
+    .from('listings')
+    .update({ ...updates, updated_at: new Date().toISOString() })
+    .eq('id', listingId)
+    .eq('user_id', user.id)
+    .select()
+    .single()
+}
+
 export async function getAllListingsAdmin() {
   const { data, error } = await supabase
     .from('listings')
