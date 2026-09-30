@@ -93,6 +93,12 @@ export function formatDistance(km: number): string {
   return Math.round(km) + ' km (' + Math.round(miles) + ' mi) away'
 }
 
+// The 14 official Jamaican parishes. Used to detect diaspora listings —
+// any listing whose parish field is NOT one of these (e.g. "Bronx, NY",
+// typed in by a poster who selected "Other (outside Jamaica)") is treated
+// as a diaspora/outside-Jamaica listing for filtering purposes.
+const JAMAICA_PARISHES = ['Kingston','St. Andrew','St. Thomas','Portland','St. Mary','St. Ann','Trelawny','St. James','Hanover','Westmoreland','St. Elizabeth','Manchester','Clarendon','St. Catherine']
+
 export async function getApprovedListings(filters?: {
   parish?: string
   district?: string
@@ -107,7 +113,12 @@ export async function getApprovedListings(filters?: {
     .order('is_featured', { ascending: false })
     .order('created_at', { ascending: false })
 
-  if (filters?.parish && filters.parish !== 'All Parishes') {
+  if (filters?.parish === 'Other (outside Jamaica)') {
+    // Diaspora listings store whatever city/borough the poster typed
+    // (e.g. "Bronx, NY"), not a fixed parish name — so match anything
+    // that isn't one of the 14 official Jamaican parishes.
+    query = query.not('parish', 'in', '(' + JAMAICA_PARISHES.join(',') + ')')
+  } else if (filters?.parish && filters.parish !== 'All Parishes') {
     query = query.eq('parish', filters.parish)
   }
   if (filters?.district && filters.district !== 'all') {
