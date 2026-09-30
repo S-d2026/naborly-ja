@@ -72,7 +72,7 @@ export default function MyListingsPage() {
       <div className="scroll-area">
         <div style={{ padding: '9px 13px 3px' }}>
           <p style={{ fontSize: 10, fontFamily: '-apple-system, sans-serif', color: '#5A5A50' }}>
-            When your listing is fulfilled, tap "Mark fulfilled" — it creates a community impact story automatically. Use "Pause" to temporarily hide a listing without losing it.
+            When your listing is fulfilled, tap "Mark fulfilled" — it creates a community impact story automatically. Use "Pause" to temporarily hide a listing without losing it, or "Edit" to update the photo or description.
           </p>
         </div>
 
@@ -98,6 +98,11 @@ export default function MyListingsPage() {
                     {listing.status === 'approved' && !listing.vendor_paused ? ' · ' + (listing.response_count || 0) + ' responses' : ''}
                   </p>
                   <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
+                    {(listing.status === 'approved' || listing.status === 'pending') && (
+                      <Link href={'/my-listings/edit/' + listing.id} style={{ background: '#EDE7D9', color: '#18180F', border: '1px solid #D8D0BC', borderRadius: 5, padding: '5px 9px', fontSize: 10, fontFamily: '-apple-system, sans-serif', fontWeight: 700, textDecoration: 'none' }}>
+                        Edit
+                      </Link>
+                    )}
                     {listing.status === 'approved' && (
                       <>
                         <button
