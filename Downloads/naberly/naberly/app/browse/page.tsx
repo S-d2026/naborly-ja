@@ -5,7 +5,7 @@ import { useSearchParams } from 'next/navigation'
 import { supabase, getApprovedListings, getDistanceKm, formatDistance, toggleSaved, goLive, updateLiveLocation, stopLive, getLiveLocation, type Listing, type VendorLocation } from '@/lib/supabase'
 import { PayPalScriptProvider, PayPalButtons } from '@paypal/react-paypal-js'
 
-const PARISHES = ['All Parishes','Kingston','St. Andrew','St. Thomas','Portland','St. Mary','St. Ann','Trelawny','St. James','Hanover','Westmoreland','St. Elizabeth','Manchester','Clarendon','St. Catherine']
+const PARISHES = ['All Parishes','Kingston','St. Andrew','St. Thomas','Portland','St. Mary','St. Ann','Trelawny','St. James','Hanover','Westmoreland','St. Elizabeth','Manchester','Clarendon','St. Catherine','Other (outside Jamaica)']
 const DISTRICTS: Record<string, string[]> = {
   'Kingston': ['All areas','Cross Roads','Maxfield Ave','Half Way Tree','Dunrobin','August Town','Duhaney Park','Arnett Gardens','Trench Town','New Kingston','Barbican','Constant Spring'],
   'St. Andrew': ['All areas','Papine','Gordon Town','Havendale','Stony Hill','Lawrence Tavern','Cherry Gardens'],
@@ -574,13 +574,11 @@ function BrowseContent() {
           const inJamaica = latitude >= JAMAICA_BOUNDS.minLat && latitude <= JAMAICA_BOUNDS.maxLat && longitude >= JAMAICA_BOUNDS.minLng && longitude <= JAMAICA_BOUNDS.maxLng
           if (inJamaica) { setParish(getParishFromCoords(latitude, longitude)) }
           else {
-            try {
-              const res = await fetch('https://nominatim.openstreetmap.org/reverse?lat=' + latitude + '&lon=' + longitude + '&format=json')
-              const data = await res.json()
-              const neighborhood = data.address?.suburb || data.address?.neighbourhood || data.address?.city_district || data.address?.town || data.address?.city || ''
-              const city = data.address?.city || data.address?.town || data.address?.county || ''
-              if (neighborhood) setParish(neighborhood + (city ? ', ' + city : ''))
-            } catch (e) {}
+            // Outside Jamaica — match the "Other (outside Jamaica)" bucket
+            // used by the Post page, so diaspora listings (which are saved
+            // with whatever city/borough the poster typed, not a parish
+            // name) show up by default instead of matching nothing.
+            setParish('Other (outside Jamaica)')
           }
         }
       }, () => {})
