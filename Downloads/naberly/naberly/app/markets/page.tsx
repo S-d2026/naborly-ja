@@ -45,11 +45,11 @@ const REAL_ESTATE = [
 ]
 
 const TECH = [
-  { name: 'Flow Assist', sector: 'Fintech', round: 'Seed', amount: 'US$450,000', investors: 'Jamaica Digital Fund, Angel Syndicate JA' },
-  { name: 'IslandGrid', sector: 'CleanTech / Energy', round: 'Pre-Seed', amount: 'US$120,000', investors: 'DBJ Innovation Grant' },
-  { name: 'FarmLink JA', sector: 'AgriTech', round: 'Seed', amount: 'US$300,000', investors: 'Caribbean VC Partners' },
-  { name: 'PortPulse', sector: 'Logistics SaaS', round: 'Series A', amount: 'US$1.8M', investors: 'Kingston Capital, EXIM JA' },
-  { name: 'MedLink JA', sector: 'HealthTech', round: 'Grant', amount: 'US$75,000', investors: 'JBDC Digitalization Grant' },
+  { name: 'Flow Assist', sector: 'Fintech', round: 'Seed', usd: 450000, investors: 'Jamaica Digital Fund, Angel Syndicate JA' },
+  { name: 'IslandGrid', sector: 'CleanTech / Energy', round: 'Pre-Seed', usd: 120000, investors: 'DBJ Innovation Grant' },
+  { name: 'FarmLink JA', sector: 'AgriTech', round: 'Seed', usd: 300000, investors: 'Caribbean VC Partners' },
+  { name: 'PortPulse', sector: 'Logistics SaaS', round: 'Series A', usd: 1800000, investors: 'Kingston Capital, EXIM JA' },
+  { name: 'MedLink JA', sector: 'HealthTech', round: 'Grant', usd: 75000, investors: 'JBDC Digitalization Grant' },
 ]
 
 // Fallback trend, used only until enough real daily rates have accumulated
@@ -61,6 +61,16 @@ const MOCK_FX_TREND = {
 
 function fmtUSD(jmd: number, rate: number) { return '$' + Math.round(jmd / rate).toLocaleString() }
 function fmtJMD(jmd: number) { return 'J$' + jmd.toLocaleString() }
+// Converts a JMD amount into another currency given a "JMD per 1 unit of that
+// currency" rate (the same convention used for fx_gbp_jmd / fx_cad_jmd), and
+// prefixes it with the currency's symbol.
+function fmtForeign(jmd: number, rate: number, symbol: string) { return symbol + Math.round(jmd / rate).toLocaleString() }
+// Converts a USD amount (used by the Tech & MSME table) into JMD or another
+// foreign currency via the USD/JMD rate and that currency's own JMD rate.
+function usdToJmd(usd: number, usdRate: number) { return usd * usdRate }
+function usdToForeign(usd: number, usdRate: number, foreignRate: number, symbol: string) {
+  return fmtForeign(usdToJmd(usd, usdRate), foreignRate, symbol)
+}
 
 function loadScript(src: string, id: string): Promise<void> {
   return new Promise((resolve) => {
@@ -169,7 +179,7 @@ function NewsTab() {
   )
 }
 
-function RealEstateTab({ fxRate }: { fxRate: number }) {
+function RealEstateTab({ rates }: { rates: { usd: number; gbp: number; cad: number } }) {
   const [parish, setParish] = useState('All')
   const [q, setQ] = useState('')
   const rows = REAL_ESTATE.filter(r =>
@@ -191,7 +201,9 @@ function RealEstateTab({ fxRate }: { fxRate: number }) {
           <thead>
             <tr className="bg-[#101512] text-left text-[10px] uppercase tracking-wider text-gray-400">
               <th className="px-3 py-2">Parish</th><th className="px-3 py-2">Area</th><th className="px-3 py-2">Type</th>
-              <th className="px-3 py-2">Price (JMD)</th><th className="px-3 py-2">Price (USD)</th><th className="px-3 py-2">Est. Yield</th>
+              <th className="px-3 py-2">Price (JMD)</th><th className="px-3 py-2">Price (USD)</th>
+              <th className="px-3 py-2">Price (GBP)</th><th className="px-3 py-2">Price (CAD)</th>
+              <th className="px-3 py-2">Est. Yield</th>
             </tr>
           </thead>
           <tbody>
@@ -201,7 +213,9 @@ function RealEstateTab({ fxRate }: { fxRate: number }) {
                 <td className="px-3 py-2 text-white font-medium">{r.area}</td>
                 <td className="px-3 py-2 text-gray-300">{r.type}</td>
                 <td className="px-3 py-2 text-gray-300">{fmtJMD(r.jmd)}</td>
-                <td className="px-3 py-2 text-gray-400">{fmtUSD(r.jmd, fxRate)}</td>
+                <td className="px-3 py-2 text-gray-400">{fmtUSD(r.jmd, rates.usd)}</td>
+                <td className="px-3 py-2 text-gray-400">{fmtForeign(r.jmd, rates.gbp, '£')}</td>
+                <td className="px-3 py-2 text-gray-400">{fmtForeign(r.jmd, rates.cad, 'CA$')}</td>
                 <td className="px-3 py-2 text-emerald-400 font-semibold">{r.yield}</td>
               </tr>
             ))}
@@ -213,14 +227,16 @@ function RealEstateTab({ fxRate }: { fxRate: number }) {
   )
 }
 
-function TechTab() {
+function TechTab({ rates }: { rates: { usd: number; gbp: number; cad: number } }) {
   return (
     <div className="overflow-x-auto border border-[#1f2623] rounded-lg">
       <table className="w-full text-sm" style={{ borderCollapse: 'collapse' }}>
         <thead>
           <tr className="bg-[#101512] text-left text-[10px] uppercase tracking-wider text-gray-400">
             <th className="px-3 py-2">Company</th><th className="px-3 py-2">Sector</th><th className="px-3 py-2">Round</th>
-            <th className="px-3 py-2">Amount</th><th className="px-3 py-2">Investors / Grantors</th>
+            <th className="px-3 py-2">Amount (USD)</th><th className="px-3 py-2">Amount (JMD)</th>
+            <th className="px-3 py-2">Amount (GBP)</th><th className="px-3 py-2">Amount (CAD)</th>
+            <th className="px-3 py-2">Investors / Grantors</th>
           </tr>
         </thead>
         <tbody>
@@ -229,7 +245,10 @@ function TechTab() {
               <td className="px-3 py-2 text-white font-medium">{t.name}</td>
               <td className="px-3 py-2 text-gray-300">{t.sector}</td>
               <td className="px-3 py-2"><span className="px-2 py-0.5 rounded bg-[#1f2623] text-amber-400 text-xs">{t.round}</span></td>
-              <td className="px-3 py-2 text-emerald-400 font-semibold">{t.amount}</td>
+              <td className="px-3 py-2 text-emerald-400 font-semibold">${t.usd.toLocaleString()}</td>
+              <td className="px-3 py-2 text-gray-400">{fmtJMD(Math.round(usdToJmd(t.usd, rates.usd)))}</td>
+              <td className="px-3 py-2 text-gray-400">{usdToForeign(t.usd, rates.usd, rates.gbp, '£')}</td>
+              <td className="px-3 py-2 text-gray-400">{usdToForeign(t.usd, rates.usd, rates.cad, 'CA$')}</td>
               <td className="px-3 py-2 text-gray-400 text-xs">{t.investors}</td>
             </tr>
           ))}
@@ -471,8 +490,8 @@ export default function MarketsPage() {
         </nav>
         <main className="px-4">
           {tab === 'overview' && <NewsTab />}
-          {tab === 'realestate' && <RealEstateTab fxRate={latestFx} />}
-          {tab === 'tech' && <TechTab />}
+          {tab === 'realestate' && <RealEstateTab rates={{ usd: latestFx, gbp: gbp.latest, cad: cad.latest }} />}
+          {tab === 'tech' && <TechTab rates={{ usd: latestFx, gbp: gbp.latest, cad: cad.latest }} />}
           {tab === 'premium' && <PremiumTab fxTrend={fxTrend} isLive={fxRows.length >= 2} />}
         </main>
       </div>
