@@ -72,30 +72,63 @@ const NEWS = [
     bullets: ['New cold-storage facility supports export timing', 'Sugar cooperative reports stable yields', 'Road links to Vernamfield logistics hub cited as a plus'] },
 ]
 
+// "yieldExplainer" and "roundExplainer" translate a finance term into one
+// plain-English sentence, shown in the detail panel so a non-specialist
+// reader isn't left guessing what "Est. Yield" or "Seed" means.
 const REAL_ESTATE = [
-  { parish: 'Kingston', area: 'New Kingston', type: 'Commercial Office', jmd: 85000000, yield: '7.2%' },
-  { parish: 'St. Andrew', area: 'Barbican', type: 'Luxury Townhouse', jmd: 62000000, yield: '5.1%' },
-  { parish: 'St. Thomas', area: 'Morant Bay', type: 'Family Home', jmd: 14500000, yield: '6.3%' },
-  { parish: 'Portland', area: 'Port Antonio', type: 'Eco-Lodge / Guesthouse', jmd: 32000000, yield: '8.1%' },
-  { parish: 'St. Mary', area: 'Oracabessa', type: 'Beachfront Villa', jmd: 41000000, yield: '7.6%' },
-  { parish: 'St. Ann', area: 'Ocho Rios', type: 'Beachfront Condo', jmd: 35000000, yield: '8.8%' },
-  { parish: 'Trelawny', area: 'Falmouth', type: 'Short-Term Rental Townhouse', jmd: 26500000, yield: '7.9%' },
-  { parish: 'St. Catherine', area: 'Portmore', type: 'Residential Lot', jmd: 9200000, yield: '6.0%' },
-  { parish: 'Clarendon', area: 'May Pen', type: 'Family Home', jmd: 16800000, yield: '5.8%' },
-  { parish: 'Manchester', area: 'Mandeville', type: 'Family Home', jmd: 28000000, yield: '5.5%' },
-  { parish: 'St. James', area: 'Ironshore', type: 'Vacation Villa', jmd: 48500000, yield: '9.4%' },
-  { parish: 'Hanover', area: 'Lucea', type: 'Boutique Resort Unit', jmd: 22000000, yield: '7.0%' },
-  { parish: 'Westmoreland', area: 'Negril', type: 'Beachfront Villa', jmd: 55000000, yield: '9.8%' },
-  { parish: 'St. Elizabeth', area: 'Treasure Beach', type: 'Guesthouse', jmd: 19500000, yield: '8.4%' },
+  { parish: 'Kingston', area: 'New Kingston', type: 'Commercial Office', jmd: 85000000, yield: '7.2%',
+    blurb: 'An office building in New Kingston, the city\'s main business district. Businesses rent space here, and that rent is what generates the return shown below.' },
+  { parish: 'St. Andrew', area: 'Barbican', type: 'Luxury Townhouse', jmd: 62000000, yield: '5.1%',
+    blurb: 'A higher-end townhouse in Barbican, a residential area popular with professionals and returning-resident Jamaicans.' },
+  { parish: 'St. Thomas', area: 'Morant Bay', type: 'Family Home', jmd: 14500000, yield: '6.3%',
+    blurb: 'A standard family house in Morant Bay, the parish capital of St. Thomas on the south-east coast.' },
+  { parish: 'Portland', area: 'Port Antonio', type: 'Eco-Lodge / Guesthouse', jmd: 32000000, yield: '8.1%',
+    blurb: 'A small nature-focused guesthouse in Port Antonio, a tourism town known for rainforest and river attractions.' },
+  { parish: 'St. Mary', area: 'Oracabessa', type: 'Beachfront Villa', jmd: 41000000, yield: '7.6%',
+    blurb: 'A house directly on the beach in Oracabessa, a quiet north-coast town between Ocho Rios and Port Maria.' },
+  { parish: 'St. Ann', area: 'Ocho Rios', type: 'Beachfront Condo', jmd: 35000000, yield: '8.8%',
+    blurb: 'An apartment-style unit on the beach in Ocho Rios, a major cruise-ship and resort town.' },
+  { parish: 'Trelawny', area: 'Falmouth', type: 'Short-Term Rental Townhouse', jmd: 26500000, yield: '7.9%',
+    blurb: 'A townhouse in Falmouth, meant to be rented out short-term (like Airbnb) rather than lived in full-time, taking advantage of cruise-ship visitor traffic.' },
+  { parish: 'St. Catherine', area: 'Portmore', type: 'Residential Lot', jmd: 9200000, yield: '6.0%',
+    blurb: 'An empty piece of land in Portmore, a fast-growing commuter town just outside Kingston, ready for someone to build on.' },
+  { parish: 'Clarendon', area: 'May Pen', type: 'Family Home', jmd: 16800000, yield: '5.8%',
+    blurb: 'A standard family house in May Pen, the parish capital of Clarendon in central Jamaica.' },
+  { parish: 'Manchester', area: 'Mandeville', type: 'Family Home', jmd: 28000000, yield: '5.5%',
+    blurb: 'A standard family house in Mandeville, a hill-town known for its cooler climate and retiree population.' },
+  { parish: 'St. James', area: 'Ironshore', type: 'Vacation Villa', jmd: 48500000, yield: '9.4%',
+    blurb: 'A holiday home in Ironshore, near Montego Bay\'s hotel strip and the airport, typically rented out to tourists.' },
+  { parish: 'Hanover', area: 'Lucea', type: 'Boutique Resort Unit', jmd: 22000000, yield: '7.0%',
+    blurb: 'A unit inside a small resort property in Lucea, a quieter alternative to the bigger resort towns nearby.' },
+  { parish: 'Westmoreland', area: 'Negril', type: 'Beachfront Villa', jmd: 55000000, yield: '9.8%',
+    blurb: 'A house on the beach in Negril, one of Jamaica\'s best-known tourist destinations, famous for Seven Mile Beach.' },
+  { parish: 'St. Elizabeth', area: 'Treasure Beach', type: 'Guesthouse', jmd: 19500000, yield: '8.4%',
+    blurb: 'A small guesthouse in Treasure Beach, a laid-back fishing-village-turned-tourist-spot on the south coast.' },
 ]
+// Plain-English explanation of "Est. Yield," shown once in the Real Estate
+// detail panel rather than repeated on every row.
+const YIELD_EXPLAINER = '"Est. Yield" is a rough estimate of the yearly rental income as a percentage of the purchase price — for example, a 7% yield on a J$10,000,000 property means roughly J$700,000 a year in rent, before expenses like maintenance, taxes and property management.'
 
 const TECH = [
-  { name: 'Flow Assist', sector: 'Fintech', round: 'Seed', usd: 450000, investors: 'Jamaica Digital Fund, Angel Syndicate JA' },
-  { name: 'IslandGrid', sector: 'CleanTech / Energy', round: 'Pre-Seed', usd: 120000, investors: 'DBJ Innovation Grant' },
-  { name: 'FarmLink JA', sector: 'AgriTech', round: 'Seed', usd: 300000, investors: 'Caribbean VC Partners' },
-  { name: 'PortPulse', sector: 'Logistics SaaS', round: 'Series A', usd: 1800000, investors: 'Kingston Capital, EXIM JA' },
-  { name: 'MedLink JA', sector: 'HealthTech', round: 'Grant', usd: 75000, investors: 'JBDC Digitalization Grant' },
+  { name: 'Flow Assist', sector: 'Fintech', round: 'Seed', usd: 450000, investors: 'Jamaica Digital Fund, Angel Syndicate JA',
+    blurb: 'Flow Assist builds tools to help people manage everyday money — things like budgeting, bill reminders, or simple payments.' },
+  { name: 'IslandGrid', sector: 'CleanTech / Energy', round: 'Pre-Seed', usd: 120000, investors: 'DBJ Innovation Grant',
+    blurb: 'IslandGrid works on cleaner, more reliable power solutions — for example, solar or smarter electricity use for homes and businesses.' },
+  { name: 'FarmLink JA', sector: 'AgriTech', round: 'Seed', usd: 300000, investors: 'Caribbean VC Partners',
+    blurb: 'FarmLink JA connects farmers with buyers and helps them track crops, prices, or deliveries more easily using technology.' },
+  { name: 'PortPulse', sector: 'Logistics SaaS', round: 'Series A', usd: 1800000, investors: 'Kingston Capital, EXIM JA',
+    blurb: 'PortPulse makes software that helps shipping and port companies track cargo and move goods more efficiently.' },
+  { name: 'MedLink JA', sector: 'HealthTech', round: 'Grant', usd: 75000, investors: 'JBDC Digitalization Grant',
+    blurb: 'MedLink JA builds tools that help clinics or patients manage health records and appointments digitally.' },
 ]
+// Plain-English glossary for funding-round terms, shown in the Tech detail
+// panel so "Seed," "Pre-Seed," "Series A," and "Grant" aren't left unexplained.
+const ROUND_EXPLAINER: Record<string, string> = {
+  'Pre-Seed': 'The very earliest stage of funding, usually used to test an idea before the business has real customers yet.',
+  'Seed': 'Early funding used to build the first version of a product and find its first paying customers.',
+  'Series A': 'A later funding round for a business that already has customers and revenue, used to grow faster.',
+  'Grant': 'Money given to the business that does not need to be paid back or exchanged for ownership — often from a government or development agency.',
+}
 
 // Fallback trend, used only until enough real daily rates have accumulated
 // in Supabase (the chart needs at least 2 real points to draw a real line).
@@ -231,10 +264,12 @@ function NewsTab() {
 function RealEstateTab({ rates }: { rates: { usd: number; gbp: number; cad: number } }) {
   const [parish, setParish] = useState('All')
   const [q, setQ] = useState('')
+  const [openIdx, setOpenIdx] = useState<number | null>(null)
   const rows = REAL_ESTATE.filter(r =>
     (parish === 'All' || r.parish === parish) &&
     (q === '' || r.area.toLowerCase().includes(q.toLowerCase()) || r.type.toLowerCase().includes(q.toLowerCase()))
   )
+  const open = openIdx !== null ? rows[openIdx] : null
   return (
     <div>
       <div className="flex flex-col sm:flex-row gap-2 mb-4">
@@ -245,6 +280,25 @@ function RealEstateTab({ rates }: { rates: { usd: number; gbp: number; cad: numb
           {PARISHES.map(p => <option key={p} value={p}>{p}</option>)}
         </select>
       </div>
+      {open && (
+        <div className="bg-[#101512] border border-amber-600/40 rounded-lg p-4 mb-4">
+          <div className="flex items-start justify-between mb-2">
+            <div>
+              <p className="text-white font-semibold">{open.type} — {open.area}, {open.parish}</p>
+              <p className="text-xs text-gray-500">This is general information, not an offer or recommendation to buy.</p>
+            </div>
+            <button onClick={() => setOpenIdx(null)} className="text-gray-400 hover:text-white text-sm px-2">✕ Close</button>
+          </div>
+          <p className="text-sm text-gray-300 mb-3">{open.blurb}</p>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-3 text-sm">
+            <div><p className="text-[10px] uppercase text-gray-500">Price (JMD)</p><p className="text-white">{fmtJMD(open.jmd)}</p></div>
+            <div><p className="text-[10px] uppercase text-gray-500">Price (USD)</p><p className="text-white">{fmtUSD(open.jmd, rates.usd)}</p></div>
+            <div><p className="text-[10px] uppercase text-gray-500">Price (GBP)</p><p className="text-white">{fmtForeign(open.jmd, rates.gbp, '£')}</p></div>
+            <div><p className="text-[10px] uppercase text-gray-500">Price (CAD)</p><p className="text-white">{fmtForeign(open.jmd, rates.cad, 'CA$')}</p></div>
+          </div>
+          <p className="text-xs text-gray-400"><span className="text-amber-400 font-semibold">Est. Yield: {open.yield}.</span> {YIELD_EXPLAINER}</p>
+        </div>
+      )}
       <div className="overflow-x-auto border border-[#1f2623] rounded-lg">
         <table className="w-full text-sm" style={{ borderCollapse: 'collapse' }}>
           <thead>
@@ -257,7 +311,8 @@ function RealEstateTab({ rates }: { rates: { usd: number; gbp: number; cad: numb
           </thead>
           <tbody>
             {rows.map((r, i) => (
-              <tr key={i} className="border-t border-[#1f2623] hover:bg-[#101512]">
+              <tr key={i} onClick={() => setOpenIdx(i)}
+                className={'border-t border-[#1f2623] hover:bg-[#101512] cursor-pointer ' + (openIdx === i ? 'bg-[#141a17]' : '')}>
                 <td className="px-3 py-2 text-gray-300">{r.parish}</td>
                 <td className="px-3 py-2 text-white font-medium">{r.area}</td>
                 <td className="px-3 py-2 text-gray-300">{r.type}</td>
@@ -277,32 +332,57 @@ function RealEstateTab({ rates }: { rates: { usd: number; gbp: number; cad: numb
 }
 
 function TechTab({ rates }: { rates: { usd: number; gbp: number; cad: number } }) {
+  const [openIdx, setOpenIdx] = useState<number | null>(null)
+  const open = openIdx !== null ? TECH[openIdx] : null
   return (
-    <div className="overflow-x-auto border border-[#1f2623] rounded-lg">
-      <table className="w-full text-sm" style={{ borderCollapse: 'collapse' }}>
-        <thead>
-          <tr className="bg-[#101512] text-left text-[10px] uppercase tracking-wider text-gray-400">
-            <th className="px-3 py-2">Company</th><th className="px-3 py-2">Sector</th><th className="px-3 py-2">Round</th>
-            <th className="px-3 py-2">Amount (USD)</th><th className="px-3 py-2">Amount (JMD)</th>
-            <th className="px-3 py-2">Amount (GBP)</th><th className="px-3 py-2">Amount (CAD)</th>
-            <th className="px-3 py-2">Investors / Grantors</th>
-          </tr>
-        </thead>
-        <tbody>
-          {TECH.map((t, i) => (
-            <tr key={i} className="border-t border-[#1f2623] hover:bg-[#101512]">
-              <td className="px-3 py-2 text-white font-medium">{t.name}</td>
-              <td className="px-3 py-2 text-gray-300">{t.sector}</td>
-              <td className="px-3 py-2"><span className="px-2 py-0.5 rounded bg-[#1f2623] text-amber-400 text-xs">{t.round}</span></td>
-              <td className="px-3 py-2 text-emerald-400 font-semibold">${t.usd.toLocaleString()}</td>
-              <td className="px-3 py-2 text-gray-400">{fmtJMD(Math.round(usdToJmd(t.usd, rates.usd)))}</td>
-              <td className="px-3 py-2 text-gray-400">{usdToForeign(t.usd, rates.usd, rates.gbp, '£')}</td>
-              <td className="px-3 py-2 text-gray-400">{usdToForeign(t.usd, rates.usd, rates.cad, 'CA$')}</td>
-              <td className="px-3 py-2 text-gray-400 text-xs">{t.investors}</td>
+    <div>
+      {open && (
+        <div className="bg-[#101512] border border-amber-600/40 rounded-lg p-4 mb-4">
+          <div className="flex items-start justify-between mb-2">
+            <div>
+              <p className="text-white font-semibold">{open.name}</p>
+              <p className="text-xs text-gray-500">This is general information, not an offer or recommendation to invest.</p>
+            </div>
+            <button onClick={() => setOpenIdx(null)} className="text-gray-400 hover:text-white text-sm px-2">✕ Close</button>
+          </div>
+          <p className="text-sm text-gray-300 mb-3">{open.blurb}</p>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-3 text-sm">
+            <div><p className="text-[10px] uppercase text-gray-500">Amount (USD)</p><p className="text-white">${open.usd.toLocaleString()}</p></div>
+            <div><p className="text-[10px] uppercase text-gray-500">Amount (JMD)</p><p className="text-white">{fmtJMD(Math.round(usdToJmd(open.usd, rates.usd)))}</p></div>
+            <div><p className="text-[10px] uppercase text-gray-500">Amount (GBP)</p><p className="text-white">{usdToForeign(open.usd, rates.usd, rates.gbp, '£')}</p></div>
+            <div><p className="text-[10px] uppercase text-gray-500">Amount (CAD)</p><p className="text-white">{usdToForeign(open.usd, rates.usd, rates.cad, 'CA$')}</p></div>
+          </div>
+          <p className="text-xs text-gray-400 mb-1"><span className="text-amber-400 font-semibold">Funding stage: {open.round}.</span> {ROUND_EXPLAINER[open.round] || ''}</p>
+          <p className="text-xs text-gray-400">Backed by: {open.investors}</p>
+        </div>
+      )}
+      <div className="overflow-x-auto border border-[#1f2623] rounded-lg">
+        <table className="w-full text-sm" style={{ borderCollapse: 'collapse' }}>
+          <thead>
+            <tr className="bg-[#101512] text-left text-[10px] uppercase tracking-wider text-gray-400">
+              <th className="px-3 py-2">Company</th><th className="px-3 py-2">Sector</th><th className="px-3 py-2">Round</th>
+              <th className="px-3 py-2">Amount (USD)</th><th className="px-3 py-2">Amount (JMD)</th>
+              <th className="px-3 py-2">Amount (GBP)</th><th className="px-3 py-2">Amount (CAD)</th>
+              <th className="px-3 py-2">Investors / Grantors</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+          <tbody>
+            {TECH.map((t, i) => (
+              <tr key={i} onClick={() => setOpenIdx(i)}
+                className={'border-t border-[#1f2623] hover:bg-[#101512] cursor-pointer ' + (openIdx === i ? 'bg-[#141a17]' : '')}>
+                <td className="px-3 py-2 text-white font-medium">{t.name}</td>
+                <td className="px-3 py-2 text-gray-300">{t.sector}</td>
+                <td className="px-3 py-2"><span className="px-2 py-0.5 rounded bg-[#1f2623] text-amber-400 text-xs">{t.round}</span></td>
+                <td className="px-3 py-2 text-emerald-400 font-semibold">${t.usd.toLocaleString()}</td>
+                <td className="px-3 py-2 text-gray-400">{fmtJMD(Math.round(usdToJmd(t.usd, rates.usd)))}</td>
+                <td className="px-3 py-2 text-gray-400">{usdToForeign(t.usd, rates.usd, rates.gbp, '£')}</td>
+                <td className="px-3 py-2 text-gray-400">{usdToForeign(t.usd, rates.usd, rates.cad, 'CA$')}</td>
+                <td className="px-3 py-2 text-gray-400 text-xs">{t.investors}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   )
 }
