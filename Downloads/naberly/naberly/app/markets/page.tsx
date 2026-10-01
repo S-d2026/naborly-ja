@@ -15,7 +15,14 @@ const MOCK_TICKER = [
   { label: 'CAD/JMD', value: '112.19', change: '-0.08%', up: false },
 ]
 
-const PARISHES = ['All', 'Kingston', 'St. Andrew', 'St. James', 'St. Ann', 'St. Catherine']
+// All 14 parishes, grouped roughly by county (Surrey, Middlesex, Cornwall)
+// so the filter list reads in a sensible island order.
+const PARISHES = [
+  'All',
+  'Kingston', 'St. Andrew', 'St. Thomas', 'Portland',
+  'St. Mary', 'St. Ann', 'Trelawny', 'St. Catherine', 'Clarendon', 'Manchester',
+  'St. James', 'Hanover', 'Westmoreland', 'St. Elizabeth',
+]
 
 const NEWS = [
   { id: 1, category: 'JSE Disclosure', parish: 'Kingston', time: '2h ago',
@@ -33,15 +40,53 @@ const NEWS = [
   { id: 5, category: 'Agriculture', parish: 'St. Ann', time: '1d ago',
     headline: 'Ocho Rios agro-processors expand export capacity',
     bullets: ['New cold-storage facility doubles export throughput', 'Targets UK and Canadian diaspora grocers', 'Backed by EXIM Bank Jamaica financing'] },
+  { id: 6, category: 'Real Estate', parish: 'St. Andrew', time: '3h ago',
+    headline: 'Barbican-Liguanea corridor sees steady townhouse demand',
+    bullets: ['Resale prices up modestly on limited new supply', 'Diaspora buyers remain a top demand driver', 'New gated developments planned near Hope Road'] },
+  { id: 7, category: 'Agriculture', parish: 'Manchester', time: '6h ago',
+    headline: 'Christiana-area coffee and citrus farmers expand output',
+    bullets: ['Cooperative adds new processing line', 'Targets higher-margin export grades', 'Backed by Development Bank of Jamaica financing'] },
+  { id: 8, category: 'Fishing & Tourism', parish: 'St. Thomas', time: '10h ago',
+    headline: 'Morant Bay eco-tourism and fisheries projects get a boost',
+    bullets: ['New cold-storage unit for the fishing cooperative', 'Eco-lodge pipeline grows along the south coast', 'Road upgrades improve access from Kingston'] },
+  { id: 9, category: 'Tourism', parish: 'Portland', time: '12h ago',
+    headline: 'Port Antonio boutique hotel pipeline keeps growing',
+    bullets: ['Two new boutique properties under construction', 'Blue Lagoon area sees renewed investor interest', 'Airlift from Ken Jones Aerodrome under review'] },
+  { id: 10, category: 'Agro-processing', parish: 'St. Mary', time: '14h ago',
+    headline: 'St. Mary agro-processors ramp up for export season',
+    bullets: ['Coconut and breadfruit processing capacity expanded', 'New packaging line targets diaspora grocers', 'Supported by EXIM Bank Jamaica'] },
+  { id: 11, category: 'Tourism & Real Estate', parish: 'Trelawny', time: '16h ago',
+    headline: 'Falmouth cruise port traffic lifts local retail and housing demand',
+    bullets: ['Record cruise-call numbers this season', 'New short-term rental supply near the historic district', 'Local vendors report stronger foot traffic'] },
+  { id: 12, category: 'Tourism', parish: 'Hanover', time: '18h ago',
+    headline: 'Lucea sees quiet but steady boutique resort growth',
+    bullets: ['Smaller-footprint resort projects favored over mega-resorts', 'Local employment ticks up on hospitality hiring', 'Road network upgrades continue toward Negril'] },
+  { id: 13, category: 'Tourism & Real Estate', parish: 'Westmoreland', time: '20h ago',
+    headline: 'Negril hospitality sector reports strong occupancy',
+    bullets: ['High-season occupancy tracking above last year', 'New villa and condo developments along Long Bay', 'Local vendors push for more direct airlift'] },
+  { id: 14, category: 'Agriculture & Tourism', parish: 'St. Elizabeth', time: '22h ago',
+    headline: 'Black River and Treasure Beach see mixed agri-tourism growth',
+    bullets: ['Eco-tourism bookings up on river safari demand', 'Allspice and pimento exporters report firm pricing', 'New guesthouse supply concentrated in Treasure Beach'] },
+  { id: 15, category: 'Agriculture', parish: 'Clarendon', time: '1d ago',
+    headline: 'May Pen agro-processing hub expands citrus and sugar output',
+    bullets: ['New cold-storage facility supports export timing', 'Sugar cooperative reports stable yields', 'Road links to Vernamfield logistics hub cited as a plus'] },
 ]
 
 const REAL_ESTATE = [
   { parish: 'Kingston', area: 'New Kingston', type: 'Commercial Office', jmd: 85000000, yield: '7.2%' },
   { parish: 'St. Andrew', area: 'Barbican', type: 'Luxury Townhouse', jmd: 62000000, yield: '5.1%' },
-  { parish: 'St. James', area: 'Ironshore', type: 'Vacation Villa', jmd: 48500000, yield: '9.4%' },
+  { parish: 'St. Thomas', area: 'Morant Bay', type: 'Family Home', jmd: 14500000, yield: '6.3%' },
+  { parish: 'Portland', area: 'Port Antonio', type: 'Eco-Lodge / Guesthouse', jmd: 32000000, yield: '8.1%' },
+  { parish: 'St. Mary', area: 'Oracabessa', type: 'Beachfront Villa', jmd: 41000000, yield: '7.6%' },
   { parish: 'St. Ann', area: 'Ocho Rios', type: 'Beachfront Condo', jmd: 35000000, yield: '8.8%' },
+  { parish: 'Trelawny', area: 'Falmouth', type: 'Short-Term Rental Townhouse', jmd: 26500000, yield: '7.9%' },
   { parish: 'St. Catherine', area: 'Portmore', type: 'Residential Lot', jmd: 9200000, yield: '6.0%' },
+  { parish: 'Clarendon', area: 'May Pen', type: 'Family Home', jmd: 16800000, yield: '5.8%' },
   { parish: 'Manchester', area: 'Mandeville', type: 'Family Home', jmd: 28000000, yield: '5.5%' },
+  { parish: 'St. James', area: 'Ironshore', type: 'Vacation Villa', jmd: 48500000, yield: '9.4%' },
+  { parish: 'Hanover', area: 'Lucea', type: 'Boutique Resort Unit', jmd: 22000000, yield: '7.0%' },
+  { parish: 'Westmoreland', area: 'Negril', type: 'Beachfront Villa', jmd: 55000000, yield: '9.8%' },
+  { parish: 'St. Elizabeth', area: 'Treasure Beach', type: 'Guesthouse', jmd: 19500000, yield: '8.4%' },
 ]
 
 const TECH = [
