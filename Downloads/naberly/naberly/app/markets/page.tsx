@@ -11,6 +11,8 @@ const MOCK_TICKER = [
   { label: 'Gasolene 90', value: 'J$217.33/L', change: '-0.4%', up: false },
   { label: 'Auto Diesel', value: 'J$238.88/L', change: '-0.3%', up: false },
   { label: 'GOJ 10-Yr Bond', value: '8.35%', change: '+0.04', up: true },
+  { label: 'GBP/JMD', value: '211.00', change: '+0.10%', up: true },
+  { label: 'CAD/JMD', value: '112.19', change: '-0.08%', up: false },
 ]
 
 const PARISHES = ['All', 'Kingston', 'St. Andrew', 'St. James', 'St. Ann', 'St. Catherine']
@@ -321,6 +323,8 @@ export default function MarketsPage() {
   const { rows: gas87Rows } = useLiveSeries('gas_87')
   const { rows: gas90Rows } = useLiveSeries('gas_90')
   const { rows: gasDieselRows } = useLiveSeries('gas_diesel')
+  const { rows: gbpRows } = useLiveSeries('fx_gbp_jmd')
+  const { rows: cadRows } = useLiveSeries('fx_cad_jmd')
 
   useEffect(() => {
     Promise.all([
@@ -334,16 +338,21 @@ export default function MarketsPage() {
   const mockGas87 = parseFloat(MOCK_TICKER[3].value.replace('J$', '').replace('/L', ''))
   const mockGas90 = parseFloat(MOCK_TICKER[4].value.replace('J$', '').replace('/L', ''))
   const mockDiesel = parseFloat(MOCK_TICKER[5].value.replace('J$', '').replace('/L', ''))
+  const mockGbp = parseFloat(MOCK_TICKER[7].value)
+  const mockCad = parseFloat(MOCK_TICKER[8].value)
 
   const fx = latestAndChange(fxRows, mockFx)
   const boj = latestAndChange(bojRows, mockBoj)
   const gas87 = latestAndChange(gas87Rows, mockGas87)
   const gas90 = latestAndChange(gas90Rows, mockGas90)
   const diesel = latestAndChange(gasDieselRows, mockDiesel)
+  const gbp = latestAndChange(gbpRows, mockGbp)
+  const cad = latestAndChange(cadRows, mockCad)
 
   const hasLiveFx = fx.hasLive
   const hasLiveBoj = boj.hasLive
   const hasLiveGas = gas87.hasLive || gas90.hasLive || diesel.hasLive
+  const hasLiveOtherFx = gbp.hasLive || cad.hasLive
   const latestFx = fx.latest
 
   // Build the live ticker row: JSE Index and the GOJ bond stay mock (not
@@ -356,6 +365,18 @@ export default function MarketsPage() {
       value: fx.latest.toFixed(2),
       change: fx.changePct !== null ? (fx.changePct >= 0 ? '+' : '') + fx.changePct.toFixed(2) + '%' : MOCK_TICKER[1].change,
       up: fx.changePct !== null ? fx.changePct >= 0 : MOCK_TICKER[1].up,
+    },
+    {
+      label: 'GBP/JMD',
+      value: gbp.latest.toFixed(2),
+      change: gbp.changePct !== null ? (gbp.changePct >= 0 ? '+' : '') + gbp.changePct.toFixed(2) + '%' : MOCK_TICKER[7].change,
+      up: gbp.changePct !== null ? gbp.changePct >= 0 : MOCK_TICKER[7].up,
+    },
+    {
+      label: 'CAD/JMD',
+      value: cad.latest.toFixed(2),
+      change: cad.changePct !== null ? (cad.changePct >= 0 ? '+' : '') + cad.changePct.toFixed(2) + '%' : MOCK_TICKER[8].change,
+      up: cad.changePct !== null ? cad.changePct >= 0 : MOCK_TICKER[8].up,
     },
     {
       label: 'BOJ Policy Rate',
@@ -404,11 +425,12 @@ export default function MarketsPage() {
   // Header badge reflects exactly which feeds are currently live.
   const liveLabels: string[] = []
   if (hasLiveFx) liveLabels.push('USD/JMD')
+  if (hasLiveOtherFx) liveLabels.push('FX')
   if (hasLiveBoj) liveLabels.push('BOJ')
   if (hasLiveGas) liveLabels.push('GAS')
   const badgeText = liveLabels.length === 0
     ? 'MOCK DATA · PROTOTYPE'
-    : liveLabels.join(' + ') + ' LIVE' + (liveLabels.length < 3 ? ' · REST MOCK' : '')
+    : liveLabels.join(' + ') + ' LIVE' + (liveLabels.length < 4 ? ' · REST MOCK' : '')
 
   if (!scriptsReady) {
     return (
