@@ -2,6 +2,17 @@
 import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
+import { PayPalScriptProvider, PayPalButtons } from '@paypal/react-paypal-js'
+
+// Same live PayPal app already used for Boosts/Sponsor packages.
+const PAYPAL_CLIENT_ID = process.env.NEXT_PUBLIC_PAYPAL_CLIENT_ID_LIVE || ''
+// Two PayPal subscription Plan IDs (created once in the PayPal dashboard
+// under Account Settings > Products and services > Subscriptions). Each
+// must be set as a Vercel environment variable before this goes live.
+const PREMIUM_PLANS = {
+  monthly: { planId: process.env.NEXT_PUBLIC_PAYPAL_PREMIUM_MONTHLY_PLAN_ID || '', label: 'Monthly', priceLabel: '$4.99 / month' },
+  annual: { planId: process.env.NEXT_PUBLIC_PAYPAL_PREMIUM_ANNUAL_PLAN_ID || '', label: 'Annual', priceLabel: '$39.99 / year (save ~33%)' },
+} as const
 
 const MOCK_TICKER = [
   { label: 'JSE Index', value: '412,558.32', change: '+0.84%', up: true },
@@ -431,6 +442,52 @@ function PremiumTab({ fxTrend, isLive }: { fxTrend: { labels: string[]; data: nu
     'Diaspora remittance-timing FX alerts',
   ]
 
+  // Real subscription state: who's logged in, and are they already Premium.
+  const [userId, setUserId] = useState<string | null>(null)
+  const [isPremium, setIsPremium] = useState(false)
+  const [checkingAuth, setCheckingAuth] = useState(true)
+  const [billingCycle, setBillingCycle] = useState<'monthly' | 'annual'>('monthly')
+  const [subError, setSubError] = useState('')
+
+  useEffect(() => {
+    supabase.auth.getUser().then(async ({ data }) => {
+      if (data.user) {
+        setUserId(data.user.id)
+        const { data: sub } = await supabase
+          .from('premium_subscriptions')
+          .select('status')
+          .eq('user_id', data.user.id)
+          .eq('status', 'active')
+          .maybeSingle()
+        setIsPremium(!!sub)
+      }
+      setCheckingAuth(false)
+    })
+  }, [])
+
+  // Called once PayPal confirms the subscription was approved. This writes
+  // our own record of it to Supabase so the rest of the app can check
+  // "is this user Premium" without calling PayPal every time. Note: if the
+  // subscription is later cancelled or a renewal payment fails, PayPal
+  // won't tell Supabase about that automatically yet — that needs a PayPal
+  // webhook wired up as a follow-on step; for now this only tracks
+  // successful sign-ups.
+  async function recordSubscription(subscriptionId: string, plan: 'monthly' | 'annual') {
+    if (!userId) return
+    const periodEnd = new Date()
+    if (plan === 'monthly') periodEnd.setMonth(periodEnd.getMonth() + 1)
+    else periodEnd.setFullYear(periodEnd.getFullYear() + 1)
+    await supabase.from('premium_subscriptions').upsert([{
+      user_id: userId,
+      plan,
+      status: 'active',
+      paypal_subscription_id: subscriptionId,
+      started_at: new Date().toISOString(),
+      current_period_end: periodEnd.toISOString(),
+    }], { onConflict: 'user_id' })
+    setIsPremium(true)
+  }
+
   return (
     <div>
       <div className="bg-[#101512] border border-[#1f2623] rounded-lg p-4 mb-5">
@@ -454,9 +511,60 @@ function PremiumTab({ fxTrend, isLive }: { fxTrend: { labels: string[]; data: nu
             </li>
           ))}
         </ul>
-        <button className="bg-amber-500 hover:bg-amber-400 text-black font-semibold text-sm px-5 py-2.5 rounded-md">
-          Upgrade to Premium
-        </button>
+
+        {checkingAuth && (
+          <p className="text-xs text-gray-500">Checking your account...</p>
+        )}
+
+        {!checkingAuth && !userId && (
+          <Link href="/login" className="inline-block bg-amber-500 hover:bg-amber-400 text-black font-semibold text-sm px-5 py-2.5 rounded-md">
+            Log in to subscribe
+          </Link>
+        )}
+
+        {!checkingAuth && userId && isPremium && (
+          <div className="bg-emerald-900/30 border border-emerald-600/40 rounded-md px-4 py-3">
+            <p className="text-emerald-400 font-semibold text-sm">✓ You're a Premium subscriber</p>
+            <p className="text-xs text-gray-400 mt-1">Thank you for supporting NaberlyJA. Manage or cancel anytime from your PayPal account.</p>
+          </div>
+        )}
+
+        {!checkingAuth && userId && !isPremium && (
+          <div>
+            <div className="flex gap-2 mb-3">
+              {(Object.keys(PREMIUM_PLANS) as Array<keyof typeof PREMIUM_PLANS>).map(key => (
+                <button key={key} onClick={() => setBillingCycle(key)}
+                  className={'flex-1 text-left px-3 py-2 rounded-md border text-xs ' +
+                    (billingCycle === key ? 'bg-amber-500 text-black border-amber-500 font-semibold' : 'border-[#2a332e] text-gray-300 hover:border-amber-500')}>
+                  <div className="font-semibold">{PREMIUM_PLANS[key].label}</div>
+                  <div className={billingCycle === key ? 'text-black/70' : 'text-gray-500'}>{PREMIUM_PLANS[key].priceLabel}</div>
+                </button>
+              ))}
+            </div>
+
+            {subError && (
+              <p className="text-xs text-red-400 mb-2">{subError}</p>
+            )}
+
+            {PAYPAL_CLIENT_ID && PREMIUM_PLANS[billingCycle].planId ? (
+              <PayPalScriptProvider options={{ clientId: PAYPAL_CLIENT_ID, vault: true, intent: 'subscription', currency: 'USD' }}>
+                <PayPalButtons
+                  key={billingCycle}
+                  style={{ layout: 'vertical', color: 'gold', shape: 'rect', label: 'subscribe' }}
+                  createSubscription={(_data: any, actions: any) => {
+                    return actions.subscription.create({ plan_id: PREMIUM_PLANS[billingCycle].planId })
+                  }}
+                  onApprove={async (data: any) => {
+                    if (data.subscriptionID) await recordSubscription(data.subscriptionID, billingCycle)
+                  }}
+                  onError={() => setSubError('Something went wrong. Please try again or contact support.')}
+                />
+              </PayPalScriptProvider>
+            ) : (
+              <p className="text-xs text-gray-500">Subscriptions aren't set up yet — check back soon.</p>
+            )}
+          </div>
+        )}
       </div>
     </div>
   )
