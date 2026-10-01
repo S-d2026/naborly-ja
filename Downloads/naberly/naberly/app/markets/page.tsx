@@ -1,11 +1,12 @@
 'use client'
 import { useState, useEffect, useRef } from 'react'
 import Link from 'next/link'
+import { supabase } from '@/lib/supabase'
 
-const TICKER = [
+const MOCK_TICKER = [
   { label: 'JSE Index', value: '412,558.32', change: '+0.84%', up: true },
   { label: 'USD/JMD', value: '157.42', change: '+0.12%', up: true },
-  { label: 'BOJ Policy Rate', value: '6.00%', change: '0.00', up: null },
+  { label: 'BOJ Policy Rate', value: '6.00%', change: '0.00', up: null as boolean | null },
   { label: 'Gas E10 87', value: 'J$189.90/L', change: '-0.6%', up: false },
   { label: 'GOJ 10-Yr Bond', value: '8.35%', change: '+0.04', up: true },
 ]
@@ -47,12 +48,14 @@ const TECH = [
   { name: 'MedLink JA', sector: 'HealthTech', round: 'Grant', amount: 'US$75,000', investors: 'JBDC Digitalization Grant' },
 ]
 
-const FX_TREND = {
+// Fallback trend, used only until enough real daily rates have accumulated
+// in Supabase (the chart needs at least 2 real points to draw a real line).
+const MOCK_FX_TREND = {
   labels: ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'],
   data: [155.1,155.4,155.9,156.2,156.0,156.5,156.8,157.0,156.9,157.2,157.3,157.42],
 }
 
-function fmtUSD(jmd: number) { return '$' + Math.round(jmd / 157.42).toLocaleString() }
+function fmtUSD(jmd: number, rate: number) { return '$' + Math.round(jmd / rate).toLocaleString() }
 function fmtJMD(jmd: number) { return 'J$' + jmd.toLocaleString() }
 
 function loadScript(src: string, id: string): Promise<void> {
@@ -66,8 +69,36 @@ function loadScript(src: string, id: string): Promise<void> {
   })
 }
 
-function TickerMarquee() {
-  const row = [...TICKER, ...TICKER]
+// Pulls the real daily USD/JMD rate history from the market_data table
+// (populated by the Make.com automation). Falls back to nothing if the
+// table is empty or unreachable — callers should fall back to mock data.
+function useLiveFxHistory() {
+  const [rows, setRows] = useState<{ value: number; updated_at: string }[]>([])
+  const [loaded, setLoaded] = useState(false)
+
+  useEffect(() => {
+    supabase
+      .from('market_data')
+      .select('value, updated_at')
+      .eq('data_type', 'fx_usd_jmd')
+      .order('updated_at', { ascending: true })
+      .then(({ data }) => {
+        if (data) {
+          setRows(
+            data
+              .map(d => ({ value: parseFloat(d.value), updated_at: d.updated_at }))
+              .filter(d => !isNaN(d.value))
+          )
+        }
+        setLoaded(true)
+      })
+  }, [])
+
+  return { rows, loaded }
+}
+
+function TickerMarquee({ ticker }: { ticker: typeof MOCK_TICKER }) {
+  const row = [...ticker, ...ticker]
   return (
     <div className="bg-black border-y border-[#1f2623] overflow-hidden py-2">
       <div className="marquee-track">
@@ -122,7 +153,7 @@ function NewsTab() {
   )
 }
 
-function RealEstateTab() {
+function RealEstateTab({ fxRate }: { fxRate: number }) {
   const [parish, setParish] = useState('All')
   const [q, setQ] = useState('')
   const rows = REAL_ESTATE.filter(r =>
@@ -154,7 +185,7 @@ function RealEstateTab() {
                 <td className="px-3 py-2 text-white font-medium">{r.area}</td>
                 <td className="px-3 py-2 text-gray-300">{r.type}</td>
                 <td className="px-3 py-2 text-gray-300">{fmtJMD(r.jmd)}</td>
-                <td className="px-3 py-2 text-gray-400">{fmtUSD(r.jmd)}</td>
+                <td className="px-3 py-2 text-gray-400">{fmtUSD(r.jmd, fxRate)}</td>
                 <td className="px-3 py-2 text-emerald-400 font-semibold">{r.yield}</td>
               </tr>
             ))}
@@ -192,7 +223,7 @@ function TechTab() {
   )
 }
 
-function PremiumTab() {
+function PremiumTab({ fxTrend, isLive }: { fxTrend: { labels: string[]; data: number[] }, isLive: boolean }) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const chartRef = useRef<any>(null)
 
@@ -204,10 +235,10 @@ function PremiumTab() {
     chartRef.current = new ChartLib(canvasRef.current, {
       type: 'line',
       data: {
-        labels: FX_TREND.labels,
+        labels: fxTrend.labels,
         datasets: [{
           label: 'USD/JMD',
-          data: FX_TREND.data,
+          data: fxTrend.data,
           borderColor: '#f59e0b',
           backgroundColor: 'rgba(245,158,11,0.08)',
           fill: true,
@@ -226,7 +257,7 @@ function PremiumTab() {
       },
     })
     return () => { if (chartRef.current) chartRef.current.destroy() }
-  }, [])
+  }, [fxTrend])
 
   const locked = [
     'Raw CSV data exports (JSE, FX, real estate)',
@@ -239,7 +270,14 @@ function PremiumTab() {
   return (
     <div>
       <div className="bg-[#101512] border border-[#1f2623] rounded-lg p-4 mb-5">
-        <p className="text-xs uppercase tracking-wider text-gray-400 mb-3">USD / JMD — 12-Month Trend</p>
+        <div className="flex items-center justify-between mb-3">
+          <p className="text-xs uppercase tracking-wider text-gray-400">USD / JMD Trend</p>
+          {isLive ? (
+            <span className="text-[10px] px-2 py-0.5 rounded bg-emerald-900/40 text-emerald-400 font-semibold">● LIVE</span>
+          ) : (
+            <span className="text-[10px] px-2 py-0.5 rounded bg-[#1f2623] text-gray-500">MOCK</span>
+          )}
+        </div>
         <div className="h-56"><canvas ref={canvasRef}></canvas></div>
       </div>
       <div className="relative bg-gradient-to-br from-amber-900/30 to-black border border-amber-600/40 rounded-lg p-5 overflow-hidden">
@@ -263,6 +301,7 @@ function PremiumTab() {
 export default function MarketsPage() {
   const [tab, setTab] = useState('overview')
   const [scriptsReady, setScriptsReady] = useState(false)
+  const { rows: fxRows, loaded: fxLoaded } = useLiveFxHistory()
 
   useEffect(() => {
     Promise.all([
@@ -270,6 +309,34 @@ export default function MarketsPage() {
       loadScript('https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.0/chart.umd.min.js', 'chartjs-cdn-script'),
     ]).then(() => setScriptsReady(true))
   }, [])
+
+  const hasLiveFx = fxRows.length > 0
+  const latestFx = hasLiveFx ? fxRows[fxRows.length - 1].value : parseFloat(MOCK_TICKER[1].value)
+  const previousFx = fxRows.length > 1 ? fxRows[fxRows.length - 2].value : null
+  const fxChangePct = previousFx ? (((latestFx - previousFx) / previousFx) * 100) : null
+
+  // Build the live ticker row: every value is still mock except USD/JMD,
+  // which uses the real rate once at least one has been pulled in by the
+  // Make.com automation.
+  const ticker = MOCK_TICKER.map(t => {
+    if (t.label !== 'USD/JMD' || !hasLiveFx) return t
+    return {
+      label: 'USD/JMD',
+      value: latestFx.toFixed(2),
+      change: fxChangePct !== null ? (fxChangePct >= 0 ? '+' : '') + fxChangePct.toFixed(2) + '%' : '—',
+      up: fxChangePct !== null ? fxChangePct >= 0 : null,
+    }
+  })
+
+  // The chart needs at least 2 real data points to draw a real trend —
+  // until then, keep showing the mock 12-month trend so the chart never
+  // looks broken or empty.
+  const fxTrend = fxRows.length >= 2
+    ? {
+        labels: fxRows.map(r => new Date(r.updated_at).toLocaleDateString('en-JM', { month: 'short', day: 'numeric' })),
+        data: fxRows.map(r => r.value),
+      }
+    : MOCK_FX_TREND
 
   const tabs = [
     { key: 'overview', label: 'Overview' },
@@ -301,9 +368,11 @@ export default function MarketsPage() {
               <p className="text-[11px] text-gray-500">Jamaica business &amp; market intelligence, in your Naberhood</p>
             </div>
           </div>
-          <span className="text-[10px] px-2 py-1 rounded bg-[#1f2623] text-gray-400">MOCK DATA · PROTOTYPE</span>
+          <span className="text-[10px] px-2 py-1 rounded bg-[#1f2623] text-gray-400">
+            {hasLiveFx ? 'USD/JMD LIVE · REST MOCK' : 'MOCK DATA · PROTOTYPE'}
+          </span>
         </header>
-        <TickerMarquee />
+        <TickerMarquee ticker={ticker} />
         <nav className="flex gap-1 px-4 py-3 overflow-x-auto">
           {tabs.map(t => (
             <button key={t.key} onClick={() => setTab(t.key)}
@@ -315,9 +384,9 @@ export default function MarketsPage() {
         </nav>
         <main className="px-4">
           {tab === 'overview' && <NewsTab />}
-          {tab === 'realestate' && <RealEstateTab />}
+          {tab === 'realestate' && <RealEstateTab fxRate={latestFx} />}
           {tab === 'tech' && <TechTab />}
-          {tab === 'premium' && <PremiumTab />}
+          {tab === 'premium' && <PremiumTab fxTrend={fxTrend} isLive={fxRows.length >= 2} />}
         </main>
       </div>
     </div>
