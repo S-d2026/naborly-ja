@@ -7,7 +7,9 @@ const MOCK_TICKER = [
   { label: 'JSE Index', value: '412,558.32', change: '+0.84%', up: true },
   { label: 'USD/JMD', value: '157.42', change: '+0.12%', up: true },
   { label: 'BOJ Policy Rate', value: '6.00%', change: '0.00', up: null as boolean | null },
-  { label: 'Gas E10 87', value: 'J$189.90/L', change: '-0.6%', up: false },
+  { label: 'Gasolene 87', value: 'J$209.62/L', change: '-0.6%', up: false },
+  { label: 'Gasolene 90', value: 'J$217.33/L', change: '-0.4%', up: false },
+  { label: 'Auto Diesel', value: 'J$238.88/L', change: '-0.3%', up: false },
   { label: 'GOJ 10-Yr Bond', value: '8.35%', change: '+0.04', up: true },
 ]
 
@@ -69,10 +71,11 @@ function loadScript(src: string, id: string): Promise<void> {
   })
 }
 
-// Pulls the real daily USD/JMD rate history from the market_data table
-// (populated by the Make.com automation). Falls back to nothing if the
-// table is empty or unreachable — callers should fall back to mock data.
-function useLiveFxHistory() {
+// Pulls the real history for a single market_data "data_type" (e.g.
+// 'fx_usd_jmd', 'boj_rate', 'gas_87', 'gas_90', 'gas_diesel') — populated by
+// the Make.com automations. Returns an empty array if the table has no rows
+// yet for that type; callers fall back to mock data in that case.
+function useLiveSeries(dataType: string) {
   const [rows, setRows] = useState<{ value: number; updated_at: string }[]>([])
   const [loaded, setLoaded] = useState(false)
 
@@ -80,7 +83,7 @@ function useLiveFxHistory() {
     supabase
       .from('market_data')
       .select('value, updated_at')
-      .eq('data_type', 'fx_usd_jmd')
+      .eq('data_type', dataType)
       .order('updated_at', { ascending: true })
       .then(({ data }) => {
         if (data) {
@@ -92,9 +95,20 @@ function useLiveFxHistory() {
         }
         setLoaded(true)
       })
-  }, [])
+  }, [dataType])
 
   return { rows, loaded }
+}
+
+// Shared helper: given a live series and a mock fallback number, work out
+// the "current" value, the previous value (for a change indicator), and the
+// percent change — or null/mock values if no live rows exist yet.
+function latestAndChange(rows: { value: number; updated_at: string }[], mockValue: number) {
+  const hasLive = rows.length > 0
+  const latest = hasLive ? rows[rows.length - 1].value : mockValue
+  const previous = rows.length > 1 ? rows[rows.length - 2].value : null
+  const changePct = previous !== null ? ((latest - previous) / previous) * 100 : null
+  return { hasLive, latest, previous, changePct }
 }
 
 function TickerMarquee({ ticker }: { ticker: typeof MOCK_TICKER }) {
@@ -301,7 +315,12 @@ function PremiumTab({ fxTrend, isLive }: { fxTrend: { labels: string[]; data: nu
 export default function MarketsPage() {
   const [tab, setTab] = useState('overview')
   const [scriptsReady, setScriptsReady] = useState(false)
-  const { rows: fxRows, loaded: fxLoaded } = useLiveFxHistory()
+
+  const { rows: fxRows } = useLiveSeries('fx_usd_jmd')
+  const { rows: bojRows } = useLiveSeries('boj_rate')
+  const { rows: gas87Rows } = useLiveSeries('gas_87')
+  const { rows: gas90Rows } = useLiveSeries('gas_90')
+  const { rows: gasDieselRows } = useLiveSeries('gas_diesel')
 
   useEffect(() => {
     Promise.all([
@@ -310,23 +329,60 @@ export default function MarketsPage() {
     ]).then(() => setScriptsReady(true))
   }, [])
 
-  const hasLiveFx = fxRows.length > 0
-  const latestFx = hasLiveFx ? fxRows[fxRows.length - 1].value : parseFloat(MOCK_TICKER[1].value)
-  const previousFx = fxRows.length > 1 ? fxRows[fxRows.length - 2].value : null
-  const fxChangePct = previousFx ? (((latestFx - previousFx) / previousFx) * 100) : null
+  const mockFx = parseFloat(MOCK_TICKER[1].value)
+  const mockBoj = parseFloat(MOCK_TICKER[2].value)
+  const mockGas87 = parseFloat(MOCK_TICKER[3].value.replace('J$', '').replace('/L', ''))
+  const mockGas90 = parseFloat(MOCK_TICKER[4].value.replace('J$', '').replace('/L', ''))
+  const mockDiesel = parseFloat(MOCK_TICKER[5].value.replace('J$', '').replace('/L', ''))
 
-  // Build the live ticker row: every value is still mock except USD/JMD,
-  // which uses the real rate once at least one has been pulled in by the
-  // Make.com automation.
-  const ticker = MOCK_TICKER.map(t => {
-    if (t.label !== 'USD/JMD' || !hasLiveFx) return t
-    return {
+  const fx = latestAndChange(fxRows, mockFx)
+  const boj = latestAndChange(bojRows, mockBoj)
+  const gas87 = latestAndChange(gas87Rows, mockGas87)
+  const gas90 = latestAndChange(gas90Rows, mockGas90)
+  const diesel = latestAndChange(gasDieselRows, mockDiesel)
+
+  const hasLiveFx = fx.hasLive
+  const hasLiveBoj = boj.hasLive
+  const hasLiveGas = gas87.hasLive || gas90.hasLive || diesel.hasLive
+  const latestFx = fx.latest
+
+  // Build the live ticker row: JSE Index and the GOJ bond stay mock (not
+  // automated yet); USD/JMD, BOJ Policy Rate, and the three fuel prices use
+  // real Supabase values once the Make.com automations have run at least once.
+  const ticker = [
+    MOCK_TICKER[0],
+    {
       label: 'USD/JMD',
-      value: latestFx.toFixed(2),
-      change: fxChangePct !== null ? (fxChangePct >= 0 ? '+' : '') + fxChangePct.toFixed(2) + '%' : '—',
-      up: fxChangePct !== null ? fxChangePct >= 0 : null,
-    }
-  })
+      value: fx.latest.toFixed(2),
+      change: fx.changePct !== null ? (fx.changePct >= 0 ? '+' : '') + fx.changePct.toFixed(2) + '%' : MOCK_TICKER[1].change,
+      up: fx.changePct !== null ? fx.changePct >= 0 : MOCK_TICKER[1].up,
+    },
+    {
+      label: 'BOJ Policy Rate',
+      value: boj.latest.toFixed(2) + '%',
+      change: boj.previous !== null ? (boj.latest - boj.previous >= 0 ? '+' : '') + (boj.latest - boj.previous).toFixed(2) : MOCK_TICKER[2].change,
+      up: boj.previous !== null ? (boj.latest === boj.previous ? null : boj.latest > boj.previous) : MOCK_TICKER[2].up,
+    },
+    {
+      label: 'Gasolene 87',
+      value: 'J$' + gas87.latest.toFixed(2) + '/L',
+      change: gas87.changePct !== null ? (gas87.changePct >= 0 ? '+' : '') + gas87.changePct.toFixed(1) + '%' : MOCK_TICKER[3].change,
+      up: gas87.changePct !== null ? gas87.changePct >= 0 : MOCK_TICKER[3].up,
+    },
+    {
+      label: 'Gasolene 90',
+      value: 'J$' + gas90.latest.toFixed(2) + '/L',
+      change: gas90.changePct !== null ? (gas90.changePct >= 0 ? '+' : '') + gas90.changePct.toFixed(1) + '%' : MOCK_TICKER[4].change,
+      up: gas90.changePct !== null ? gas90.changePct >= 0 : MOCK_TICKER[4].up,
+    },
+    {
+      label: 'Auto Diesel',
+      value: 'J$' + diesel.latest.toFixed(2) + '/L',
+      change: diesel.changePct !== null ? (diesel.changePct >= 0 ? '+' : '') + diesel.changePct.toFixed(1) + '%' : MOCK_TICKER[5].change,
+      up: diesel.changePct !== null ? diesel.changePct >= 0 : MOCK_TICKER[5].up,
+    },
+    MOCK_TICKER[6],
+  ]
 
   // The chart needs at least 2 real data points to draw a real trend —
   // until then, keep showing the mock 12-month trend so the chart never
@@ -344,6 +400,15 @@ export default function MarketsPage() {
     { key: 'tech', label: 'Tech & MSME' },
     { key: 'premium', label: 'Premium' },
   ]
+
+  // Header badge reflects exactly which feeds are currently live.
+  const liveLabels: string[] = []
+  if (hasLiveFx) liveLabels.push('USD/JMD')
+  if (hasLiveBoj) liveLabels.push('BOJ')
+  if (hasLiveGas) liveLabels.push('GAS')
+  const badgeText = liveLabels.length === 0
+    ? 'MOCK DATA · PROTOTYPE'
+    : liveLabels.join(' + ') + ' LIVE' + (liveLabels.length < 3 ? ' · REST MOCK' : '')
 
   if (!scriptsReady) {
     return (
@@ -369,7 +434,7 @@ export default function MarketsPage() {
             </div>
           </div>
           <span className="text-[10px] px-2 py-1 rounded bg-[#1f2623] text-gray-400">
-            {hasLiveFx ? 'USD/JMD LIVE · REST MOCK' : 'MOCK DATA · PROTOTYPE'}
+            {badgeText}
           </span>
         </header>
         <TickerMarquee ticker={ticker} />
