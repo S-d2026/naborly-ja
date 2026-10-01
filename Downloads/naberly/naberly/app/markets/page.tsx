@@ -146,7 +146,11 @@ function useLiveSeries(dataType: string) {
         if (data) {
           setRows(
             data
-              .map(d => ({ value: parseFloat(d.value), updated_at: d.updated_at }))
+              // Strips thousands-separator commas (e.g. a JSE index value like
+              // "384,524.89") before parsing — some upstream feeds send
+              // pre-formatted numbers, and parseFloat alone stops at the
+              // first comma and silently truncates the value.
+              .map(d => ({ value: parseFloat(String(d.value).replace(/,/g, '')), updated_at: d.updated_at }))
               .filter(d => !isNaN(d.value))
           )
         }
@@ -383,6 +387,7 @@ export default function MarketsPage() {
   const [scriptsReady, setScriptsReady] = useState(false)
 
   const { rows: fxRows } = useLiveSeries('fx_usd_jmd')
+  const { rows: jseRows } = useLiveSeries('jse_index')
   const { rows: bojRows } = useLiveSeries('boj_rate')
   const { rows: gas87Rows } = useLiveSeries('gas_87')
   const { rows: gas90Rows } = useLiveSeries('gas_90')
@@ -397,6 +402,7 @@ export default function MarketsPage() {
     ]).then(() => setScriptsReady(true))
   }, [])
 
+  const mockJse = parseFloat(MOCK_TICKER[0].value.replace(/,/g, ''))
   const mockFx = parseFloat(MOCK_TICKER[1].value)
   const mockBoj = parseFloat(MOCK_TICKER[2].value)
   const mockGas87 = parseFloat(MOCK_TICKER[3].value.replace('J$', '').replace('/L', ''))
@@ -405,6 +411,7 @@ export default function MarketsPage() {
   const mockGbp = parseFloat(MOCK_TICKER[7].value)
   const mockCad = parseFloat(MOCK_TICKER[8].value)
 
+  const jse = latestAndChange(jseRows, mockJse)
   const fx = latestAndChange(fxRows, mockFx)
   const boj = latestAndChange(bojRows, mockBoj)
   const gas87 = latestAndChange(gas87Rows, mockGas87)
@@ -413,17 +420,23 @@ export default function MarketsPage() {
   const gbp = latestAndChange(gbpRows, mockGbp)
   const cad = latestAndChange(cadRows, mockCad)
 
+  const hasLiveJse = jse.hasLive
   const hasLiveFx = fx.hasLive
   const hasLiveBoj = boj.hasLive
   const hasLiveGas = gas87.hasLive || gas90.hasLive || diesel.hasLive
   const hasLiveOtherFx = gbp.hasLive || cad.hasLive
   const latestFx = fx.latest
 
-  // Build the live ticker row: JSE Index and the GOJ bond stay mock (not
-  // automated yet); USD/JMD, BOJ Policy Rate, and the three fuel prices use
-  // real Supabase values once the Make.com automations have run at least once.
+  // Build the live ticker row: the GOJ bond stays mock (not automated yet);
+  // everything else uses real Supabase values once the Make.com automations
+  // have run at least once.
   const ticker = [
-    MOCK_TICKER[0],
+    {
+      label: 'JSE Index',
+      value: jse.latest.toLocaleString(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 }),
+      change: jse.changePct !== null ? (jse.changePct >= 0 ? '+' : '') + jse.changePct.toFixed(2) + '%' : MOCK_TICKER[0].change,
+      up: jse.changePct !== null ? jse.changePct >= 0 : MOCK_TICKER[0].up,
+    },
     {
       label: 'USD/JMD',
       value: fx.latest.toFixed(2),
@@ -488,13 +501,14 @@ export default function MarketsPage() {
 
   // Header badge reflects exactly which feeds are currently live.
   const liveLabels: string[] = []
+  if (hasLiveJse) liveLabels.push('JSE')
   if (hasLiveFx) liveLabels.push('USD/JMD')
   if (hasLiveOtherFx) liveLabels.push('FX')
   if (hasLiveBoj) liveLabels.push('BOJ')
   if (hasLiveGas) liveLabels.push('GAS')
   const badgeText = liveLabels.length === 0
     ? 'MOCK DATA · PROTOTYPE'
-    : liveLabels.join(' + ') + ' LIVE' + (liveLabels.length < 4 ? ' · REST MOCK' : '')
+    : liveLabels.join(' + ') + ' LIVE' + (liveLabels.length < 5 ? ' · REST MOCK' : '')
 
   if (!scriptsReady) {
     return (
