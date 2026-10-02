@@ -626,8 +626,9 @@ function PremiumTab({ fxTrend, isLive }: { fxTrend: { labels: string[]; data: nu
   // Live and built, shown to subscribers as real features below.
   const liveBenefits = [
     'Raw CSV data exports (JSE, FX, real estate)',
-    '90-day high / low / average trend stats (JSE & FX)',
+    'Historical high / low / average trend stats (JSE & FX)',
     'Diaspora remittance-timing indicator (in-app)',
+    '5-year BOJ policy rate history (real data, backfilled from BOJ’s own published records)',
   ]
   // Not built yet — these need a real data source confirmed first (the
   // same way the government contracts feed was validated before building
@@ -635,8 +636,12 @@ function PremiumTab({ fxTrend, isLive }: { fxTrend: { labels: string[]; data: nu
   // claimed as live.
   const comingSoon = [
     'Historical land registry lookups by parish',
-    'Full BOJ / JSE disclosure archive (5-year)',
   ]
+  // JSE Index history has no real backfill source (StacksJA's index_history
+  // tool is MCP-only, not a plain REST endpoint) — so unlike BOJ, it isn't a
+  // one-time backfill. It builds real depth one real day at a time from the
+  // existing daily automation. Shown honestly below rather than implied to
+  // already have years of depth.
 
   // Raw history for the trend stats, the remittance indicator, and the
   // CSV export below — fetched independently of the page-level ticker
@@ -794,14 +799,17 @@ function PremiumTab({ fxTrend, isLive }: { fxTrend: { labels: string[]; data: nu
 
             <div className="mt-4 pt-4 border-t border-emerald-600/20 space-y-4">
               <div>
-                <p className="text-xs uppercase tracking-wider text-gray-400 mb-2">90-Day Trend Stats</p>
+                <p className="text-xs uppercase tracking-wider text-gray-400 mb-2">Trend Stats</p>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                   <div className="bg-black/30 rounded-md p-3">
                     <p className="text-xs text-gray-400 mb-1">USD / JMD</p>
                     {fxStats ? (
-                      <p className="text-sm text-white">
-                        High <span className="text-emerald-400">J${fxStats.high.toFixed(2)}</span> · Low <span className="text-red-400">J${fxStats.low.toFixed(2)}</span> · Avg J${fxStats.avg.toFixed(2)}
-                      </p>
+                      <>
+                        <p className="text-sm text-white">
+                          High <span className="text-emerald-400">J${fxStats.high.toFixed(2)}</span> · Low <span className="text-red-400">J${fxStats.low.toFixed(2)}</span> · Avg J${fxStats.avg.toFixed(2)}
+                        </p>
+                        <p className="text-[10px] text-gray-500 mt-1">Based on {fxStats.count} real day{fxStats.count === 1 ? '' : 's'} of data.</p>
+                      </>
                     ) : (
                       <p className="text-xs text-gray-500">Not enough history yet.</p>
                     )}
@@ -809,9 +817,12 @@ function PremiumTab({ fxTrend, isLive }: { fxTrend: { labels: string[]; data: nu
                   <div className="bg-black/30 rounded-md p-3">
                     <p className="text-xs text-gray-400 mb-1">JSE Index</p>
                     {jseStats ? (
-                      <p className="text-sm text-white">
-                        High <span className="text-emerald-400">{jseStats.high.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span> · Low <span className="text-red-400">{jseStats.low.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span> · Avg {jseStats.avg.toLocaleString(undefined, { maximumFractionDigits: 2 })}
-                      </p>
+                      <>
+                        <p className="text-sm text-white">
+                          High <span className="text-emerald-400">{jseStats.high.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span> · Low <span className="text-red-400">{jseStats.low.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span> · Avg {jseStats.avg.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                        </p>
+                        <p className="text-[10px] text-gray-500 mt-1">Based on {jseStats.count} real day{jseStats.count === 1 ? '' : 's'} of data — building daily.</p>
+                      </>
                     ) : (
                       <p className="text-xs text-gray-500">Not enough history yet.</p>
                     )}
