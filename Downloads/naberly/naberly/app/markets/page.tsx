@@ -445,6 +445,7 @@ function PremiumTab({ fxTrend, isLive }: { fxTrend: { labels: string[]; data: nu
   // Real subscription state: who's logged in, and are they already Premium.
   const [userId, setUserId] = useState<string | null>(null)
   const [isPremium, setIsPremium] = useState(false)
+  const [isAdminAccess, setIsAdminAccess] = useState(false)
   const [checkingAuth, setCheckingAuth] = useState(true)
   const [billingCycle, setBillingCycle] = useState<'monthly' | 'annual'>('monthly')
   const [subError, setSubError] = useState('')
@@ -453,13 +454,21 @@ function PremiumTab({ fxTrend, isLive }: { fxTrend: { labels: string[]; data: nu
     supabase.auth.getUser().then(async ({ data }) => {
       if (data.user) {
         setUserId(data.user.id)
-        const { data: sub } = await supabase
-          .from('premium_subscriptions')
-          .select('status')
-          .eq('user_id', data.user.id)
-          .eq('status', 'active')
-          .maybeSingle()
-        setIsPremium(!!sub)
+        // Site admins get Premium automatically — no need to pay yourself to
+        // test or use your own feature.
+        const { data: profile } = await supabase.from('profiles').select('is_admin').eq('id', data.user.id).single()
+        if (profile?.is_admin) {
+          setIsPremium(true)
+          setIsAdminAccess(true)
+        } else {
+          const { data: sub } = await supabase
+            .from('premium_subscriptions')
+            .select('status')
+            .eq('user_id', data.user.id)
+            .eq('status', 'active')
+            .maybeSingle()
+          setIsPremium(!!sub)
+        }
       }
       setCheckingAuth(false)
     })
@@ -524,8 +533,14 @@ function PremiumTab({ fxTrend, isLive }: { fxTrend: { labels: string[]; data: nu
 
         {!checkingAuth && userId && isPremium && (
           <div className="bg-emerald-900/30 border border-emerald-600/40 rounded-md px-4 py-3">
-            <p className="text-emerald-400 font-semibold text-sm">✓ You're a Premium subscriber</p>
-            <p className="text-xs text-gray-400 mt-1">Thank you for supporting NaberlyJA. Manage or cancel anytime from your PayPal account.</p>
+            <p className="text-emerald-400 font-semibold text-sm">
+              {isAdminAccess ? '✓ Full access (admin)' : "✓ You're a Premium subscriber"}
+            </p>
+            <p className="text-xs text-gray-400 mt-1">
+              {isAdminAccess
+                ? 'As the site admin, you always have full access to Premium content.'
+                : 'Thank you for supporting NaberlyJA. Manage or cancel anytime from your PayPal account.'}
+            </p>
           </div>
         )}
 
