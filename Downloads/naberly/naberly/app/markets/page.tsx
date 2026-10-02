@@ -566,7 +566,7 @@ function GovContractsTab() {
     <div>
       <div className="bg-[#101512] border border-[#1f2623] rounded-lg p-3 mb-4">
         <p className="text-sm text-gray-300">
-          <span className="text-amber-400 font-semibold">What this is:</span> publicly posted records of government contracts that have already been awarded, sourced from Jamaica's official procurement portal (GOJEP). This is for transparency only — it is not a listing of open tenders, and NaberlyJA does not help anyone bid on or win government work.
+          <span className="text-amber-400 font-semibold">What this is:</span> Contract Award Notices — publicly posted records of government contracts that have already been awarded, sourced from Jamaica's official procurement portal (GOJEP). This is for transparency only — it is not a listing of open or closed bids, and NaberlyJA does not help anyone bid on or win government work.
         </p>
       </div>
 
@@ -736,14 +736,15 @@ function PremiumTab({ fxTrend, isLive }: { fxTrend: { labels: string[]; data: nu
     return () => { if (chartRef.current) chartRef.current.destroy() }
   }, [fxTrend])
 
-  // Live and built, shown to subscribers as real features below.
+  // Live and built, shown to subscribers as real features below. Only
+  // things actually gated behind the subscription belong here — Contract
+  // Award Notices, Closed Bids, and the eLandJamaica link all live on
+  // free top-level tabs, so they're deliberately left off this list.
   const liveBenefits = [
     'Raw CSV data exports (JSE, FX, real estate)',
     'Historical high / low / average trend stats (JSE & FX)',
     'Diaspora remittance-timing indicator (in-app)',
     '5-year BOJ policy rate history (real data, backfilled from BOJ’s own published records)',
-    'Closed-bid government tenders in evaluation, across all sectors, live from GOJEP',
-    'Direct link to eLandJamaica for official land registry title searches',
   ]
   // Real, still-accepting-bids tenders need a separate, verified data
   // source (GOJEP's "Bidding advertisements" page) before they can be
@@ -1124,7 +1125,7 @@ export default function MarketsPage() {
     { key: 'overview', label: 'Overview' },
     { key: 'realestate', label: 'Real Estate' },
     { key: 'tech', label: 'Tech & MSME' },
-    { key: 'government', label: 'Gov Contracts' },
+    { key: 'government', label: 'Contract Award Notices' },
     { key: 'closedbids', label: 'Closed Bids' },
     { key: 'premium', label: 'Premium' },
   ]
