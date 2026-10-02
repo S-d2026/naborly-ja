@@ -141,6 +141,20 @@ const ROUND_EXPLAINER: Record<string, string> = {
   'Grant': 'Money given to the business that does not need to be paid back or exchanged for ownership — often from a government or development agency.',
 }
 
+// Plain-English glossary for government procurement methods, shown in the
+// Government Contracts tab. Matching is substring-based so small variations
+// in how GOJEP labels a method (e.g. with or without the "(SS)" abbreviation)
+// still resolve to an explanation.
+function explainProcurementMethod(method: string): string {
+  const m = (method || '').toLowerCase()
+  if (m.includes('single source')) return 'The government went directly to one supplier without a competitive bidding process — usually because that supplier is the only practical option, or the situation was urgent.'
+  if (m.includes('restricted bidding')) return 'Only a limited, pre-selected group of suppliers was invited to bid, rather than opening it up to everyone.'
+  if (m.includes('emergency')) return 'An emergency procedure was used to get something fixed or supplied urgently, bypassing the usual lengthier bidding timeline.'
+  if (m.includes('open') || m.includes('national competitive') || m.includes('international competitive')) return 'This was openly advertised, and any qualified supplier could submit a bid.'
+  if (m.includes('request for quotation') || m.includes('rfq')) return 'The government asked a small number of suppliers to each submit a price quote for comparison.'
+  return 'A government procurement method used to select the supplier for this contract.'
+}
+
 // Fallback trend, used only until enough real daily rates have accumulated
 // in Supabase (the chart needs at least 2 real points to draw a real line).
 const MOCK_FX_TREND = {
@@ -159,6 +173,23 @@ function fmtForeign(jmd: number, rate: number, symbol: string) { return symbol +
 function usdToJmd(usd: number, usdRate: number) { return usd * usdRate }
 function usdToForeign(usd: number, usdRate: number, foreignRate: number, symbol: string) {
   return fmtForeign(usdToJmd(usd, usdRate), foreignRate, symbol)
+}
+// GOJEP publishes dates as "DD/MM/YYYY HH:mm:ss" text — parsed manually here
+// since that format isn't natively understood by `new Date(...)`.
+function fmtGovDate(raw: string): string {
+  if (!raw) return ''
+  const match = raw.match(/^(\d{2})\/(\d{2})\/(\d{4})/)
+  if (!match) return raw
+  const [, dd, mm, yyyy] = match
+  const d = new Date(Number(yyyy), Number(mm) - 1, Number(dd))
+  if (isNaN(d.getTime())) return raw
+  return d.toLocaleDateString('en-JM', { year: 'numeric', month: 'short', day: 'numeric' })
+}
+// Parses a comma-formatted contract amount (e.g. "2,127,500.00") into a
+// number — same pattern already used for the JSE index value.
+function parseGovAmount(raw: string): number {
+  const n = parseFloat(String(raw).replace(/,/g, ''))
+  return isNaN(n) ? 0 : n
 }
 
 function loadScript(src: string, id: string): Promise<void> {
@@ -214,6 +245,37 @@ function latestAndChange(rows: { value: number; updated_at: string }[], mockValu
   const previous = rows.length > 1 ? rows[rows.length - 2].value : null
   const changePct = previous !== null ? ((latest - previous) / previous) * 100 : null
   return { hasLive, latest, previous, changePct }
+}
+
+// Pulls real, already-awarded government contract records (populated by the
+// Make.com → Apify/GOJEP automation) from Supabase. This is deliberately
+// scoped to awarded contracts, not open-for-bidding tenders, and the UI
+// built from it only ever links to the public notice PDF — never the bid
+// submission portal — to keep this strictly informational, not a bidding tool.
+function useGovContracts() {
+  const [contracts, setContracts] = useState<{
+    id: string
+    title: string
+    procuring_entity: string
+    procurement_method: string
+    contract_amount: string
+    published_date: string
+    notice_pdf_url: string
+  }[]>([])
+  const [loaded, setLoaded] = useState(false)
+
+  useEffect(() => {
+    supabase
+      .from('gov_contracts')
+      .select('id, title, procuring_entity, procurement_method, contract_amount, published_date, notice_pdf_url')
+      .order('created_at', { ascending: false })
+      .then(({ data }) => {
+        if (data) setContracts(data)
+        setLoaded(true)
+      })
+  }, [])
+
+  return { contracts, loaded }
 }
 
 function TickerMarquee({ ticker }: { ticker: typeof MOCK_TICKER }) {
@@ -393,6 +455,82 @@ function TechTab({ rates }: { rates: { usd: number; gbp: number; cad: number } }
             ))}
           </tbody>
         </table>
+      </div>
+    </div>
+  )
+}
+
+function GovContractsTab({ rates }: { rates: { usd: number; gbp: number; cad: number } }) {
+  const { contracts, loaded } = useGovContracts()
+  const [search, setSearch] = useState('')
+  const [openIdx, setOpenIdx] = useState<number | null>(null)
+
+  const filtered = contracts.filter(c => {
+    if (!search.trim()) return true
+    const s = search.toLowerCase()
+    return c.title?.toLowerCase().includes(s) || c.procuring_entity?.toLowerCase().includes(s)
+  })
+  const open = openIdx !== null ? filtered[openIdx] : null
+
+  return (
+    <div>
+      <div className="bg-[#101512] border border-[#1f2623] rounded-lg p-3 mb-4">
+        <p className="text-sm text-gray-300">
+          <span className="text-amber-400 font-semibold">What this is:</span> publicly posted records of government contracts that have already been awarded, sourced from Jamaica's official procurement portal (GOJEP). This is for transparency only — it is not a listing of open tenders, and NaberlyJA does not help anyone bid on or win government work.
+        </p>
+      </div>
+
+      <input
+        value={search}
+        onChange={e => { setSearch(e.target.value); setOpenIdx(null) }}
+        placeholder="Search by project or government entity..."
+        className="w-full mb-4 bg-[#101512] border border-[#1f2623] rounded-md px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-amber-500"
+      />
+
+      {!loaded && <p className="text-sm text-gray-500">Loading contracts...</p>}
+      {loaded && filtered.length === 0 && <p className="text-sm text-gray-500">No contracts found yet.</p>}
+
+      <div className="space-y-2">
+        {filtered.map((c, i) => {
+          const amount = parseGovAmount(c.contract_amount)
+          const isOpen = openIdx === i
+          return (
+            <div key={c.id} className="border border-[#1f2623] rounded-lg overflow-hidden">
+              <button
+                onClick={() => setOpenIdx(isOpen ? null : i)}
+                className={'w-full text-left px-4 py-3 hover:bg-[#101512] ' + (isOpen ? 'bg-[#141a17]' : '')}
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-white text-sm font-medium">{c.title}</p>
+                    <p className="text-xs text-gray-500 mt-0.5">{c.procuring_entity} · {fmtGovDate(c.published_date)}</p>
+                  </div>
+                  <p className="text-amber-400 font-semibold text-sm whitespace-nowrap">{fmtJMD(amount)}</p>
+                </div>
+              </button>
+              {isOpen && (
+                <div className="px-4 py-3 border-t border-[#1f2623] bg-[#0d1210]">
+                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-3 text-sm">
+                    <div><p className="text-[10px] uppercase text-gray-500">Amount (JMD)</p><p className="text-white">{fmtJMD(amount)}</p></div>
+                    <div><p className="text-[10px] uppercase text-gray-500">Amount (USD)</p><p className="text-white">{fmtUSD(amount, rates.usd)}</p></div>
+                    <div><p className="text-[10px] uppercase text-gray-500">Amount (GBP)</p><p className="text-white">{fmtForeign(amount, rates.gbp, '£')}</p></div>
+                    <div><p className="text-[10px] uppercase text-gray-500">Amount (CAD)</p><p className="text-white">{fmtForeign(amount, rates.cad, 'CA$')}</p></div>
+                  </div>
+                  <p className="text-xs text-gray-400 mb-2">
+                    <span className="text-amber-400 font-semibold">Procurement method: {c.procurement_method}.</span> {explainProcurementMethod(c.procurement_method)}
+                  </p>
+                  {c.notice_pdf_url && (
+                    <a href={c.notice_pdf_url} target="_blank" rel="noopener noreferrer"
+                      className="inline-block text-xs text-amber-400 hover:text-amber-300 underline">
+                      View official notice (PDF) →
+                    </a>
+                  )}
+                  <p className="text-[11px] text-gray-500 mt-2">This is general information from a public record, not an offer, endorsement, or recommendation.</p>
+                </div>
+              )}
+            </div>
+          )
+        })}
       </div>
     </div>
   )
@@ -699,6 +837,7 @@ export default function MarketsPage() {
     { key: 'overview', label: 'Overview' },
     { key: 'realestate', label: 'Real Estate' },
     { key: 'tech', label: 'Tech & MSME' },
+    { key: 'government', label: 'Gov Contracts' },
     { key: 'premium', label: 'Premium' },
   ]
 
@@ -754,6 +893,7 @@ export default function MarketsPage() {
           {tab === 'overview' && <NewsTab />}
           {tab === 'realestate' && <RealEstateTab rates={{ usd: latestFx, gbp: gbp.latest, cad: cad.latest }} />}
           {tab === 'tech' && <TechTab rates={{ usd: latestFx, gbp: gbp.latest, cad: cad.latest }} />}
+          {tab === 'government' && <GovContractsTab rates={{ usd: latestFx, gbp: gbp.latest, cad: cad.latest }} />}
           {tab === 'premium' && <PremiumTab fxTrend={fxTrend} isLive={fxRows.length >= 2} />}
         </main>
       </div>
