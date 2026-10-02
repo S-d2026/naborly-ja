@@ -329,6 +329,39 @@ function useGovContracts() {
   return { contracts, loaded }
 }
 
+// Pulls real, currently OPEN (not yet awarded) government tenders — scraped
+// from GOJEP's public "Competitions of opened bids" page via the Make.com
+// automation. Same informational-only approach as useGovContracts: the UI
+// built from this only ever links to the public notice page, never a bid
+// submission flow.
+function useGovOpenTenders() {
+  const [tenders, setTenders] = useState<{
+    id: string
+    gojep_resource_id: string
+    title: string
+    reference_number: string
+    procuring_entity: string
+    procurement_method: string
+    submission_deadline: string
+    status: string
+    notice_url: string
+  }[]>([])
+  const [loaded, setLoaded] = useState(false)
+
+  useEffect(() => {
+    supabase
+      .from('gov_open_tenders')
+      .select('id, gojep_resource_id, title, reference_number, procuring_entity, procurement_method, submission_deadline, status, notice_url')
+      .order('created_at', { ascending: false })
+      .then(({ data }) => {
+        if (data) setTenders(data)
+        setLoaded(true)
+      })
+  }, [])
+
+  return { tenders, loaded }
+}
+
 function TickerMarquee({ ticker }: { ticker: typeof MOCK_TICKER }) {
   const row = [...ticker, ...ticker]
   return (
@@ -403,6 +436,13 @@ function RealEstateTab({ rates }: { rates: { usd: number; gbp: number; cad: numb
           className="bg-[#101512] border border-[#2a332e] rounded-md px-3 py-2 text-sm text-white outline-none focus:border-amber-500">
           {PARISHES.map(p => <option key={p} value={p}>{p}</option>)}
         </select>
+      </div>
+      <div className="bg-[#101512] border border-[#1f2623] rounded-lg p-3 mb-4 flex items-center justify-between gap-3 flex-wrap">
+        <p className="text-xs text-gray-400">Need an official title search or land registry record for a specific property?</p>
+        <a href="https://elandjamaica.nla.gov.jm" target="_blank" rel="noopener noreferrer"
+          className="text-xs text-amber-400 hover:text-amber-300 underline whitespace-nowrap">
+          Search eLandJamaica directly →
+        </a>
       </div>
       {open && (
         <div className="bg-[#101512] border border-amber-600/40 rounded-lg p-4 mb-4">
@@ -511,7 +551,7 @@ function TechTab({ rates }: { rates: { usd: number; gbp: number; cad: number } }
   )
 }
 
-function GovContractsTab({ rates }: { rates: { usd: number; gbp: number; cad: number } }) {
+function GovContractsTab() {
   const { contracts, loaded } = useGovContracts()
   const [search, setSearch] = useState('')
   const [openIdx, setOpenIdx] = useState<number | null>(null)
@@ -521,7 +561,6 @@ function GovContractsTab({ rates }: { rates: { usd: number; gbp: number; cad: nu
     const s = search.toLowerCase()
     return c.title?.toLowerCase().includes(s) || c.procuring_entity?.toLowerCase().includes(s)
   })
-  const open = openIdx !== null ? filtered[openIdx] : null
 
   return (
     <div>
@@ -561,12 +600,6 @@ function GovContractsTab({ rates }: { rates: { usd: number; gbp: number; cad: nu
               </button>
               {isOpen && (
                 <div className="px-4 py-3 border-t border-[#1f2623] bg-[#0d1210]">
-                  <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mb-3 text-sm">
-                    <div><p className="text-[10px] uppercase text-gray-500">Amount (JMD)</p><p className="text-white">{fmtJMD(amount)}</p></div>
-                    <div><p className="text-[10px] uppercase text-gray-500">Amount (USD)</p><p className="text-white">{fmtUSD(amount, rates.usd)}</p></div>
-                    <div><p className="text-[10px] uppercase text-gray-500">Amount (GBP)</p><p className="text-white">{fmtForeign(amount, rates.gbp, '£')}</p></div>
-                    <div><p className="text-[10px] uppercase text-gray-500">Amount (CAD)</p><p className="text-white">{fmtForeign(amount, rates.cad, 'CA$')}</p></div>
-                  </div>
                   <p className="text-xs text-gray-400 mb-2">
                     <span className="text-amber-400 font-semibold">Procurement method: {c.procurement_method}.</span> {explainProcurementMethod(c.procurement_method)}
                   </p>
@@ -577,6 +610,78 @@ function GovContractsTab({ rates }: { rates: { usd: number; gbp: number; cad: nu
                     </a>
                   )}
                   <p className="text-[11px] text-gray-500 mt-2">This is general information from a public record, not an offer, endorsement, or recommendation.</p>
+                </div>
+              )}
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+function GovOpenTendersTab() {
+  const { tenders, loaded } = useGovOpenTenders()
+  const [search, setSearch] = useState('')
+  const [openIdx, setOpenIdx] = useState<number | null>(null)
+
+  const filtered = tenders.filter(t => {
+    if (!search.trim()) return true
+    const s = search.toLowerCase()
+    return t.title?.toLowerCase().includes(s) || t.procuring_entity?.toLowerCase().includes(s)
+  })
+
+  return (
+    <div>
+      <div className="bg-[#101512] border border-[#1f2623] rounded-lg p-3 mb-4">
+        <p className="text-sm text-gray-300">
+          <span className="text-amber-400 font-semibold">What this is:</span> currently open government tenders — not yet awarded — across all sectors, sourced live from Jamaica's official procurement portal (GOJEP). This is for transparency only. NaberlyJA does not help anyone submit a bid; each entry links only to the public notice page.
+        </p>
+      </div>
+
+      <input
+        value={search}
+        onChange={e => { setSearch(e.target.value); setOpenIdx(null) }}
+        placeholder="Search by project or government entity..."
+        className="w-full mb-4 bg-[#101512] border border-[#1f2623] rounded-md px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-amber-500"
+      />
+
+      {!loaded && <p className="text-sm text-gray-500">Loading open tenders...</p>}
+      {loaded && filtered.length === 0 && <p className="text-sm text-gray-500">No open tenders found yet.</p>}
+
+      <div className="space-y-2">
+        {filtered.map((t, i) => {
+          const isOpen = openIdx === i
+          return (
+            <div key={t.id} className="border border-[#1f2623] rounded-lg overflow-hidden">
+              <button
+                onClick={() => setOpenIdx(isOpen ? null : i)}
+                className={'w-full text-left px-4 py-3 hover:bg-[#101512] ' + (isOpen ? 'bg-[#141a17]' : '')}
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-white text-sm font-medium">{t.title}</p>
+                    <p className="text-xs text-gray-500 mt-0.5">{t.procuring_entity} · Ref {t.reference_number}</p>
+                  </div>
+                  <span className="text-[10px] px-2 py-0.5 rounded bg-[#1f2623] text-amber-400 whitespace-nowrap">{t.status}</span>
+                </div>
+              </button>
+              {isOpen && (
+                <div className="px-4 py-3 border-t border-[#1f2623] bg-[#0d1210]">
+                  <div className="grid grid-cols-2 gap-3 mb-3 text-sm">
+                    <div><p className="text-[10px] uppercase text-gray-500">Submission Deadline</p><p className="text-white">{t.submission_deadline}</p></div>
+                    <div><p className="text-[10px] uppercase text-gray-500">Status</p><p className="text-white">{t.status}</p></div>
+                  </div>
+                  <p className="text-xs text-gray-400 mb-2">
+                    <span className="text-amber-400 font-semibold">Procurement method: {t.procurement_method}.</span> {explainProcurementMethod(t.procurement_method)}
+                  </p>
+                  {t.notice_url && (
+                    <a href={t.notice_url} target="_blank" rel="noopener noreferrer"
+                      className="inline-block text-xs text-amber-400 hover:text-amber-300 underline">
+                      View official notice →
+                    </a>
+                  )}
+                  <p className="text-[11px] text-gray-500 mt-2">This is general information from a public record, not an offer, endorsement, or recommendation. NaberlyJA does not facilitate bidding.</p>
                 </div>
               )}
             </div>
@@ -629,14 +734,13 @@ function PremiumTab({ fxTrend, isLive }: { fxTrend: { labels: string[]; data: nu
     'Historical high / low / average trend stats (JSE & FX)',
     'Diaspora remittance-timing indicator (in-app)',
     '5-year BOJ policy rate history (real data, backfilled from BOJ’s own published records)',
+    'Open government tenders across all sectors, live from GOJEP',
+    'Direct link to eLandJamaica for official land registry title searches',
   ]
-  // Not built yet — these need a real data source confirmed first (the
-  // same way the government contracts feed was validated before building
-  // on it), so they stay listed honestly as in-progress rather than
-  // claimed as live.
-  const comingSoon = [
-    'Historical land registry lookups by parish',
-  ]
+  // Nothing currently pending — every Premium item listed above is real
+  // and live. New items get added here only once their data source has
+  // been verified the same way the others were.
+  const comingSoon: string[] = []
   // JSE Index history has no real backfill source (StacksJA's index_history
   // tool is MCP-only, not a plain REST endpoint) — so unlike BOJ, it isn't a
   // one-time backfill. It builds real depth one real day at a time from the
@@ -1010,6 +1114,7 @@ export default function MarketsPage() {
     { key: 'realestate', label: 'Real Estate' },
     { key: 'tech', label: 'Tech & MSME' },
     { key: 'government', label: 'Gov Contracts' },
+    { key: 'opentenders', label: 'Open Tenders' },
     { key: 'premium', label: 'Premium' },
   ]
 
@@ -1065,7 +1170,8 @@ export default function MarketsPage() {
           {tab === 'overview' && <NewsTab />}
           {tab === 'realestate' && <RealEstateTab rates={{ usd: latestFx, gbp: gbp.latest, cad: cad.latest }} />}
           {tab === 'tech' && <TechTab rates={{ usd: latestFx, gbp: gbp.latest, cad: cad.latest }} />}
-          {tab === 'government' && <GovContractsTab rates={{ usd: latestFx, gbp: gbp.latest, cad: cad.latest }} />}
+          {tab === 'government' && <GovContractsTab />}
+          {tab === 'opentenders' && <GovOpenTendersTab />}
           {tab === 'premium' && <PremiumTab fxTrend={fxTrend} isLive={fxRows.length >= 2} />}
         </main>
       </div>
