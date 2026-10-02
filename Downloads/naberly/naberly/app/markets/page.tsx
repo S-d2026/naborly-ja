@@ -192,6 +192,57 @@ function parseGovAmount(raw: string): number {
   return isNaN(n) ? 0 : n
 }
 
+// Wraps a value for safe inclusion as one CSV field (quotes it and escapes
+// any quote characters inside it), used by the Premium CSV export.
+function csvEscape(value: string | number): string {
+  const s = String(value)
+  return '"' + s.replace(/"/g, '""') + '"'
+}
+
+// Plain historical trend stats over a trailing window — NOT a prediction of
+// where the rate is headed next, just what it has actually done. Used by
+// the Premium tab in place of any forward-looking "predictive insight,"
+// since predicting market direction for paying subscribers would read as
+// financial advice.
+function computeTrendStats(rows: { value: number; updated_at: string }[], days = 90) {
+  if (rows.length === 0) return null
+  const cutoffMs = Date.now() - days * 24 * 60 * 60 * 1000
+  const recent = rows.filter(r => new Date(r.updated_at).getTime() >= cutoffMs)
+  const windowRows = recent.length >= 2 ? recent : rows
+  const values = windowRows.map(r => r.value)
+  const high = Math.max(...values)
+  const low = Math.min(...values)
+  const avg = values.reduce((a, b) => a + b, 0) / values.length
+  const latest = rows[rows.length - 1].value
+  return { high, low, avg, latest, count: values.length, days: recent.length >= 2 ? days : windowRows.length }
+}
+
+// A plain-language, informational observation about where USD/JMD sits
+// within its own recent range — not advice to send money now or later,
+// just a description of where today's rate falls historically. This is
+// the "remittance-timing indicator" shown in-app rather than a push/email
+// alert, which would need separate notification infrastructure.
+function remittanceIndicator(stats: ReturnType<typeof computeTrendStats>): { tone: 'good' | 'caution' | 'neutral'; text: string } | null {
+  if (!stats || stats.high === stats.low) return null
+  const position = (stats.latest - stats.low) / (stats.high - stats.low) // 0 (at low) .. 1 (at high)
+  if (position >= 0.85) {
+    return {
+      tone: 'good',
+      text: `USD/JMD (J$${stats.latest.toFixed(2)}) is near its ${stats.days}-day high of J$${stats.high.toFixed(2)}. Each US dollar is converting to more Jamaican dollars than it has recently — generally a stronger time to send money to Jamaica, value-wise.`,
+    }
+  }
+  if (position <= 0.15) {
+    return {
+      tone: 'caution',
+      text: `USD/JMD (J$${stats.latest.toFixed(2)}) is near its ${stats.days}-day low of J$${stats.low.toFixed(2)}. Each US dollar is converting to fewer Jamaican dollars than it has recently.`,
+    }
+  }
+  return {
+    tone: 'neutral',
+    text: `USD/JMD (J$${stats.latest.toFixed(2)}) is within its typical ${stats.days}-day range of J$${stats.low.toFixed(2)}–J$${stats.high.toFixed(2)}.`,
+  }
+}
+
 function loadScript(src: string, id: string): Promise<void> {
   return new Promise((resolve) => {
     if (document.getElementById(id)) { resolve(); return }
@@ -572,13 +623,67 @@ function PremiumTab({ fxTrend, isLive }: { fxTrend: { labels: string[]; data: nu
     return () => { if (chartRef.current) chartRef.current.destroy() }
   }, [fxTrend])
 
-  const locked = [
+  // Live and built, shown to subscribers as real features below.
+  const liveBenefits = [
     'Raw CSV data exports (JSE, FX, real estate)',
-    'AI-powered predictive market insights',
+    '90-day high / low / average trend stats (JSE & FX)',
+    'Diaspora remittance-timing indicator (in-app)',
+  ]
+  // Not built yet — these need a real data source confirmed first (the
+  // same way the government contracts feed was validated before building
+  // on it), so they stay listed honestly as in-progress rather than
+  // claimed as live.
+  const comingSoon = [
     'Historical land registry lookups by parish',
     'Full BOJ / JSE disclosure archive (5-year)',
-    'Diaspora remittance-timing FX alerts',
   ]
+
+  // Raw history for the trend stats, the remittance indicator, and the
+  // CSV export below — fetched independently of the page-level ticker
+  // data so this tab works the same even if its parent changes.
+  const { rows: fxHistory } = useLiveSeries('fx_usd_jmd')
+  const { rows: jseHistory } = useLiveSeries('jse_index')
+  const fxStats = computeTrendStats(fxHistory, 90)
+  const jseStats = computeTrendStats(jseHistory, 90)
+  const indicator = remittanceIndicator(fxStats)
+
+  const [exporting, setExporting] = useState(false)
+  // Builds one combined CSV covering every live market_data series plus
+  // the Real Estate listings, and triggers a browser download. Runs
+  // entirely client-side — no new backend needed.
+  async function exportMarketDataCsv() {
+    setExporting(true)
+    try {
+      const dataTypes = ['jse_index', 'fx_usd_jmd', 'fx_gbp_jmd', 'fx_cad_jmd', 'boj_rate', 'gas_87', 'gas_90', 'gas_diesel']
+      const sections: string[] = []
+      for (const dt of dataTypes) {
+        const { data } = await supabase
+          .from('market_data')
+          .select('value, updated_at')
+          .eq('data_type', dt)
+          .order('updated_at', { ascending: true })
+        const header = `# ${dt}\ndate,value`
+        const body = (data || []).map(d => [csvEscape(d.updated_at), csvEscape(d.value)].join(',')).join('\n')
+        sections.push(header + (body ? '\n' + body : ''))
+      }
+      const reHeader = '# real_estate\nparish,area,type,price_jmd,est_yield'
+      const reBody = REAL_ESTATE.map(r => [csvEscape(r.parish), csvEscape(r.area), csvEscape(r.type), csvEscape(r.jmd), csvEscape(r.yield)].join(',')).join('\n')
+      sections.push(reHeader + '\n' + reBody)
+
+      const csv = sections.join('\n\n')
+      const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `naberlyja-market-data-${new Date().toISOString().slice(0, 10)}.csv`
+      document.body.appendChild(a)
+      a.click()
+      document.body.removeChild(a)
+      URL.revokeObjectURL(url)
+    } finally {
+      setExporting(false)
+    }
+  }
 
   // Real subscription state: who's logged in, and are they already Premium.
   const [userId, setUserId] = useState<string | null>(null)
@@ -651,10 +756,17 @@ function PremiumTab({ fxTrend, isLive }: { fxTrend: { labels: string[]; data: nu
       <div className="relative bg-gradient-to-br from-amber-900/30 to-black border border-amber-600/40 rounded-lg p-5 overflow-hidden">
         <p className="text-amber-400 font-bold text-sm mb-1">🔒 Unlock Diaspora Premium Insights</p>
         <p className="text-xs text-gray-400 mb-4">Go beyond headlines — the full toolkit for serious Jamaica-market watchers.</p>
-        <ul className="space-y-2 mb-4">
-          {locked.map((l, i) => (
+        <ul className="space-y-2 mb-2">
+          {liveBenefits.map((l, i) => (
             <li key={i} className="flex items-center gap-2 text-sm text-gray-300">
               <span className="text-amber-500">🔒</span>{l}
+            </li>
+          ))}
+        </ul>
+        <ul className="space-y-2 mb-4">
+          {comingSoon.map((l, i) => (
+            <li key={i} className="flex items-center gap-2 text-sm text-gray-500">
+              <span className="text-gray-600">🔒</span>{l} <span className="text-[10px] uppercase text-gray-600">(coming soon)</span>
             </li>
           ))}
         </ul>
@@ -679,6 +791,55 @@ function PremiumTab({ fxTrend, isLive }: { fxTrend: { labels: string[]; data: nu
                 ? 'As the site admin, you always have full access to Premium content.'
                 : 'Thank you for supporting NaberlyJA. Manage or cancel anytime from your PayPal account.'}
             </p>
+
+            <div className="mt-4 pt-4 border-t border-emerald-600/20 space-y-4">
+              <div>
+                <p className="text-xs uppercase tracking-wider text-gray-400 mb-2">90-Day Trend Stats</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div className="bg-black/30 rounded-md p-3">
+                    <p className="text-xs text-gray-400 mb-1">USD / JMD</p>
+                    {fxStats ? (
+                      <p className="text-sm text-white">
+                        High <span className="text-emerald-400">J${fxStats.high.toFixed(2)}</span> · Low <span className="text-red-400">J${fxStats.low.toFixed(2)}</span> · Avg J${fxStats.avg.toFixed(2)}
+                      </p>
+                    ) : (
+                      <p className="text-xs text-gray-500">Not enough history yet.</p>
+                    )}
+                  </div>
+                  <div className="bg-black/30 rounded-md p-3">
+                    <p className="text-xs text-gray-400 mb-1">JSE Index</p>
+                    {jseStats ? (
+                      <p className="text-sm text-white">
+                        High <span className="text-emerald-400">{jseStats.high.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span> · Low <span className="text-red-400">{jseStats.low.toLocaleString(undefined, { maximumFractionDigits: 2 })}</span> · Avg {jseStats.avg.toLocaleString(undefined, { maximumFractionDigits: 2 })}
+                      </p>
+                    ) : (
+                      <p className="text-xs text-gray-500">Not enough history yet.</p>
+                    )}
+                  </div>
+                </div>
+                <p className="text-[11px] text-gray-500 mt-2">These are historical facts, not a prediction of where rates are headed next.</p>
+              </div>
+
+              {indicator && (
+                <div className={'rounded-md p-3 text-sm ' + (indicator.tone === 'good' ? 'bg-emerald-900/20 border border-emerald-600/30 text-emerald-200' : indicator.tone === 'caution' ? 'bg-amber-900/20 border border-amber-600/30 text-amber-200' : 'bg-black/30 border border-[#1f2623] text-gray-300')}>
+                  <p className="text-xs uppercase tracking-wider text-gray-400 mb-1">Remittance-Timing Indicator</p>
+                  <p>{indicator.text}</p>
+                  <p className="text-[11px] text-gray-500 mt-1">A general observation based on recent rate history — not financial advice.</p>
+                </div>
+              )}
+
+              <div>
+                <p className="text-xs uppercase tracking-wider text-gray-400 mb-2">Raw Data Export</p>
+                <button
+                  onClick={exportMarketDataCsv}
+                  disabled={exporting}
+                  className="bg-amber-500 hover:bg-amber-400 disabled:opacity-50 text-black font-semibold text-sm px-4 py-2 rounded-md"
+                >
+                  {exporting ? 'Preparing...' : 'Download Market Data (CSV)'}
+                </button>
+                <p className="text-[11px] text-gray-500 mt-1">JSE, FX (USD/GBP/CAD), BOJ rate, gas prices, and Real Estate listings.</p>
+              </div>
+            </div>
           </div>
         )}
 
