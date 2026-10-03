@@ -819,12 +819,22 @@ function OpenBidsTab() {
                     <div><p className="text-[10px] uppercase text-gray-500">Reference Number</p><p className="text-white">{b.reference_number}</p></div>
                   </div>
                   <p className="text-xs text-gray-400 mb-2">
-                    <span className="text-amber-400 font-semibold">Procurement method: {b.procurement_method}.</span> {explainProcurementMethod(b.procurement_method)}
+                    <span className="text-amber-400 font-semibold">
+                      Procurement method:{' '}
+                      <a href="https://www.gojep.gov.jm/epps/prepareCurrentOpportunities.do?currentType=cft" target="_blank" rel="noopener noreferrer" className="underline hover:text-amber-300">
+                        {b.procurement_method}
+                      </a>.
+                    </span> {explainProcurementMethod(b.procurement_method)}
                   </p>
-                  {b.notice_url && (
+                  {b.notice_url ? (
                     <a href={b.notice_url} target="_blank" rel="noopener noreferrer"
                       className="inline-block text-xs text-amber-400 hover:text-amber-300 underline">
                       View official notice (PDF) →
+                    </a>
+                  ) : (
+                    <a href="https://www.gojep.gov.jm/epps/prepareCurrentOpportunities.do?currentType=cft" target="_blank" rel="noopener noreferrer"
+                      className="inline-block text-xs text-amber-400 hover:text-amber-300 underline">
+                      Search this bid on GOJEP directly →
                     </a>
                   )}
                   <p className="text-[11px] text-gray-500 mt-2">This is general information from a public record, not an offer, endorsement, or recommendation. NaberlyJA does not facilitate bidding.</p>
