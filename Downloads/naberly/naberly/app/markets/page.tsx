@@ -362,6 +362,37 @@ function useGovOpenTenders() {
   return { tenders, loaded }
 }
 
+// Genuinely open-for-bidding GOJEP tenders — real data, but NOT automated:
+// GOJEP's live-search page is CAPTCHA-gated, so this table is refreshed
+// manually (you run the search yourself, paste the results to Claude, and
+// it updates this table with a fresh SQL seed). See master notes.
+function useGovOpenBids() {
+  const [bids, setBids] = useState<{
+    id: string
+    title: string
+    reference_number: string
+    procuring_entity: string
+    submission_deadline: string
+    procurement_method: string
+    status: string
+    notice_url: string | null
+  }[]>([])
+  const [loaded, setLoaded] = useState(false)
+
+  useEffect(() => {
+    supabase
+      .from('gov_open_bids')
+      .select('id, title, reference_number, procuring_entity, submission_deadline, procurement_method, status, notice_url')
+      .order('created_at', { ascending: false })
+      .then(({ data }) => {
+        if (data) setBids(data)
+        setLoaded(true)
+      })
+  }, [])
+
+  return { bids, loaded }
+}
+
 function TickerMarquee({ ticker }: { ticker: typeof MOCK_TICKER }) {
   const row = [...ticker, ...ticker]
   return (
@@ -556,6 +587,9 @@ function GovContractsTab() {
   const [search, setSearch] = useState('')
   const [openIdx, setOpenIdx] = useState<number | null>(null)
 
+  // No date cutoff — mirrors GOJEP's own "Contract Award Notices" listing,
+  // which shows every awarded contract on record rather than aging old
+  // ones out after a fixed window.
   const filtered = contracts.filter(c => {
     if (!search.trim()) return true
     const s = search.toLowerCase()
@@ -566,7 +600,7 @@ function GovContractsTab() {
     <div>
       <div className="bg-[#101512] border border-[#1f2623] rounded-lg p-3 mb-4">
         <p className="text-sm text-gray-300">
-          <span className="text-amber-400 font-semibold">What this is:</span> Contract Award Notices — publicly posted records of government contracts that have already been awarded, sourced from Jamaica's official procurement portal (GOJEP). This is for transparency only — it is not a listing of open or closed bids, and NaberlyJA does not help anyone bid on or win government work.
+          <span className="text-amber-400 font-semibold">What this is:</span> Awarded Contracts — publicly posted records of government contracts that have been awarded, sourced from Jamaica's official procurement portal (GOJEP). This is for transparency only — it is not a listing of open or closed bids, and NaberlyJA does not help anyone bid on or win government work.
         </p>
       </div>
 
@@ -625,22 +659,48 @@ function GovContractsTab() {
 // already CLOSED and these are awaiting evaluation, not accepting new
 // bids. The table/hook name is kept as-is to avoid an extra migration,
 // but the UI below is deliberately explicit that these are closed.
+// Mirrors GOJEP's own "Closed Bids" listing — real closed-bid tenders
+// only, no merging in of aged-out contract awards.
+type ClosedBidRow = {
+  id: string
+  title: string
+  procuring_entity: string
+  procurement_method: string
+  badge: string
+  detailLabel: string
+  detailValue: string
+  noticeUrl: string
+  closedNote: string
+}
+
 function GovClosedBidsTab() {
   const { tenders, loaded } = useGovOpenTenders()
   const [search, setSearch] = useState('')
   const [openIdx, setOpenIdx] = useState<number | null>(null)
 
-  const filtered = tenders.filter(t => {
+  const rows: ClosedBidRow[] = tenders.map(t => ({
+    id: 'tender-' + t.id,
+    title: t.title,
+    procuring_entity: t.procuring_entity,
+    procurement_method: t.procurement_method,
+    badge: 'Closed · ' + t.status,
+    detailLabel: 'Bid Submission Deadline (passed)',
+    detailValue: t.submission_deadline,
+    noticeUrl: t.notice_url,
+    closedNote: 'Bidding is closed for this tender — it can no longer be bid on.',
+  }))
+
+  const filtered = rows.filter(r => {
     if (!search.trim()) return true
     const s = search.toLowerCase()
-    return t.title?.toLowerCase().includes(s) || t.procuring_entity?.toLowerCase().includes(s)
+    return r.title?.toLowerCase().includes(s) || r.procuring_entity?.toLowerCase().includes(s)
   })
 
   return (
     <div>
       <div className="bg-[#101512] border border-[#1f2623] rounded-lg p-3 mb-4">
         <p className="text-sm text-gray-300">
-          <span className="text-amber-400 font-semibold">What this is:</span> government tenders whose bidding window has already <span className="text-red-400 font-semibold">closed</span> and are now being evaluated, across all sectors, sourced live from Jamaica's official procurement portal (GOJEP). <span className="font-semibold text-white">These can no longer be bid on.</span> This is for transparency only — NaberlyJA does not facilitate bidding.
+          <span className="text-amber-400 font-semibold">What this is:</span> Closed Bids — government tenders whose bidding window has already <span className="text-red-400 font-semibold">closed</span> and are being evaluated. Across all sectors, sourced live from Jamaica's official procurement portal (GOJEP). <span className="font-semibold text-white">None of these can still be bid on.</span> This is for transparency only — NaberlyJA does not facilitate bidding.
         </p>
       </div>
 
@@ -655,38 +715,116 @@ function GovClosedBidsTab() {
       {loaded && filtered.length === 0 && <p className="text-sm text-gray-500">No closed bids found yet.</p>}
 
       <div className="space-y-2">
-        {filtered.map((t, i) => {
+        {filtered.map((r, i) => {
           const isOpen = openIdx === i
           return (
-            <div key={t.id} className="border border-[#1f2623] rounded-lg overflow-hidden">
+            <div key={r.id} className="border border-[#1f2623] rounded-lg overflow-hidden">
               <button
                 onClick={() => setOpenIdx(isOpen ? null : i)}
                 className={'w-full text-left px-4 py-3 hover:bg-[#101512] ' + (isOpen ? 'bg-[#141a17]' : '')}
               >
                 <div className="flex items-start justify-between gap-3">
                   <div>
-                    <p className="text-white text-sm font-medium">{t.title}</p>
-                    <p className="text-xs text-gray-500 mt-0.5">{t.procuring_entity} · Ref {t.reference_number}</p>
+                    <p className="text-white text-sm font-medium">{r.title}</p>
+                    <p className="text-xs text-gray-500 mt-0.5">{r.procuring_entity}</p>
                   </div>
-                  <span className="text-[10px] px-2 py-0.5 rounded bg-red-900/40 text-red-400 font-semibold whitespace-nowrap">Closed · {t.status}</span>
+                  <span className="text-[10px] px-2 py-0.5 rounded bg-red-900/40 text-red-400 font-semibold whitespace-nowrap">{r.badge}</span>
                 </div>
               </button>
               {isOpen && (
                 <div className="px-4 py-3 border-t border-[#1f2623] bg-[#0d1210]">
                   <div className="bg-red-900/20 border border-red-600/30 rounded-md px-3 py-2 mb-3">
-                    <p className="text-xs text-red-300 font-semibold">Bidding is closed for this tender — it can no longer be bid on.</p>
+                    <p className="text-xs text-red-300 font-semibold">{r.closedNote}</p>
                   </div>
                   <div className="grid grid-cols-2 gap-3 mb-3 text-sm">
-                    <div><p className="text-[10px] uppercase text-gray-500">Bid Submission Deadline (passed)</p><p className="text-white">{t.submission_deadline}</p></div>
-                    <div><p className="text-[10px] uppercase text-gray-500">Current Status</p><p className="text-white">{t.status}</p></div>
+                    <div><p className="text-[10px] uppercase text-gray-500">{r.detailLabel}</p><p className="text-white">{r.detailValue}</p></div>
+                    <div><p className="text-[10px] uppercase text-gray-500">Current Status</p><p className="text-white">{r.badge}</p></div>
                   </div>
                   <p className="text-xs text-gray-400 mb-2">
-                    <span className="text-amber-400 font-semibold">Procurement method: {t.procurement_method}.</span> {explainProcurementMethod(t.procurement_method)}
+                    <span className="text-amber-400 font-semibold">Procurement method: {r.procurement_method}.</span> {explainProcurementMethod(r.procurement_method)}
                   </p>
-                  {t.notice_url && (
-                    <a href={t.notice_url} target="_blank" rel="noopener noreferrer"
+                  {r.noticeUrl && (
+                    <a href={r.noticeUrl} target="_blank" rel="noopener noreferrer"
                       className="inline-block text-xs text-amber-400 hover:text-amber-300 underline">
                       View official notice →
+                    </a>
+                  )}
+                  <p className="text-[11px] text-gray-500 mt-2">This is general information from a public record, not an offer, endorsement, or recommendation. NaberlyJA does not facilitate bidding.</p>
+                </div>
+              )}
+            </div>
+          )
+        })}
+      </div>
+    </div>
+  )
+}
+
+// Real, currently-open-for-bidding GOJEP tenders — manually refreshed (see
+// useGovOpenBids above for why). Green "Open" badges distinguish these from
+// the red "Closed"/"Awarded" badges on the other two tabs.
+function OpenBidsTab() {
+  const { bids, loaded } = useGovOpenBids()
+  const [search, setSearch] = useState('')
+  const [openIdx, setOpenIdx] = useState<number | null>(null)
+
+  const filtered = bids.filter(b => {
+    if (!search.trim()) return true
+    const s = search.toLowerCase()
+    return b.title?.toLowerCase().includes(s) || b.procuring_entity?.toLowerCase().includes(s)
+  })
+
+  return (
+    <div>
+      <div className="bg-[#101512] border border-[#1f2623] rounded-lg p-3 mb-4">
+        <p className="text-sm text-gray-300">
+          <span className="text-amber-400 font-semibold">What this is:</span> Open Bids — government tenders <span className="text-emerald-400 font-semibold">currently accepting bids</span>, sourced from Jamaica's official procurement portal (GOJEP). Because GOJEP's live search requires solving a CAPTCHA, this list is refreshed by hand periodically rather than updated automatically — dates shown were accurate as of the last refresh. Always confirm the deadline on the official notice before relying on it. This is for transparency only — NaberlyJA does not facilitate bidding.
+        </p>
+      </div>
+
+      <input
+        value={search}
+        onChange={e => { setSearch(e.target.value); setOpenIdx(null) }}
+        placeholder="Search by project or government entity..."
+        className="w-full mb-4 bg-[#101512] border border-[#1f2623] rounded-md px-3 py-2 text-sm text-white placeholder-gray-500 focus:outline-none focus:border-amber-500"
+      />
+
+      {!loaded && <p className="text-sm text-gray-500">Loading open bids...</p>}
+      {loaded && filtered.length === 0 && <p className="text-sm text-gray-500">No open bids found yet.</p>}
+
+      <div className="space-y-2">
+        {filtered.map((b, i) => {
+          const isOpen = openIdx === i
+          return (
+            <div key={b.id} className="border border-[#1f2623] rounded-lg overflow-hidden">
+              <button
+                onClick={() => setOpenIdx(isOpen ? null : i)}
+                className={'w-full text-left px-4 py-3 hover:bg-[#101512] ' + (isOpen ? 'bg-[#141a17]' : '')}
+              >
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <p className="text-white text-sm font-medium">{b.title}</p>
+                    <p className="text-xs text-gray-500 mt-0.5">{b.procuring_entity}</p>
+                  </div>
+                  <span className="text-[10px] px-2 py-0.5 rounded bg-emerald-900/40 text-emerald-400 font-semibold whitespace-nowrap">Open</span>
+                </div>
+              </button>
+              {isOpen && (
+                <div className="px-4 py-3 border-t border-[#1f2623] bg-[#0d1210]">
+                  <div className="bg-emerald-900/20 border border-emerald-600/30 rounded-md px-3 py-2 mb-3">
+                    <p className="text-xs text-emerald-300 font-semibold">This bid is currently open — it can still be bid on.</p>
+                  </div>
+                  <div className="grid grid-cols-2 gap-3 mb-3 text-sm">
+                    <div><p className="text-[10px] uppercase text-gray-500">Bid Submission Deadline</p><p className="text-white">{b.submission_deadline}</p></div>
+                    <div><p className="text-[10px] uppercase text-gray-500">Reference Number</p><p className="text-white">{b.reference_number}</p></div>
+                  </div>
+                  <p className="text-xs text-gray-400 mb-2">
+                    <span className="text-amber-400 font-semibold">Procurement method: {b.procurement_method}.</span> {explainProcurementMethod(b.procurement_method)}
+                  </p>
+                  {b.notice_url && (
+                    <a href={b.notice_url} target="_blank" rel="noopener noreferrer"
+                      className="inline-block text-xs text-amber-400 hover:text-amber-300 underline">
+                      View official notice (PDF) →
                     </a>
                   )}
                   <p className="text-[11px] text-gray-500 mt-2">This is general information from a public record, not an offer, endorsement, or recommendation. NaberlyJA does not facilitate bidding.</p>
@@ -746,13 +884,10 @@ function PremiumTab({ fxTrend, isLive }: { fxTrend: { labels: string[]; data: nu
     'Diaspora remittance-timing indicator (in-app)',
     '5-year BOJ policy rate history (real data, backfilled from BOJ’s own published records)',
   ]
-  // Real, still-accepting-bids tenders need a separate, verified data
-  // source (GOJEP's "Bidding advertisements" page) before they can be
-  // built the same way the closed-bids feed was — not yet confirmed, so
-  // it stays listed honestly as in-progress rather than claimed as live.
-  const comingSoon: string[] = [
-    'Currently open tenders still accepting bids',
-  ]
+  // Open Bids is now live as its own free tab (see OpenBidsTab) — real
+  // data, manually refreshed since GOJEP's live search is CAPTCHA-gated.
+  // Nothing currently in progress for Premium specifically.
+  const comingSoon: string[] = []
   // JSE Index history has no real backfill source (StacksJA's index_history
   // tool is MCP-only, not a plain REST endpoint) — so unlike BOJ, it isn't a
   // one-time backfill. It builds real depth one real day at a time from the
@@ -1125,8 +1260,9 @@ export default function MarketsPage() {
     { key: 'overview', label: 'Overview' },
     { key: 'realestate', label: 'Real Estate' },
     { key: 'tech', label: 'Tech & MSME' },
-    { key: 'government', label: 'Contract Award Notices' },
+    { key: 'openbids', label: 'Open Bids' },
     { key: 'closedbids', label: 'Closed Bids' },
+    { key: 'government', label: 'Awarded Contracts' },
     { key: 'premium', label: 'Premium' },
   ]
 
@@ -1182,8 +1318,9 @@ export default function MarketsPage() {
           {tab === 'overview' && <NewsTab />}
           {tab === 'realestate' && <RealEstateTab rates={{ usd: latestFx, gbp: gbp.latest, cad: cad.latest }} />}
           {tab === 'tech' && <TechTab rates={{ usd: latestFx, gbp: gbp.latest, cad: cad.latest }} />}
-          {tab === 'government' && <GovContractsTab />}
+          {tab === 'openbids' && <OpenBidsTab />}
           {tab === 'closedbids' && <GovClosedBidsTab />}
+          {tab === 'government' && <GovContractsTab />}
           {tab === 'premium' && <PremiumTab fxTrend={fxTrend} isLive={fxRows.length >= 2} />}
         </main>
       </div>
