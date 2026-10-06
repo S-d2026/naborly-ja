@@ -1,5 +1,5 @@
 'use client'
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, type ReactNode } from 'react'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
 import { PayPalScriptProvider, PayPalButtons } from '@paypal/react-paypal-js'
@@ -449,6 +449,51 @@ function NewsTab() {
   )
 }
 
+function LandFraudGuideBox() {
+  const [openGuide, setOpenGuide] = useState(false)
+  return (
+    <div className="bg-[#101512] border border-[#1f2623] rounded-lg p-4 mb-4">
+      <button onClick={() => setOpenGuide(v => !v)} className="w-full flex items-center justify-between text-left">
+        <div>
+          <p className="text-white font-semibold text-sm">🛡️ Land Fraud Protection Guide</p>
+          <p className="text-xs text-gray-500">Real steps from the National Land Agency to protect a property before and after you buy — not legal advice.</p>
+        </div>
+        <span className="text-amber-400 text-xs whitespace-nowrap ml-3">{openGuide ? 'Hide ▲' : 'Show ▼'}</span>
+      </button>
+      {openGuide && (
+        <div className="mt-4 space-y-4 text-sm text-gray-300">
+          <div>
+            <p className="text-amber-400 font-semibold mb-1">Never rely on the duplicate Certificate of Title alone</p>
+            <p>The NLA itself warns against this — a court order, caveat, or pending transaction can exist on the official register without appearing on the owner's copy. Always do an official search before you buy, not just a look at their paperwork.</p>
+          </div>
+          <div>
+            <p className="text-amber-400 font-semibold mb-1">Lodge a caveat if you have a claim or interest in land</p>
+            <p>A caveat is a legal notice under the Registration of Titles Act that blocks any transfer or mortgage on a property from being registered until it's resolved — the strongest protection available short of being the registered owner. You do <span className="text-white">not</span> need the duplicate title to lodge one.</p>
+            <ul className="list-disc list-inside mt-2 space-y-1 text-gray-400">
+              <li>Cost: a lodgement fee of 0.5% of the value of the interest you're claiming.</li>
+              <li>What you'll need: the caveat form (in duplicate), supporting documents (agreement for sale, mortgage deed, receipts, etc.) or a statutory declaration if you have none, and an address for service within Kingston.</li>
+              <li>Once lodged, the Registrar must notify you of any attempted dealing on the property, giving you 14 days to seek a court order before it can proceed.</li>
+            </ul>
+          </div>
+          <div>
+            <p className="text-amber-400 font-semibold mb-1">When to consider lodging one</p>
+            <ul className="list-disc list-inside space-y-1 text-gray-400">
+              <li>You've signed an agreement for sale but the title hasn't transferred to you yet.</li>
+              <li>You've advanced money (a deposit, a mortgage) against a property that isn't yet registered in your name.</li>
+              <li>You're a family member protecting an inherited property from being quietly transferred by someone else.</li>
+            </ul>
+          </div>
+          <div className="bg-[#0c0f0d] border border-[#1f2623] rounded-md p-3">
+            <p className="text-white font-semibold mb-1">To lodge a caveat or ask the NLA directly:</p>
+            <p className="text-gray-400">National Land Agency, 8 Ardenne Road, Kingston 10 · <a href="mailto:asknla@nla.gov.jm" className="text-amber-400 underline">asknla@nla.gov.jm</a> · 876-750-5263 / 876-946-5263 / 876-418-5089</p>
+          </div>
+          <p className="text-xs text-gray-500">Always get an attorney-at-law to review a property transaction before you send money or sign anything — this guide explains what the official protections are, not a substitute for legal advice.</p>
+        </div>
+      )}
+    </div>
+  )
+}
+
 function RealEstateTab({ rates }: { rates: { usd: number; gbp: number; cad: number } }) {
   const [parish, setParish] = useState('All')
   const [q, setQ] = useState('')
@@ -475,6 +520,7 @@ function RealEstateTab({ rates }: { rates: { usd: number; gbp: number; cad: numb
           Search eLandJamaica directly →
         </a>
       </div>
+      <LandFraudGuideBox />
       {open && (
         <div className="bg-[#101512] border border-amber-600/40 rounded-lg p-4 mb-4">
           <div className="flex items-start justify-between mb-2">
@@ -521,6 +567,222 @@ function RealEstateTab({ rates }: { rates: { usd: number; gbp: number; cad: numb
           </tbody>
         </table>
         {rows.length === 0 && <p className="text-sm text-gray-500 text-center py-10">No matches.</p>}
+      </div>
+    </div>
+  )
+}
+
+// ───────────────────────── Jamaica Life tab ─────────────────────────
+// Seven practical, everyday-value boxes. Every figure below was read directly
+// from the named official/public source (checked Oct 2026). Nothing is invented.
+// Where a source does not publish a number or a status, the box says so.
+
+function LifeBox({ icon, title, blurb, source, children }: {
+  icon: string; title: string; blurb: string; source: string; children?: ReactNode
+}) {
+  const [open, setOpen] = useState(false)
+  return (
+    <div className="bg-[#101512] border border-[#1f2623] rounded-lg p-4">
+      <button onClick={() => setOpen(v => !v)} className="w-full flex items-start justify-between text-left gap-3">
+        <div>
+          <p className="text-white font-semibold text-sm">{icon} {title}</p>
+          <p className="text-xs text-gray-500 mt-0.5">{blurb}</p>
+        </div>
+        <span className="text-amber-400 text-xs whitespace-nowrap">{open ? 'Hide ▲' : 'Open ▼'}</span>
+      </button>
+      {open && (
+        <div className="mt-4 text-sm text-gray-300 space-y-3">
+          {children}
+          <p className="text-[11px] text-gray-500 border-t border-[#1f2623] pt-2">Source: {source}</p>
+        </div>
+      )}
+    </div>
+  )
+}
+
+const REMIT_ROWS: { firm: string; how: string; fee: number; margin: number; totalPct: number }[] = [
+  { firm: 'Walmart2World', how: 'Debit card · online · cash pickup', fee: 0, margin: -2.25, totalPct: -2.25 },
+  { firm: 'Walmart2World', how: 'Debit card · agent · cash pickup', fee: 5.99, margin: -0.35, totalPct: 2.65 },
+  { firm: 'MoneyGram', how: 'Bank account · online · cash pickup', fee: 2.80, margin: 1.80, totalPct: 3.20 },
+  { firm: 'Jamaica National', how: 'Cash · bank branch · cash pickup', fee: 6.50, margin: 0, totalPct: 3.25 },
+  { firm: 'Ria', how: 'Bank account · online · cash pickup', fee: 4.00, margin: 1.93, totalPct: 3.93 },
+  { firm: 'CAM', how: 'Cash · agent · cash pickup', fee: 8.00, margin: 0, totalPct: 4.00 },
+  { firm: 'Ria', how: 'Debit card · online · cash pickup', fee: 4.90, margin: 1.93, totalPct: 4.38 },
+  { firm: 'Remitly', how: 'Debit card · online · to bank account', fee: 2.99, margin: 3.35, totalPct: 4.85 },
+  { firm: 'Walmart2World', how: 'Credit card · online · cash pickup', fee: 11.99, margin: -0.35, totalPct: 5.65 },
+  { firm: 'Western Union', how: 'Bank/debit/credit · online · cash pickup', fee: 4.99, margin: 3.86, totalPct: 6.36 },
+  { firm: 'Ria', how: 'Cash · agent · cash pickup', fee: 9.00, margin: 1.93, totalPct: 6.43 },
+  { firm: 'Western Union', how: 'Cash · agent · cash pickup', fee: 8.00, margin: 3.39, totalPct: 7.39 },
+  { firm: 'Ria', how: 'Credit card · online · cash pickup', fee: 11.00, margin: 1.93, totalPct: 7.43 },
+  { firm: 'MoneyGram', how: 'Credit card · online · cash pickup', fee: 11.99, margin: 1.80, totalPct: 7.80 },
+  { firm: 'Xoom', how: 'Debit card/bank · online · cash pickup', fee: 0, margin: 9.29, totalPct: 9.29 },
+  { firm: 'Xoom', how: 'Credit card · online · cash pickup', fee: 5.87, margin: 9.29, totalPct: 12.23 },
+  { firm: 'Walmart2World', how: 'Cash · agent · cash pickup', fee: 14.00, margin: 5.68, totalPct: 12.68 },
+]
+
+function JamaicaLifeTab({ rate, rateIsLive }: { rate: number; rateIsLive: boolean }) {
+  const SEND = 200
+  const rows = REMIT_ROWS.map(r => ({
+    ...r,
+    totalUsd: (r.totalPct / 100) * SEND,
+    jmdReceived: Math.round((SEND - r.fee) * rate * (1 - r.margin / 100)),
+  }))
+  return (
+    <div>
+      <div className="bg-[#101512] border border-[#1f2623] rounded-lg p-3 mb-4">
+        <p className="text-xs text-gray-400">Everyday money, paperwork and safety information for Jamaicans at home and abroad — each box is built only from an official or published source, named at the bottom of the box. Where a source doesn't publish something (a deadline, a rate), the box says so rather than guessing.</p>
+      </div>
+      <div className="grid grid-cols-1 gap-3">
+
+        <LifeBox icon="💸" title="Sending money to Jamaica: what it really costs" blurb="Real fees and exchange-rate markups on a US$200 transfer, provider by provider, cheapest first."
+          source="World Bank, Remittance Prices Worldwide — United States → Jamaica corridor, Q3 2025 (collected Aug 13–28, 2025). Dollar figures are the World Bank's; the JMD column is our estimate.">
+          <p className="text-gray-400">The "total cost" is the transfer fee plus the hidden markup on the exchange rate. The average across all providers was 6.06% (about US$12.12 on US$200). Official rates move daily, so check the provider's own screen before sending — this shows who has been cheapest and who has not.</p>
+          <div className="overflow-x-auto border border-[#1f2623] rounded-lg">
+            <table className="w-full text-xs" style={{ borderCollapse: 'collapse' }}>
+              <thead>
+                <tr className="bg-[#0c0f0d] text-left text-[10px] uppercase tracking-wider text-gray-400">
+                  <th className="px-2 py-2">Provider</th><th className="px-2 py-2">How</th>
+                  <th className="px-2 py-2">Fee</th><th className="px-2 py-2">Rate markup</th>
+                  <th className="px-2 py-2">Total cost</th><th className="px-2 py-2">Est. JMD received</th>
+                </tr>
+              </thead>
+              <tbody>
+                {rows.map((r, i) => (
+                  <tr key={i} className="border-t border-[#1f2623]">
+                    <td className="px-2 py-2 text-white font-medium">{r.firm}</td>
+                    <td className="px-2 py-2 text-gray-400">{r.how}</td>
+                    <td className="px-2 py-2 text-gray-300">${r.fee.toFixed(2)}</td>
+                    <td className="px-2 py-2 text-gray-300">{r.margin.toFixed(2)}%</td>
+                    <td className="px-2 py-2 text-emerald-400 font-semibold">{r.totalPct.toFixed(2)}% (${r.totalUsd.toFixed(2)})</td>
+                    <td className="px-2 py-2 text-gray-300">{fmtJMD(r.jmdReceived)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <p className="text-[11px] text-gray-500">
+            Est. JMD received = (US$200 − fee) × {rateIsLive ? "today's USD/JMD rate on this site" : 'a placeholder USD/JMD rate (live feed currently unavailable)'} (J${rate.toFixed(2)}) × (1 − markup). A negative markup means the provider's rate was better than the reference rate. Bank of Jamaica publishes the official market rate at boj.org.jm.
+          </p>
+        </LifeBox>
+
+        <LifeBox icon="🏠" title="NHT contribution refund" blurb="Who can claim back National Housing Trust contributions, and when."
+          source="National Housing Trust, nht.gov.jm/refunds (read Oct 2026).">
+          <p><span className="text-amber-400 font-semibold">Regular refund:</span> you become eligible in the 8th year after the contributions were made. For example, contributions made in 2018 can be claimed now, along with earlier years. Employees, self-employed and voluntary contributors can apply.</p>
+          <p><span className="text-amber-400 font-semibold">Special refunds</span> (no waiting period): retirees, invalidity pensioners, expatriates leaving Jamaica, and agents of deceased contributors.</p>
+          <p className="text-gray-400">Have ready: your NIS number, TRN, valid ID, and the registered names of every company you worked for and the years you worked at each.</p>
+          <div className="flex flex-wrap gap-3 text-xs">
+            <a href="https://www.nht.gov.jm/refunds" target="_blank" rel="noopener noreferrer" className="text-amber-400 underline">NHT refund rules →</a>
+            <a href="https://online.nht.gov.jm" target="_blank" rel="noopener noreferrer" className="text-amber-400 underline">NHT Online portal (apply) →</a>
+          </div>
+        </LifeBox>
+
+        <LifeBox icon="🧾" title="Government fees, plainly" blurb="What passports, driver's licences and vehicle licences officially cost — so no one overcharges you."
+          source="PICA (pica.gov.jm/passport/fees) and Tax Administration Jamaica (jamaicatax.gov.jm/rates-and-fees). PICA's table is labelled effective June 1, 2015; TAJ's page shows no effective date. Fees can change — confirm at the office or on the agency's site before paying.">
+          <div>
+            <p className="text-amber-400 font-semibold mb-1">Passport (applied for in Jamaica, JMD)</p>
+            <ul className="list-disc list-inside text-gray-400 space-y-0.5">
+              <li>Adult regular: J$6,500 · rush 3 days J$9,500 · next day J$11,500 · same day J$16,500</li>
+              <li>Adult replacement: J$11,500 · rush 3 days J$14,500 · next day J$16,500 · same day J$21,500</li>
+              <li>Minor regular: J$4,000 · rush 3 days J$6,000 · next day J$7,000 · same day J$9,000</li>
+              <li>Minor replacement: J$7,000 · rush 3 days J$9,000 · next day J$10,000 · same day J$12,500</li>
+              <li>Overseas applications: adult regular US$80 / £50, adult replacement US$160 / £100, minor regular US$50 / £30, minor replacement US$100 / £50 (consulates may add a processing fee)</li>
+            </ul>
+          </div>
+          <div>
+            <p className="text-amber-400 font-semibold mb-1">Driver's licence (TAJ)</p>
+            <ul className="list-disc list-inside text-gray-400 space-y-0.5">
+              <li>Private: J$5,400 · General: J$7,200 · Motorcycle: J$4,140</li>
+              <li>Provisional (learner's), 1 year: J$1,800 · Substitute: J$4,140</li>
+            </ul>
+          </div>
+          <div>
+            <p className="text-amber-400 font-semibold mb-1">Private motor vehicle licence, 12 months (TAJ)</p>
+            <ul className="list-disc list-inside text-gray-400 space-y-0.5">
+              <li>Up to 1199cc: J$9,240 · electric cars: J$9,240</li>
+              <li>1200–2999cc: J$12,600 · 3000–3999cc: J$28,800 · over 3999cc: J$43,650</li>
+            </ul>
+          </div>
+          <p className="text-gray-400">Business registration and land-title search fees: we could not confirm current official amounts (the published figures we found were years out of date), so we are not showing any. Check the Companies Office of Jamaica and the National Land Agency directly.</p>
+        </LifeBox>
+
+        <LifeBox icon="🚀" title="Funding programmes for small businesses" blurb="Standing loan and grant programmes from DBJ and EXIM Bank — with what each one actually says about its status."
+          source="Development Bank of Jamaica (dbankjm.com, dbjserve.com, dbjgemini.com), Jamaica Observer (May 21, 2025), EXIM Bank Jamaica (eximbankja.com). None of these pages publish application deadlines.">
+          <p className="text-gray-400">Honest note: no official page we found publishes live deadlines or whether intake is open right now. Call or email the lender to confirm before you plan around any of these.</p>
+          <ul className="space-y-2">
+            <li><span className="text-white font-semibold">DBJ loans</span> (via approved financial institutions): Credit Enhancement Facility, M5 Energy Loan, Agribiz Loan Facility, M5 Recovery. For MSMEs with annual revenue up to J$425 million; DBJ finances up to 90% of project cost. Rates and amounts are not published on the page.</li>
+            <li><span className="text-white font-semibold">DBJ GEMINI+</span>: enterprise-readiness programme (grants, credit-readiness, financial literacy). Tier 2 (small business) incubator/accelerator grant up to J$800,000. Apply at dbjgemini.com. Call 1-876-929-5161.</li>
+            <li><span className="text-white font-semibold">DBJ SERVE</span> (listed on dbjserve.com): Go-Digital Voucher up to J$300,000 grant; Go-Digital Loan J$800,000 at 2% over 3 years; MSME Recovery Loan J$10 million at 5% over 8 years. The page does not say whether these are currently open.</li>
+            <li><span className="text-white font-semibold">EXIM Bank SME Growth Initiative</span>: borrow up to the Jamaican equivalent of US$500,000 for equipment, upgrades, working capital or market research; maximum 5 years including a 12-month principal moratorium. For productive-sector businesses (e.g. export, manufacturing, tourism, creative industries) with annual earnings under J$360 million. Apply online or through participating commercial banks.</li>
+            <li><span className="text-red-300 font-semibold">On hold:</span> DBJ's IGNITE (up to J$7 million) and Innovation Grant Fund (up to J$20 million) were paused in May 2025 after their funding was exhausted, with no restart date given.</li>
+          </ul>
+          <p className="text-xs text-gray-500">DBJ: (876) 929-4000 · mail@dbankjm.com</p>
+        </LifeBox>
+
+        <LifeBox icon="🏦" title="Bank loan & mortgage rates" blurb="Published borrowing rates from the banks that post them publicly."
+          source="jm.scotiabank.com (Borrowing Rates page) and jnbank.com (Mortgage Rates page), read Oct 3, 2026. Rates change; these are what the banks displayed that day.">
+          <div>
+            <p className="text-amber-400 font-semibold mb-1">Scotiabank Jamaica (APR / EAIR)</p>
+            <ul className="list-disc list-inside text-gray-400 space-y-0.5">
+              <li>Mortgages: 8.50% – 12.49%</li>
+              <li>Lot loans: 8.50% – 12.49%</li>
+              <li>Auto, new: 8.50% – 11.75% · Auto, used: 10.10% – 14.75%</li>
+              <li>Cash-secured loans: 9.00% – 11.00%</li>
+              <li>Unsecured loans: 18.00% – 24.99%</li>
+            </ul>
+          </div>
+          <div>
+            <p className="text-amber-400 font-semibold mb-1">JN Bank — mortgages</p>
+            <ul className="list-disc list-inside text-gray-400 space-y-0.5">
+              <li>JN Home Loan (purchase/construction): 9.85% (up to 90% financing)</li>
+              <li>Home Equity Loan: 9.85% · Home Enhancement Loan: 9.85% · Refinancing (owner-occupied): 9.85%</li>
+              <li>Lot with infrastructure: 9.85% · Lot without infrastructure: 10.35%</li>
+              <li>Residential investment: 10.35% · Resort properties: 10.50% · Commercial mortgage: 9.75%</li>
+              <li>Foreign-currency residential mortgage: US 6.00%, CAN 5.75%, £6.75%</li>
+            </ul>
+          </div>
+          <p className="text-gray-400">NCB's rates page could not be read automatically, and JMMB publishes deposit rates but not loan rates, so neither is shown. Always ask the bank for your personal rate — it depends on your term, collateral and credit.</p>
+        </LifeBox>
+
+        <LandFraudGuideBox />
+
+        <LifeBox icon="🌀" title="Hurricane preparedness checklist" blurb="What to do before, during and after a hurricane — and where to get live advisories."
+          source="Jamaica Information Service (JIS) — Hurricane Safety Tips. For live storm information use ODPEM and the Meteorological Service of Jamaica; this checklist is not an alert feed.">
+          <div>
+            <p className="text-amber-400 font-semibold mb-1">Before the season</p>
+            <ul className="list-disc list-inside text-gray-400 space-y-0.5">
+              <li>Check and repair your roof, shutters, hooks and latches; secure galvanized sheeting</li>
+              <li>Keep lumber/plywood on hand for boarding up; trim trees near power lines and buildings</li>
+              <li>Secure small structures such as sheds and outdoor kitchens</li>
+              <li>Service emergency cooking equipment (coal stove); keep kerosene and coal dry</li>
+              <li>Store non-perishable food in waterproof containers; gather first-aid supplies</li>
+            </ul>
+          </div>
+          <div>
+            <p className="text-amber-400 font-semibold mb-1">Emergency kit</p>
+            <p className="text-gray-400">Water · non-perishable food · flashlights and batteries · battery-powered radio · hurricane lamp and matches · boots and raincoats · plastic bags, nails, hammer and tools · first-aid supplies (iodine, bandages, eye lotion) · kerosene and coal.</p>
+          </div>
+          <div>
+            <p className="text-amber-400 font-semibold mb-1">During</p>
+            <ul className="list-disc list-inside text-gray-400 space-y-0.5">
+              <li>Stay indoors and keep children inside; if you are away from home, stay where you are</li>
+              <li>If the house shows signs of breaking up, shelter under a sturdy table or in a strong closet</li>
+              <li>Block unboarded windows with heavy objects; listen to the radio for updates</li>
+            </ul>
+          </div>
+          <div>
+            <p className="text-amber-400 font-semibold mb-1">After</p>
+            <ul className="list-disc list-inside text-gray-400 space-y-0.5">
+              <li>Do not touch loose electrical wires — report them; report broken water or sewer lines to the parish council</li>
+              <li>Boil all drinking water until it is confirmed safe; do not walk barefoot (broken glass)</li>
+              <li>Seek medical attention for injuries; watch for fallen trees and debris</li>
+            </ul>
+          </div>
+          <div className="flex flex-wrap gap-3 text-xs">
+            <a href="https://www.odpem.gov.jm" target="_blank" rel="noopener noreferrer" className="text-amber-400 underline">ODPEM (official) →</a>
+            <a href="https://x.com/MetserviceJA" target="_blank" rel="noopener noreferrer" className="text-amber-400 underline">Met Service Jamaica (live alerts) →</a>
+          </div>
+        </LifeBox>
+
       </div>
     </div>
   )
@@ -1273,6 +1535,7 @@ export default function MarketsPage() {
     { key: 'openbids', label: 'Open Bids' },
     { key: 'closedbids', label: 'Closed Bids' },
     { key: 'government', label: 'Awarded Contracts' },
+    { key: 'life', label: 'Jamaica Life' },
     { key: 'premium', label: 'Premium' },
   ]
 
@@ -1331,6 +1594,7 @@ export default function MarketsPage() {
           {tab === 'openbids' && <OpenBidsTab />}
           {tab === 'closedbids' && <GovClosedBidsTab />}
           {tab === 'government' && <GovContractsTab />}
+          {tab === 'life' && <JamaicaLifeTab rate={latestFx} rateIsLive={hasLiveFx} />}
           {tab === 'premium' && <PremiumTab fxTrend={fxTrend} isLive={fxRows.length >= 2} />}
         </main>
       </div>
