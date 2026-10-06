@@ -702,7 +702,14 @@ function JamaicaLifeTab({ rate, rateIsLive }: { rate: number; rateIsLive: boolea
               <li>1200–2999cc: J$12,600 · 3000–3999cc: J$28,800 · over 3999cc: J$43,650</li>
             </ul>
           </div>
-          <p className="text-gray-400">Business registration and land-title search fees: we could not confirm current official amounts (the published figures we found were years out of date), so we are not showing any. Check the Companies Office of Jamaica and the National Land Agency directly.</p>
+          <p className="text-gray-400">
+            <span className="text-amber-400 font-semibold">Land title searches:</span> the current fee is shown on eLandJamaica when you run the search, so there is nothing to guess beforehand.{' '}
+            <a href="https://elandjamaica.nla.gov.jm" target="_blank" rel="noopener noreferrer" className="text-amber-400 underline">Open eLandJamaica →</a>
+          </p>
+          <p className="text-gray-400">
+            <span className="text-amber-400 font-semibold">Business registration:</span> we don't publish a figure here because the amounts we could find were years out of date. Get the current fee from the Office of the Registrar of Companies.{' '}
+            <a href="https://www.orcjamaica.com" target="_blank" rel="noopener noreferrer" className="text-amber-400 underline">Open orcjamaica.com →</a>
+          </p>
         </LifeBox>
 
         <LifeBox icon="🚀" title="Funding programmes for small businesses" blurb="Standing loan and grant programmes from DBJ and EXIM Bank — with what each one actually says about its status."
