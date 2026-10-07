@@ -2,7 +2,7 @@
 import { useState, useEffect, Suspense } from 'react'
 import Link from 'next/link'
 import { useRouter, useSearchParams } from 'next/navigation'
-import { supabase, getUserListings, type Listing } from '@/lib/supabase'
+import { supabase, getUserListings, isDealActive, type Listing } from '@/lib/supabase'
 import { PayPalScriptProvider, PayPalButtons } from '@paypal/react-paypal-js'
 
 const PLANS = [
@@ -58,7 +58,10 @@ function BoostContent() {
 
   const [listings, setListings] = useState<Listing[]>([])
   const [selectedListing, setSelectedListing] = useState<string>(preselectedId || '')
-  const [selectedPlan, setSelectedPlan] = useState<string>('monthly')
+  // ?plan=weekly (from the "Spotlight this deal" buttons) pre-selects that plan;
+  // anything else falls back to the usual default.
+  const planParam = searchParams.get('plan')
+  const [selectedPlan, setSelectedPlan] = useState<string>(PLANS.some(p => p.key === planParam) ? (planParam as string) : 'monthly')
   const [paymentMethod, setPaymentMethod] = useState<string>('paypal')
   const [paymentNote, setPaymentNote] = useState('')
   const [submitting, setSubmitting] = useState(false)
@@ -198,6 +201,23 @@ function BoostContent() {
               ))}
             </div>
           )}
+
+          {(() => {
+            const chosen = listings.find(l => l.id === selectedListing)
+            if (!chosen || !isDealActive(chosen)) return null
+            const msLeft = new Date(chosen.deal_ends_at as string).getTime() - Date.now()
+            const daysLeft = Math.max(1, Math.ceil(msLeft / 86400000))
+            const endsFirst = daysLeft < plan.days
+            return (
+              <div style={{ background: '#FBF1D6', border: '1px solid #E8C877', borderRadius: 9, padding: '10px 12px', marginBottom: 16 }}>
+                <p style={{ fontSize: 12, fontFamily: '-apple-system, sans-serif', fontWeight: 700, color: '#7A4A00', marginBottom: 3 }}>🏷️ Spotlighting your deal: {chosen.deal_text}</p>
+                <p style={{ fontSize: 11, fontFamily: '-apple-system, sans-serif', color: '#5A5A50', lineHeight: 1.55 }}>
+                  A boosted listing shows first, including under the Deals filter.
+                  {endsFirst ? ' Heads up: your deal ends in about ' + daysLeft + ' day' + (daysLeft === 1 ? '' : 's') + ', before this ' + plan.days + '-day boost runs out. You can extend the deal date from Edit.' : ''}
+                </p>
+              </div>
+            )
+          })()}
 
           <p className="eyebrow" style={{ marginBottom: 8 }}>2. Choose a plan</p>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginBottom: 16 }}>
