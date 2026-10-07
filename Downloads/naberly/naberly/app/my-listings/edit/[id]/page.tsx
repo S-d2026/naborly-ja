@@ -18,6 +18,16 @@ export default function EditListingPage() {
   const [description, setDescription] = useState('')
   const [photoUrl, setPhotoUrl] = useState<string | null>(null)
 
+  // Deal fields (optional). Dates are handled in Jamaica time (UTC-5, no DST)
+  // and a deal can run for at most 60 days, so old deals can't linger.
+  const [isDeal, setIsDeal] = useState(false)
+  const [dealText, setDealText] = useState('')
+  const [dealCode, setDealCode] = useState('')
+  const [dealEnd, setDealEnd] = useState('')
+  const jmDate = (ms: number) => new Date(ms - 5 * 60 * 60 * 1000).toISOString().slice(0, 10)
+  const todayJm = jmDate(Date.now())
+  const maxJm = jmDate(Date.now() + 60 * 24 * 60 * 60 * 1000)
+
   useEffect(() => {
     async function load() {
       const { data: { user } } = await supabase.auth.getUser()
@@ -32,6 +42,10 @@ export default function EditListingPage() {
       setTitle(listing.title)
       setDescription(listing.description || '')
       setPhotoUrl(listing.photo_url)
+      setIsDeal(!!listing.is_deal)
+      setDealText(listing.deal_text || '')
+      setDealCode(listing.deal_code || '')
+      setDealEnd(listing.deal_ends_at ? jmDate(new Date(listing.deal_ends_at).getTime()) : '')
       setLoading(false)
     }
     load()
@@ -61,11 +75,21 @@ export default function EditListingPage() {
       alert('Please enter a title.')
       return
     }
+    if (isDeal) {
+      if (!dealText.trim()) { alert('Please describe your deal, for example "10% off any order".'); return }
+      if (!dealEnd) { alert('Please choose the date your deal ends.'); return }
+      if (dealEnd < todayJm) { alert('The deal end date has already passed. Please choose today or a later date.'); return }
+      if (dealEnd > maxJm) { alert('A deal can run for at most 60 days. Please choose an earlier end date.'); return }
+    }
     setSaving(true)
     const { error } = await vendorUpdateListing(listingId, {
       title: title.trim(),
       description: description.trim(),
       photo_url: photoUrl,
+      is_deal: isDeal,
+      deal_text: isDeal ? dealText.trim() : null,
+      deal_code: isDeal && dealCode.trim() ? dealCode.trim() : null,
+      deal_ends_at: isDeal ? dealEnd + 'T23:59:59-05:00' : null,
     })
     setSaving(false)
     if (error) {
@@ -180,6 +204,59 @@ export default function EditListingPage() {
               {uploading ? 'Uploading...' : (photoUrl ? 'Choose different file' : 'Choose file')}
               <input type="file" accept="image/*" onChange={handlePhotoUpload} style={{ display: 'none' }} disabled={uploading} />
             </label>
+          </div>
+
+          <div style={{ background: '#FBF1D6', border: '1px solid #E8C877', borderRadius: 10, padding: 13, marginBottom: 20 }}>
+            <label style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, fontFamily: '-apple-system, sans-serif', fontWeight: 700, color: '#18180F', cursor: 'pointer' }}>
+              <input type="checkbox" checked={isDeal} onChange={e => setIsDeal(e.target.checked)} />
+              🏷️ Run a deal on this listing
+            </label>
+            <p style={{ fontSize: 11, fontFamily: '-apple-system, sans-serif', color: '#5A5A50', margin: '6px 0 0', lineHeight: 1.5 }}>
+              Shoppers can find it under the Deals filter. It switches off by itself on the end date.
+            </p>
+            {isDeal && (
+              <div style={{ marginTop: 12 }}>
+                <label style={{ fontSize: 11, fontFamily: '-apple-system, sans-serif', fontWeight: 700, color: '#5A5A50', display: 'block', marginBottom: 5 }}>
+                  What is the deal?
+                </label>
+                <input
+                  type="text"
+                  value={dealText}
+                  maxLength={60}
+                  placeholder="e.g. 10% off any order"
+                  onChange={e => setDealText(e.target.value)}
+                  style={{ width: '100%', padding: '9px 11px', borderRadius: 8, border: '1px solid #D8D0BC', fontSize: 13, fontFamily: '-apple-system, sans-serif', color: '#18180F', marginBottom: 12, boxSizing: 'border-box' }}
+                />
+                <label style={{ fontSize: 11, fontFamily: '-apple-system, sans-serif', fontWeight: 700, color: '#5A5A50', display: 'block', marginBottom: 5 }}>
+                  Code word (optional)
+                </label>
+                <input
+                  type="text"
+                  value={dealCode}
+                  maxLength={20}
+                  placeholder="e.g. NABERLY10"
+                  onChange={e => setDealCode(e.target.value)}
+                  style={{ width: '100%', padding: '9px 11px', borderRadius: 8, border: '1px solid #D8D0BC', fontSize: 13, fontFamily: '-apple-system, sans-serif', color: '#18180F', marginBottom: 4, boxSizing: 'border-box' }}
+                />
+                <p style={{ fontSize: 10, fontFamily: '-apple-system, sans-serif', color: '#8A8272', margin: '0 0 12px' }}>
+                  Customers say this word when they contact or visit you, so you know they found you here.
+                </p>
+                <label style={{ fontSize: 11, fontFamily: '-apple-system, sans-serif', fontWeight: 700, color: '#5A5A50', display: 'block', marginBottom: 5 }}>
+                  Deal ends on (up to 60 days)
+                </label>
+                <input
+                  type="date"
+                  value={dealEnd}
+                  min={todayJm}
+                  max={maxJm}
+                  onChange={e => setDealEnd(e.target.value)}
+                  style={{ width: '100%', padding: '9px 11px', borderRadius: 8, border: '1px solid #D8D0BC', fontSize: 13, fontFamily: '-apple-system, sans-serif', color: '#18180F', boxSizing: 'border-box' }}
+                />
+                <p style={{ fontSize: 10, fontFamily: '-apple-system, sans-serif', color: '#8A8272', margin: '10px 0 0', lineHeight: 1.5 }}>
+                  You are responsible for honouring the deal you post. NaberlyJA only displays it.
+                </p>
+              </div>
+            )}
           </div>
 
           <button
