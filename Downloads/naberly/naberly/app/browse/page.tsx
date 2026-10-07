@@ -578,6 +578,7 @@ function BrowseContent() {
   const [district, setDistrict] = useState(saved?.district || 'all')
   const [showParishModal, setShowParishModal] = useState(false)
   const [sponsor, setSponsor] = useState<any>(null)
+  const [sponsorDeals, setSponsorDeals] = useState<any[]>([])
   const [userLat, setUserLat] = useState<number | null>(null)
   const [userLng, setUserLng] = useState<number | null>(null)
   const [people, setPeople] = useState<any[]>([])
@@ -619,6 +620,7 @@ function BrowseContent() {
     })
     supabase.from('sponsors').select('*').eq('is_active', true).then(({ data }) => {
       if (data && data.length > 0) setSponsor(data[Math.floor(Math.random() * data.length)])
+      if (data) setSponsorDeals(data.filter((sp: any) => isDealActive(sp) && (!sp.expires_at || new Date(sp.expires_at).getTime() > Date.now())))
     })
   }, [])
 
@@ -687,6 +689,18 @@ function BrowseContent() {
                   {loading ? 'Loading...' : filtered.length + ' listing' + (filtered.length !== 1 ? 's' : '') + ' · ' + (parish === 'All Parishes' ? 'All parishes' : parish) + (district !== 'all' ? ', ' + district : ', All areas')}
                 </span>
               </div>
+              {category === 'deals' && sponsorDeals.map(sp => (
+                <div key={'spdeal-' + sp.id} onClick={() => { if (sp.whatsapp) window.open('https://wa.me/' + sp.whatsapp.replace(/\D/g, ''), '_blank') }} style={{ display: 'flex', alignItems: 'center', gap: 11, padding: '11px 13px', background: '#FBF1D6', borderBottom: '1px solid #E8C877', cursor: 'pointer' }}>
+                  <div style={{ width: 36, height: 36, borderRadius: 8, background: '#1B3A1D', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16, flexShrink: 0 }}>🏪</div>
+                  <div style={{ flex: 1, minWidth: 0 }}>
+                    <span style={{ fontSize: 9, fontFamily: '-apple-system, sans-serif', color: '#C8821A', fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase' }}>Community sponsor deal</span>
+                    <p style={{ fontSize: 12, fontFamily: '-apple-system, sans-serif', fontWeight: 700, color: '#18180F', marginBottom: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{sp.business_name}</p>
+                    <p style={{ fontSize: 10, fontFamily: '-apple-system, sans-serif', fontWeight: 700, color: '#7A4A00', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>🏷️ {sp.deal_text}{sp.deal_code ? ' · say "' + sp.deal_code + '"' : ''}</p>
+                    <p style={{ fontSize: 9, fontFamily: '-apple-system, sans-serif', color: '#5A5A50' }}>Ends {new Date(sp.deal_ends_at).toLocaleDateString('en-JM', { month: 'short', day: 'numeric' })}{sp.parish ? ' · ' + sp.parish : ''}</p>
+                  </div>
+                  <span style={{ fontSize: 11, background: '#1B3A1D', color: '#fff', borderRadius: 6, padding: '5px 8px', fontFamily: '-apple-system, sans-serif', whiteSpace: 'nowrap' }}>WhatsApp</span>
+                </div>
+              ))}
               {loading ? <div className="loading">Loading listings...</div> : filtered.length === 0 ? (
                 <div className="empty-state">
                   <p style={{ fontSize: 28, marginBottom: 8 }}>🔍</p>
@@ -722,6 +736,9 @@ function BrowseContent() {
                         <span style={{ fontSize: 9, fontFamily: '-apple-system, sans-serif', color: '#C8821A', fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase' }}>Community sponsor</span>
                         <p style={{ fontSize: 12, fontFamily: '-apple-system, sans-serif', fontWeight: 700, color: '#18180F', marginBottom: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{sponsor.business_name}</p>
                         <p style={{ fontSize: 10, fontFamily: '-apple-system, sans-serif', color: '#5A5A50', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{sponsor.tagline}</p>
+                        {isDealActive(sponsor) && (!sponsor.expires_at || new Date(sponsor.expires_at).getTime() > Date.now()) && (
+                          <p style={{ fontSize: 10, fontFamily: '-apple-system, sans-serif', fontWeight: 700, color: '#7A4A00', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>🏷️ {sponsor.deal_text}{sponsor.deal_code ? ' · say "' + sponsor.deal_code + '"' : ''}</p>
+                        )}
                       </div>
                       <span style={{ fontSize: 11, background: '#1B3A1D', color: '#fff', borderRadius: 6, padding: '5px 8px', fontFamily: '-apple-system, sans-serif', whiteSpace: 'nowrap' }}>WhatsApp</span>
                     </div>
