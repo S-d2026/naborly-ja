@@ -171,7 +171,7 @@ export default function SignupPage() {
 
             <p style={{ fontSize: 18, fontFamily: '-apple-system, sans-serif', fontWeight: 700, color: '#18180F', marginBottom: 4 }}>Terms & Conditions</p>
             <p style={{ fontSize: 11, fontFamily: '-apple-system, sans-serif', color: '#5A5A50', marginBottom: 18 }}>
-              Last updated: June 2026. By using NaberlyJA you agree to these terms.
+              Last updated: October 2026. By using NaberlyJA you agree to these terms.
             </p>
 
             <div style={{ marginBottom: 16 }}>
@@ -251,8 +251,15 @@ export default function SignupPage() {
               </p>
             </div>
 
+            <div style={{ marginBottom: 16 }}>
+              <p style={{ fontSize: 13, fontFamily: '-apple-system, sans-serif', fontWeight: 700, color: '#1B3A1D', marginBottom: 6 }}>12. Deals, Offers and Discounts</p>
+              <p style={{ fontSize: 12, fontFamily: '-apple-system, sans-serif', color: '#18180F', lineHeight: 1.7 }}>
+                Vendors and sponsors may post deals, discounts and code-word offers through NaberlyJA. Every deal is offered solely by the business that posts it. NaberlyJA does not fund, guarantee or honor any deal, and is not responsible if a business refuses, changes or cannot fulfil an offer, if stock runs out, or if a price or description is inaccurate. Businesses are responsible for making sure their deals are truthful and lawful, and for honoring them as described until the end date shown (Jamaica time). Deals end automatically on that date. A boost or Spotlight only increases visibility; it does not mean NaberlyJA has verified or endorses the deal or the business. NaberlyJA may remove any deal at any time. Customers should confirm an offer with the business before relying on it.
+              </p>
+            </div>
+
             <div style={{ marginBottom: 20 }}>
-              <p style={{ fontSize: 13, fontFamily: '-apple-system, sans-serif', fontWeight: 700, color: '#1B3A1D', marginBottom: 6 }}>12. Contact</p>
+              <p style={{ fontSize: 13, fontFamily: '-apple-system, sans-serif', fontWeight: 700, color: '#1B3A1D', marginBottom: 6 }}>13. Contact</p>
               <p style={{ fontSize: 12, fontFamily: '-apple-system, sans-serif', color: '#18180F', lineHeight: 1.7 }}>
                 For questions about these terms or to request account deletion, contact us at naberlyja@gmail.com or via WhatsApp at +19174432797.
               </p>
