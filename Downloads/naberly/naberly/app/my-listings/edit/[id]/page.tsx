@@ -2,7 +2,7 @@
 import { useState, useEffect, ChangeEvent } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import Link from 'next/link'
-import { supabase, getListingById, vendorUpdateListing, type Listing } from '@/lib/supabase'
+import { supabase, getListingById, vendorUpdateListing, isDealActive, type Listing } from '@/lib/supabase'
 
 export default function EditListingPage() {
   const router = useRouter()
@@ -24,6 +24,10 @@ export default function EditListingPage() {
   const [dealText, setDealText] = useState('')
   const [dealCode, setDealCode] = useState('')
   const [dealEnd, setDealEnd] = useState('')
+  // True only if this listing already has a live (saved, not yet expired) deal
+  // when the page opens. Used to offer Spotlight and to restart the claimed
+  // counter when a brand-new deal begins.
+  const [wasActive, setWasActive] = useState(false)
   const jmDate = (ms: number) => new Date(ms - 5 * 60 * 60 * 1000).toISOString().slice(0, 10)
   const todayJm = jmDate(Date.now())
   const maxJm = jmDate(Date.now() + 60 * 24 * 60 * 60 * 1000)
@@ -42,6 +46,7 @@ export default function EditListingPage() {
       setTitle(listing.title)
       setDescription(listing.description || '')
       setPhotoUrl(listing.photo_url)
+      setWasActive(isDealActive(listing))
       setIsDeal(!!listing.is_deal)
       setDealText(listing.deal_text || '')
       setDealCode(listing.deal_code || '')
@@ -90,6 +95,8 @@ export default function EditListingPage() {
       deal_text: isDeal ? dealText.trim() : null,
       deal_code: isDeal && dealCode.trim() ? dealCode.trim() : null,
       deal_ends_at: isDeal ? dealEnd + 'T23:59:59-05:00' : null,
+      // A brand-new deal starts its claimed count again from zero.
+      ...(isDeal && !wasActive ? { deal_claims: 0 } : {}),
     })
     setSaving(false)
     if (error) {
@@ -255,6 +262,17 @@ export default function EditListingPage() {
                 <p style={{ fontSize: 10, fontFamily: '-apple-system, sans-serif', color: '#8A8272', margin: '10px 0 0', lineHeight: 1.5 }}>
                   You are responsible for honouring the deal you post. NaberlyJA only displays it.
                 </p>
+                <div style={{ marginTop: 12, paddingTop: 12, borderTop: '1px solid #E8C877' }}>
+                  {wasActive ? (
+                    <Link href={'/boost?listing=' + listingId + '&plan=weekly'} style={{ display: 'inline-block', background: '#C8821A', color: '#fff', borderRadius: 7, padding: '9px 14px', fontSize: 12, fontFamily: '-apple-system, sans-serif', fontWeight: 700, textDecoration: 'none' }}>
+                      ⭐ Spotlight this deal
+                    </Link>
+                  ) : (
+                    <p style={{ fontSize: 11, fontFamily: '-apple-system, sans-serif', color: '#5A5A50', lineHeight: 1.5 }}>
+                      ⭐ Want your deal shown first? Save it, then come back here to Spotlight it.
+                    </p>
+                  )}
+                </div>
               </div>
             )}
           </div>
