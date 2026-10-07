@@ -32,6 +32,7 @@ export interface Listing {
   deal_text?: string | null
   deal_code?: string | null
   deal_ends_at?: string | null
+  deal_claims?: number | null
   lat: number | null
   lng: number | null
   view_count: number
@@ -281,12 +282,28 @@ export async function vendorUpdateListing(listingId: string, updates: {
   deal_text?: string | null
   deal_code?: string | null
   deal_ends_at?: string | null
+  deal_claims?: number
 }) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { data: null, error: new Error('Not authenticated') }
   return supabase
     .from('listings')
     .update({ ...updates, updated_at: new Date().toISOString() })
+    .eq('id', listingId)
+    .eq('user_id', user.id)
+    .select()
+    .single()
+}
+
+// Vendor "claimed" counter for a deal — the vendor taps +1 each time a
+// customer uses the code word. Only ever writes deal_claims, only on the
+// vendor's own listing, and never goes below zero.
+export async function vendorSetDealClaims(listingId: string, count: number) {
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return { data: null, error: new Error('Not authenticated') }
+  return supabase
+    .from('listings')
+    .update({ deal_claims: Math.max(0, Math.round(count)) })
     .eq('id', listingId)
     .eq('user_id', user.id)
     .select()
