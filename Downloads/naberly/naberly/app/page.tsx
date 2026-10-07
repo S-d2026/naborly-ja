@@ -1,7 +1,7 @@
 'use client'
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
-import { supabase, getApprovedListings, getImpactStories, type Listing, type ImpactStory } from '@/lib/supabase'
+import { supabase, getApprovedListings, getImpactStories, type Listing, type ImpactStory, isDealActive } from '@/lib/supabase'
 
 const CATEGORY_TILES = [
   { key: 'food', label: 'Need Food', sub: 'Free or low cost nearby', emoji: '🍲', bg: '#D0E8BC', textColor: '#1B3A1D', subColor: '#2D5A2E', href: '/browse?category=food' },
@@ -346,6 +346,9 @@ export default function HomePage() {
                       <span style={{ fontSize: 9, fontFamily: '-apple-system, sans-serif', color: '#C8821A', fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase' }}>Community sponsor</span>
                       <p style={{ fontSize: 12, fontFamily: '-apple-system, sans-serif', fontWeight: 700, color: '#18180F', marginBottom: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{sponsor.business_name}</p>
                       <p style={{ fontSize: 10, fontFamily: '-apple-system, sans-serif', color: '#5A5A50', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{sponsor.tagline}</p>
+                      {isDealActive(sponsor) && (!sponsor.expires_at || new Date(sponsor.expires_at).getTime() > Date.now()) && (
+                        <p style={{ fontSize: 10, fontFamily: '-apple-system, sans-serif', fontWeight: 700, color: '#7A4A00', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>🏷️ {sponsor.deal_text}{sponsor.deal_code ? ' · say "' + sponsor.deal_code + '"' : ''}</p>
+                      )}
                     </div>
                     <span style={{ fontSize: 11, background: '#1B3A1D', color: '#fff', borderRadius: 6, padding: '5px 8px', fontFamily: '-apple-system, sans-serif', whiteSpace: 'nowrap' }}>WhatsApp</span>
                   </div>
