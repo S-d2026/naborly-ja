@@ -2,6 +2,7 @@
 import { useState, useEffect, useRef, type ReactNode } from 'react'
 import Link from 'next/link'
 import { supabase } from '@/lib/supabase'
+import OwnershipTrivia from '@/components/OwnershipTrivia'
 import { PayPalScriptProvider, PayPalButtons } from '@paypal/react-paypal-js'
 
 // Same live PayPal app already used for Boosts/Sponsor packages.
@@ -633,6 +634,8 @@ function JamaicaLifeTab({ rate, rateIsLive }: { rate: number; rateIsLive: boolea
         <p className="text-xs text-gray-400">Everyday money, paperwork and safety information for Jamaicans at home and abroad — each box is built only from an official or published source, named at the bottom of the box. Where a source doesn't publish something (a deadline, a rate), the box says so rather than guessing.</p>
       </div>
       <div className="grid grid-cols-1 gap-3">
+
+        <OwnershipTrivia variant="markets" />
 
         <LifeBox icon="💸" title="Sending money to Jamaica: what it really costs" blurb="Real fees and exchange-rate markups on a US$200 transfer, provider by provider, cheapest first."
           source="World Bank, Remittance Prices Worldwide — United States → Jamaica corridor, Q3 2025 (collected Aug 13–28, 2025). Dollar figures are the World Bank's; the JMD column is our estimate.">
