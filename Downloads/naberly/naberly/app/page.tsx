@@ -2,6 +2,7 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { supabase, getApprovedListings, getImpactStories, type Listing, type ImpactStory, isDealActive } from '@/lib/supabase'
+import OwnershipTrivia from '@/components/OwnershipTrivia'
 
 const CATEGORY_TILES = [
   { key: 'food', label: 'Need Food', sub: 'Free or low cost nearby', emoji: '🍲', bg: '#D0E8BC', textColor: '#1B3A1D', subColor: '#2D5A2E', href: '/browse?category=food' },
@@ -227,6 +228,9 @@ export default function HomePage() {
           </div>
           <svg width="13" height="13" viewBox="0 0 13 13" fill="none"><path d="M4 3L9 6.5L4 10" stroke="rgba(255,255,255,0.4)" strokeWidth="1.3" strokeLinecap="round"/></svg>
         </Link>
+
+        {/* DO YOU KNOW JAMAICA? — ownership trivia */}
+        <OwnershipTrivia variant="home" />
 
         {/* FEATURED LISTINGS ROW */}
         {featuredListings.length > 0 && (
