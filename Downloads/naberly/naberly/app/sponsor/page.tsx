@@ -56,6 +56,9 @@ export default function SponsorPage() {
   const [businessWhatsApp, setBusinessWhatsApp] = useState('')
   const [parish, setParish] = useState('')
   const [tagline, setTagline] = useState('')
+  const [dealText, setDealText] = useState('')
+  const [dealCode, setDealCode] = useState('')
+  const [dealEnds, setDealEnds] = useState('')
   const [paymentNote, setPaymentNote] = useState('')
   const [success, setSuccess] = useState(false)
   const [successPkg, setSuccessPkg] = useState<typeof PACKAGES[0] | null>(null)
@@ -82,6 +85,20 @@ export default function SponsorPage() {
   const pkg = PACKAGES.find(p => p.name === selectedPackage)
   const freeSpotsRemaining = freeSpotsClaimed === null ? null : Math.max(0, FREE_SPOTS_TOTAL - freeSpotsClaimed)
 
+  // Jamaica is UTC-5 all year (no daylight saving). Deal ends at 11:59 PM Jamaica time on the chosen date.
+  function jmDate(offsetDays: number) {
+    const d = new Date(Date.now() - 5 * 3600 * 1000 + offsetDays * 86400000)
+    return d.toISOString().slice(0, 10)
+  }
+  function dealFields() {
+    if (!dealText.trim() || !dealEnds) return { deal_text: null, deal_code: null, deal_ends_at: null }
+    return {
+      deal_text: dealText.trim(),
+      deal_code: dealCode.trim() || null,
+      deal_ends_at: new Date(dealEnds + 'T23:59:59-05:00').toISOString(),
+    }
+  }
+
   async function activateSponsor(payMethod: string, note?: string) {
     if (!pkg) return
     const now = new Date()
@@ -89,6 +106,7 @@ export default function SponsorPage() {
     await supabase.from('sponsors').insert([{
       business_name: businessName.trim(),
       tagline: tagline.trim() || null,
+      ...dealFields(),
       parish: parish.trim() || null,
       whatsapp: businessWhatsApp.trim() || null,
       package: pkg.name,
@@ -120,6 +138,7 @@ export default function SponsorPage() {
       await supabase.from('sponsors').insert([{
         business_name: businessName.trim(),
         tagline: tagline.trim() || null,
+      ...dealFields(),
         parish: parish.trim() || null,
         whatsapp: businessWhatsApp.trim() || null,
         package: pkg.name,
@@ -309,6 +328,18 @@ export default function SponsorPage() {
                   <input className="form-field" placeholder="e.g. Best prices in Montego Bay" value={tagline} onChange={e => setTagline(e.target.value)} />
                   <p style={{ fontSize: 9, fontFamily: '-apple-system, sans-serif', color: '#5A5A50', marginTop: 2 }}>One line shown under your business name in the feed</p>
                 </div>
+                <div style={{ background: '#FBF1D6', border: '1px solid #E8C877', borderRadius: 10, padding: 12 }}>
+                  <p style={{ fontSize: 12, fontFamily: '-apple-system, sans-serif', fontWeight: 700, color: '#7A4A00', marginBottom: 3 }}>🏷️ Add a deal (optional)</p>
+                  <p style={{ fontSize: 10, fontFamily: '-apple-system, sans-serif', color: '#5A5A50', lineHeight: 1.5, marginBottom: 9 }}>
+                    Your sponsor card will show your offer, and it will also appear under the Deals filter in Browse. The offer is yours, honored by your business, not by NaberlyJA.
+                  </p>
+                  <label className="field-label">Your offer</label>
+                  <input className="form-field" maxLength={60} placeholder="e.g. 10% off with code word" value={dealText} onChange={e => setDealText(e.target.value)} />
+                  <label className="field-label" style={{ marginTop: 9 }}>Code word customers say (optional)</label>
+                  <input className="form-field" maxLength={20} placeholder="e.g. NABERLY" value={dealCode} onChange={e => setDealCode(e.target.value)} />
+                  <label className="field-label" style={{ marginTop: 9 }}>Deal ends on</label>
+                  <input className="form-field" type="date" min={jmDate(0)} max={jmDate(60)} value={dealEnds} onChange={e => setDealEnds(e.target.value)} />
+                </div>
               </div>
 
               {error && (
@@ -320,6 +351,8 @@ export default function SponsorPage() {
               <button className="btn-primary" onClick={() => {
                 if (!businessName.trim()) { setError('Please enter your business name.'); return }
                 if (!businessWhatsApp.trim()) { setError('Please enter your WhatsApp number.'); return }
+                if (dealText.trim() && !dealEnds) { setError('Please pick the date your deal ends, or clear the offer.'); return }
+                if (dealEnds && !dealText.trim()) { setError('Please type your offer, or clear the end date.'); return }
                 setError('')
                 setStep('pay')
               }} style={{ marginBottom: 8 }}>
