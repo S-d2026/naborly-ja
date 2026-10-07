@@ -2,7 +2,7 @@
 import { useState, useEffect, useCallback, useRef, Suspense } from 'react'
 import Link from 'next/link'
 import { useSearchParams } from 'next/navigation'
-import { supabase, getApprovedListings, getDistanceKm, formatDistance, toggleSaved, goLive, updateLiveLocation, stopLive, getLiveLocation, type Listing, type VendorLocation } from '@/lib/supabase'
+import { supabase, getApprovedListings, isDealActive, getDistanceKm, formatDistance, toggleSaved, goLive, updateLiveLocation, stopLive, getLiveLocation, type Listing, type VendorLocation } from '@/lib/supabase'
 import { PayPalScriptProvider, PayPalButtons } from '@paypal/react-paypal-js'
 
 const PARISHES = ['All Parishes','Kingston','St. Andrew','St. Thomas','Portland','St. Mary','St. Ann','Trelawny','St. James','Hanover','Westmoreland','St. Elizabeth','Manchester','Clarendon','St. Catherine','Other (outside Jamaica)']
@@ -20,6 +20,7 @@ const DISTRICTS: Record<string, string[]> = {
 }
 const CATEGORIES = [
   { key: 'all', label: 'All' },
+  { key: 'deals', label: '🏷️ Deals' },
   { key: 'food', label: 'Food' },
   { key: 'urgent', label: 'Urgent' },
   { key: 'work', label: 'Work' },
@@ -361,6 +362,7 @@ function ListingPanel({ listingId, onClose, userLat, userLng }: { listingId: str
                     {listing.category === 'urgent' && <span className="chip chip-urgent">Urgent</span>}
                     {listing.is_anonymous && <span className="chip chip-anon">Anonymous</span>}
                     {listing.is_featured && <span className="chip chip-featured">Featured</span>}
+                    {isDealActive(listing) && <span className="chip" style={{ background: '#FBE3B0', color: '#7A4A00' }}>🏷️ Deal</span>}
                     {isLive && <span style={{ background: '#F0CABA', color: '#6B1E10', fontSize: 9, fontFamily: '-apple-system, sans-serif', fontWeight: 700, padding: '2px 7px', borderRadius: 3, letterSpacing: 0.5, textTransform: 'uppercase' }}>Live location</span>}
                     <span className="chip chip-neutral">{listing.parish}</span>
                     {listing.district && <span className="chip chip-neutral">{listing.district}</span>}
@@ -371,6 +373,26 @@ function ListingPanel({ listingId, onClose, userLat, userLng }: { listingId: str
                   <p style={{ fontSize: 18, color: '#1B3A1D', marginBottom: 10 }}>{listing.price_jmd ? listing.price_jmd : listing.is_free ? 'Free' : 'By quote'}</p>
                   <div className="divider" />
                   {listing.description && <p style={{ fontSize: 12, fontFamily: '-apple-system, sans-serif', color: '#18180F', lineHeight: 1.75, marginBottom: 10 }}>{listing.description}</p>}
+
+                  {isDealActive(listing) && (
+                    <div style={{ background: '#FBF1D6', border: '1px solid #E8C877', borderRadius: 10, padding: 13, marginBottom: 12 }}>
+                      <p style={{ fontSize: 10, fontFamily: '-apple-system, sans-serif', fontWeight: 700, color: '#7A4A00', letterSpacing: 0.5, textTransform: 'uppercase', marginBottom: 4 }}>🏷️ Deal</p>
+                      <p style={{ fontSize: 15, color: '#18180F', fontWeight: 700, lineHeight: 1.35, marginBottom: 6 }}>{listing.deal_text}</p>
+                      {listing.deal_code && (
+                        <p style={{ fontSize: 12, fontFamily: '-apple-system, sans-serif', color: '#18180F', marginBottom: 4 }}>
+                          How to claim: mention the code word <strong style={{ background: '#fff', border: '1px dashed #C8821A', borderRadius: 4, padding: '1px 6px' }}>{listing.deal_code}</strong> when you contact or visit.
+                        </p>
+                      )}
+                      {listing.deal_ends_at && (
+                        <p style={{ fontSize: 11, fontFamily: '-apple-system, sans-serif', color: '#5A5A50', marginBottom: 6 }}>
+                          Ends {new Date(listing.deal_ends_at).toLocaleDateString('en-JM', { year: 'numeric', month: 'short', day: 'numeric' })}
+                        </p>
+                      )}
+                      <p style={{ fontSize: 10, fontFamily: '-apple-system, sans-serif', color: '#8A8272', lineHeight: 1.5 }}>
+                        Offered by the business, not by NaberlyJA. Confirm the details with the vendor before you go.
+                      </p>
+                    </div>
+                  )}
 
                   {showDonateButton && (
                     <div style={{ background: '#F5F0E6', borderRadius: 10, padding: 13, marginBottom: 12, border: '1px solid #D8D0BC' }}>
@@ -676,12 +698,13 @@ function BrowseContent() {
                         {listing.is_free && <span className="chip chip-free">Free</span>}
                         {listing.is_anonymous && <span className="chip chip-anon">Anon</span>}
                         {listing.is_featured && <span className="chip chip-featured">Featured</span>}
+                        {isDealActive(listing) && <span className="chip" style={{ background: '#FBE3B0', color: '#7A4A00' }}>🏷️ Deal</span>}
                         {listing.category === 'urgent' && <span className="chip chip-urgent">Urgent</span>}
                       </div>
                       <p style={{ fontSize: 12, fontFamily: '-apple-system, sans-serif', fontWeight: 700, color: '#18180F', marginBottom: 2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{listing.title}</p>
                       <p style={{ fontSize: 10, fontFamily: '-apple-system, sans-serif', color: '#5A5A50' }}>
                         {listing.district || listing.parish}
-                        {listing.price_jmd ? ' · ' + listing.price_jmd : listing.is_free ? ' · Free' : ''}
+                        {isDealActive(listing) && listing.deal_text ? ' · ' + listing.deal_text : listing.price_jmd ? ' · ' + listing.price_jmd : listing.is_free ? ' · Free' : ''}
                         {listing.lat && userLat && userLng ? ' · 📍 ' + formatDistance(getDistanceKm(userLat, userLng, listing.lat, listing.lng!)) : ''}
                       </p>
                     </div>
