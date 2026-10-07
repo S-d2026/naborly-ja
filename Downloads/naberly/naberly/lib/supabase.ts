@@ -27,6 +27,11 @@ export interface Listing {
   is_featured: boolean
   featured_until: string | null
   photo_url: string | null
+  // Deals (optional — only present after the deals migration has been run)
+  is_deal?: boolean | null
+  deal_text?: string | null
+  deal_code?: string | null
+  deal_ends_at?: string | null
   lat: number | null
   lng: number | null
   view_count: number
@@ -99,6 +104,12 @@ export function formatDistance(km: number): string {
 // as a diaspora/outside-Jamaica listing for filtering purposes.
 const JAMAICA_PARISHES = ['Kingston','St. Andrew','St. Thomas','Portland','St. Mary','St. Ann','Trelawny','St. James','Hanover','Westmoreland','St. Elizabeth','Manchester','Clarendon','St. Catherine']
 
+// A deal is "active" only while is_deal is on AND its end date is still in
+// the future. Expired deals simply stop showing — no cleanup job needed.
+export function isDealActive(l: { is_deal?: boolean | null; deal_ends_at?: string | null }) {
+  return !!l.is_deal && !!l.deal_ends_at && new Date(l.deal_ends_at).getTime() > Date.now()
+}
+
 export async function getApprovedListings(filters?: {
   parish?: string
   district?: string
@@ -124,7 +135,11 @@ export async function getApprovedListings(filters?: {
   if (filters?.district && filters.district !== 'all') {
     query = query.ilike('district', '%' + filters.district + '%')
   }
-  if (filters?.category && filters.category !== 'all') {
+  if (filters?.category === 'deals') {
+    // "Deals" is a filter, not a category: any approved listing whose deal
+    // is switched on and has not yet ended.
+    query = query.eq('is_deal', true).gt('deal_ends_at', new Date().toISOString())
+  } else if (filters?.category && filters.category !== 'all') {
     query = query.eq('category', filters.category)
   }
   if (filters?.is_free) {
@@ -254,11 +269,19 @@ export async function getListingById(listingId: string) {
 }
 
 // Vendor self-service edit — lets a vendor update their own listing's
-// title, description, and photo after it has already been posted.
-// Only ever touches these three fields, only on the vendor's own
-// listing (enforced by the user_id match below), and never changes
-// status, category, pricing, or any other field.
-export async function vendorUpdateListing(listingId: string, updates: { title?: string; description?: string; photo_url?: string | null }) {
+// title, description, photo, and (optionally) its deal after it has
+// already been posted. Only ever touches these fields, only on the
+// vendor's own listing (enforced by the user_id match below), and never
+// changes status, category, pricing, or any other field.
+export async function vendorUpdateListing(listingId: string, updates: {
+  title?: string
+  description?: string
+  photo_url?: string | null
+  is_deal?: boolean
+  deal_text?: string | null
+  deal_code?: string | null
+  deal_ends_at?: string | null
+}) {
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return { data: null, error: new Error('Not authenticated') }
   return supabase
