@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { useRouter } from 'next/navigation'
-import { supabase, getUserListings, adminUpdateListing, vendorTogglePause, type Listing } from '@/lib/supabase'
+import { supabase, getUserListings, adminUpdateListing, vendorTogglePause, vendorSetDealClaims, isDealActive, type Listing } from '@/lib/supabase'
 
 export default function MyListingsPage() {
   const router = useRouter()
@@ -36,6 +36,19 @@ export default function MyListingsPage() {
       return
     }
     setListings(prev => prev.map(l => l.id === listing.id ? { ...l, vendor_paused: newValue } : l))
+  }
+
+  async function handleClaim(listing: Listing, delta: number) {
+    const next = Math.max(0, (listing.deal_claims || 0) + delta)
+    if (next === (listing.deal_claims || 0)) return
+    setTogglingId(listing.id)
+    const { error } = await vendorSetDealClaims(listing.id, next)
+    setTogglingId(null)
+    if (error) {
+      alert('Could not update the count. Please try again.')
+      return
+    }
+    setListings(prev => prev.map(l => l.id === listing.id ? { ...l, deal_claims: next } : l))
   }
 
   const STATUS_DOT: Record<string, string> = {
@@ -97,6 +110,21 @@ export default function MyListingsPage() {
                     {label} · {listing.district || listing.parish}
                     {listing.status === 'approved' && !listing.vendor_paused ? ' · ' + (listing.response_count || 0) + ' responses' : ''}
                   </p>
+                  {isDealActive(listing) && (
+                    <div style={{ background: '#FBF1D6', border: '1px solid #E8C877', borderRadius: 7, padding: '8px 10px', marginBottom: 8 }}>
+                      <p style={{ fontSize: 11, fontFamily: '-apple-system, sans-serif', fontWeight: 700, color: '#7A4A00', marginBottom: 2 }}>🏷️ {listing.deal_text}</p>
+                      <p style={{ fontSize: 10, fontFamily: '-apple-system, sans-serif', color: '#5A5A50', marginBottom: 7 }}>
+                        Ends {listing.deal_ends_at ? new Date(listing.deal_ends_at).toLocaleDateString('en-JM', { month: 'short', day: 'numeric' }) : ''}
+                        {listing.deal_code ? ' · Code word: ' + listing.deal_code : ''}
+                      </p>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+                        <span style={{ fontSize: 11, fontFamily: '-apple-system, sans-serif', color: '#18180F' }}>Claimed: <strong>{listing.deal_claims || 0}</strong></span>
+                        <button onClick={() => handleClaim(listing, 1)} disabled={togglingId === listing.id} style={{ background: '#1B3A1D', color: '#fff', border: 'none', borderRadius: 5, padding: '5px 9px', fontSize: 10, fontFamily: '-apple-system, sans-serif', fontWeight: 700, cursor: 'pointer', opacity: togglingId === listing.id ? 0.6 : 1 }}>+1 claimed</button>
+                        <button onClick={() => handleClaim(listing, -1)} disabled={togglingId === listing.id || !(listing.deal_claims || 0)} style={{ background: '#EDE7D9', color: '#5A5A50', border: '1px solid #D8D0BC', borderRadius: 5, padding: '5px 9px', fontSize: 10, fontFamily: '-apple-system, sans-serif', cursor: 'pointer' }}>−1</button>
+                        <Link href={'/boost?listing=' + listing.id + '&plan=weekly'} style={{ background: '#C8821A', color: '#fff', borderRadius: 5, padding: '5px 9px', fontSize: 10, fontFamily: '-apple-system, sans-serif', fontWeight: 700, textDecoration: 'none' }}>⭐ Spotlight</Link>
+                      </div>
+                    </div>
+                  )}
                   <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
                     {(listing.status === 'approved' || listing.status === 'pending') && (
                       <Link href={'/my-listings/edit/' + listing.id} style={{ background: '#EDE7D9', color: '#18180F', border: '1px solid #D8D0BC', borderRadius: 5, padding: '5px 9px', fontSize: 10, fontFamily: '-apple-system, sans-serif', fontWeight: 700, textDecoration: 'none' }}>
