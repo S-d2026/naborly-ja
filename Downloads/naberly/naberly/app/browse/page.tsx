@@ -391,6 +391,12 @@ function ListingPanel({ listingId, onClose, userLat, userLng }: { listingId: str
                       <p style={{ fontSize: 10, fontFamily: '-apple-system, sans-serif', color: '#8A8272', lineHeight: 1.5 }}>
                         Offered by the business, not by NaberlyJA. Confirm the details with the vendor before you go.
                       </p>
+                      {isOwner && (
+                        <div style={{ marginTop: 10, paddingTop: 10, borderTop: '1px solid #E8C877', display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10, flexWrap: 'wrap' }}>
+                          <span style={{ fontSize: 11, fontFamily: '-apple-system, sans-serif', color: '#5A5A50' }}>Claimed so far: <strong>{listing.deal_claims || 0}</strong> (you only see this)</span>
+                          <Link href={'/boost?listing=' + listing.id + '&plan=weekly'} style={{ background: '#C8821A', color: '#fff', borderRadius: 6, padding: '6px 11px', fontSize: 11, fontFamily: '-apple-system, sans-serif', fontWeight: 700, textDecoration: 'none' }}>⭐ Spotlight this deal</Link>
+                        </div>
+                      )}
                     </div>
                   )}
 
