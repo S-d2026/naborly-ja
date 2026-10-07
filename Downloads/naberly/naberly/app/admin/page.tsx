@@ -281,6 +281,9 @@ export default function AdminPage() {
   const [expandedAmbassadorId, setExpandedAmbassadorId] = useState<string | null>(null)
   const [activity, setActivity] = useState<any[]>([])
   const [activityLoading, setActivityLoading] = useState(true)
+  const [editingSponsorId, setEditingSponsorId] = useState<string | null>(null)
+  const [editSponsor, setEditSponsor] = useState({ business_name: '', tagline: '', parish: '', whatsapp: '', deal_text: '', deal_code: '', deal_ends: '' })
+  const [savingSponsor, setSavingSponsor] = useState(false)
   const [newSponsor, setNewSponsor] = useState({
     business_name: '',
     tagline: '',
@@ -404,6 +407,42 @@ export default function AdminPage() {
   async function deleteSponsor(id: string) {
     await supabase.from('sponsors').delete().eq('id', id)
     setSponsors(prev => prev.filter(s => s.id !== id))
+  }
+
+  function startEditSponsor(sp: any) {
+    setEditingSponsorId(sp.id)
+    setEditSponsor({
+      business_name: sp.business_name || '',
+      tagline: sp.tagline || '',
+      parish: sp.parish || '',
+      whatsapp: sp.whatsapp || '',
+      deal_text: sp.deal_text || '',
+      deal_code: sp.deal_code || '',
+      // Jamaica is UTC-5 all year, so shift back 5 hours to get the Jamaica calendar date
+      deal_ends: sp.deal_ends_at ? new Date(new Date(sp.deal_ends_at).getTime() - 5 * 3600 * 1000).toISOString().slice(0, 10) : '',
+    })
+  }
+
+  async function saveSponsorEdit() {
+    if (!editingSponsorId) return
+    if (!editSponsor.business_name.trim()) { alert('Business name is required.'); return }
+    const hasDeal = !!editSponsor.deal_text.trim()
+    if (hasDeal && !editSponsor.deal_ends) { alert('Please pick the date the deal ends, or clear the offer.'); return }
+    setSavingSponsor(true)
+    const updates = {
+      business_name: editSponsor.business_name.trim(),
+      tagline: editSponsor.tagline.trim() || null,
+      parish: editSponsor.parish.trim() || null,
+      whatsapp: editSponsor.whatsapp.trim() || null,
+      deal_text: hasDeal ? editSponsor.deal_text.trim() : null,
+      deal_code: hasDeal ? (editSponsor.deal_code.trim() || null) : null,
+      deal_ends_at: hasDeal ? new Date(editSponsor.deal_ends + 'T23:59:59-05:00').toISOString() : null,
+    }
+    const { error } = await supabase.from('sponsors').update(updates).eq('id', editingSponsorId)
+    setSavingSponsor(false)
+    if (error) { alert('Could not save. If this mentions deal_text, run the Phase 2c SQL first.'); return }
+    setSponsors(prev => prev.map(sp => sp.id === editingSponsorId ? { ...sp, ...updates } : sp))
+    setEditingSponsorId(null)
   }
 
   async function addSponsor() {
@@ -706,6 +745,11 @@ export default function AdminPage() {
                 <p style={{ fontSize: 10, fontFamily: '-apple-system, sans-serif', color: '#5A5A50', marginBottom: 3 }}>
                   {sponsor.tagline}{sponsor.parish ? ' · ' + sponsor.parish : ''}
                 </p>
+                {sponsor.deal_text && (
+                  <p style={{ fontSize: 10, fontFamily: '-apple-system, sans-serif', fontWeight: 700, color: '#7A4A00', marginBottom: 3 }}>
+                    🏷️ {sponsor.deal_text}{sponsor.deal_code ? ' · code: ' + sponsor.deal_code : ''}{sponsor.deal_ends_at ? ' · ' + (new Date(sponsor.deal_ends_at) < new Date() ? 'ended ' : 'ends ') + new Date(sponsor.deal_ends_at).toLocaleDateString('en-JM') : ''}
+                  </p>
+                )}
                 {sponsor.package && (
                   <p style={{ fontSize: 10, fontFamily: '-apple-system, sans-serif', color: '#C8821A', marginBottom: 3 }}>
                     {sponsor.package} · {sponsor.payment_method} · {sponsor.payment_status}
@@ -716,7 +760,29 @@ export default function AdminPage() {
                     {new Date(sponsor.expires_at) < new Date() ? 'Expired ' : 'Expires '}{new Date(sponsor.expires_at).toLocaleDateString('en-JM')}
                   </p>
                 )}
+                {editingSponsorId === sponsor.id && (
+                  <div style={{ background: '#F5F0E6', border: '1px solid #D8D0BC', borderRadius: 8, padding: 10, marginBottom: 8, display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    <div><label className="field-label">Business name *</label><input className="form-field" value={editSponsor.business_name} onChange={e => setEditSponsor(p => ({ ...p, business_name: e.target.value }))} /></div>
+                    <div><label className="field-label">Tagline</label><input className="form-field" value={editSponsor.tagline} onChange={e => setEditSponsor(p => ({ ...p, tagline: e.target.value }))} /></div>
+                    <div><label className="field-label">Parish</label><input className="form-field" value={editSponsor.parish} onChange={e => setEditSponsor(p => ({ ...p, parish: e.target.value }))} /></div>
+                    <div><label className="field-label">WhatsApp</label><input className="form-field" type="tel" value={editSponsor.whatsapp} onChange={e => setEditSponsor(p => ({ ...p, whatsapp: e.target.value }))} /></div>
+                    <div style={{ background: '#FBF1D6', border: '1px solid #E8C877', borderRadius: 8, padding: 9 }}>
+                      <p style={{ fontSize: 11, fontFamily: '-apple-system, sans-serif', fontWeight: 700, color: '#7A4A00', marginBottom: 6 }}>🏷️ Deal (leave the offer empty to remove the deal)</p>
+                      <label className="field-label">Offer</label>
+                      <input className="form-field" maxLength={60} value={editSponsor.deal_text} onChange={e => setEditSponsor(p => ({ ...p, deal_text: e.target.value }))} />
+                      <label className="field-label" style={{ marginTop: 7 }}>Code word</label>
+                      <input className="form-field" maxLength={20} value={editSponsor.deal_code} onChange={e => setEditSponsor(p => ({ ...p, deal_code: e.target.value }))} />
+                      <label className="field-label" style={{ marginTop: 7 }}>Ends on</label>
+                      <input className="form-field" type="date" value={editSponsor.deal_ends} onChange={e => setEditSponsor(p => ({ ...p, deal_ends: e.target.value }))} />
+                    </div>
+                    <div style={{ display: 'flex', gap: 6 }}>
+                      <button onClick={saveSponsorEdit} disabled={savingSponsor} style={{ background: '#1B3A1D', color: '#fff', border: 'none', borderRadius: 6, padding: '8px 14px', fontSize: 11, fontFamily: '-apple-system, sans-serif', fontWeight: 700, cursor: 'pointer', opacity: savingSponsor ? 0.6 : 1 }}>{savingSponsor ? 'Saving...' : 'Save changes'}</button>
+                      <button onClick={() => setEditingSponsorId(null)} style={{ background: '#EDE7D9', color: '#5A5A50', border: '1px solid #D8D0BC', borderRadius: 6, padding: '8px 14px', fontSize: 11, fontFamily: '-apple-system, sans-serif', cursor: 'pointer' }}>Cancel</button>
+                    </div>
+                  </div>
+                )}
                 <div style={{ display: 'flex', gap: 5 }}>
+                  <button onClick={() => editingSponsorId === sponsor.id ? setEditingSponsorId(null) : startEditSponsor(sponsor)} style={{ background: '#EDE7D9', color: '#18180F', border: '1px solid #D8D0BC', borderRadius: 5, padding: '5px 9px', fontSize: 10, fontFamily: '-apple-system, sans-serif', fontWeight: 700, cursor: 'pointer' }}>Edit</button>
                   <button onClick={() => toggleSponsor(sponsor.id, sponsor.is_active)} style={{ background: sponsor.is_active ? '#EDE7D9' : '#1B3A1D', color: sponsor.is_active ? '#5A5A50' : '#fff', border: '1px solid #D8D0BC', borderRadius: 5, padding: '5px 9px', fontSize: 10, fontFamily: '-apple-system, sans-serif', cursor: 'pointer' }}>
                     {sponsor.is_active ? 'Pause' : 'Activate'}
                   </button>
